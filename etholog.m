@@ -12,9 +12,9 @@ function [] = etholog(varargin)
     p.addParameter('Out', 'out', @(x) ischar(x));
     p.parse(varargin{:});
     
-    fprintf('Input name: %s\n', p.Results.Name);
-    fprintf('Background color %f %f %f\n', p.Results.Bkgd(1), p.Results.Bkgd(2), p.Results.Bkgd(3)); 
-    fprintf('Screen %d\n', p.Results.Screen);
+%     fprintf('Input name: %s\n', p.Results.Name);
+%     fprintf('Background color %f %f %f\n', p.Results.Bkgd(1), p.Results.Bkgd(2), p.Results.Bkgd(3)); 
+%     fprintf('Screen %d\n', p.Results.Screen);
     
     % verify output folder existence.
     if ~isdir(p.Results.Out)
@@ -50,6 +50,9 @@ function [] = etholog(varargin)
     %% init eye tracker
     
     tracker = eyetracker(cclab.dummymode_EYE, p.Results.Name, window);
+    
+    %% stop for a sec
+    WaitSecs(2.0);
     
 
 end

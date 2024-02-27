@@ -5,6 +5,8 @@ function [cclab] = load_local_config()
 
     cclab.dummymode_EYE = 1;
     cclab.SkipSyncTests = 1;
+    cclab.Verbosity = 0;
+    cclab.VisualDebugLevel = 1;
 
 end
 
