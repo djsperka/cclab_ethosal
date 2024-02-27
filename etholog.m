@@ -28,45 +28,46 @@ function [] = etholog(varargin)
     
     cclab = load_local_config();
 
-
+    %% Cleanup object
+    myCleanupObj = onCleanup(@cleanup);
+    
     %% Init ptb. 
     % arg == 0 : AssertOpenGL
     % arg == 1 : also KbName('UnifyKeyNames')
-    % arg == 2 : also setcolor range 0-1 instead of 0-255 (assuming you use
-    % PsychImaging('OpenWindow')
+    % arg == 2 : also setcolor range 0-1, must use PsychImaging('OpenWindow') 
     PsychDefaultSetup(2);
-    
-    %% Init graphics
+    Screen('Preference', 'Verbosity', cclab.Verbosity);
+    Screen('Preference', 'VisualDebugLevel', cclab.VisualDebugLevel);
     Screen('Preference', 'SkipSyncTests', cclab.SkipSyncTests);
     
-    % Open and define the window, get width and height
+    %% Open window for visual stim
     [window, windowRect] = PsychImaging('OpenWindow', p.Results.Screen, p.Results.Bkgd, p.Results.Rect);
-%     [xCenter, yCenter] = RectCenter(windowRect);
-%     screenXpixels = xCenter*2;
-%     screenYpixels = yCenter*2;
 
-    %% Init sound
-    InitializePsychSound(1);
+    %% Init audio
+    
+    beeper = twotonebeeper();
 
-    % Open Psych-Audio port, with the following arguments
-    % 1 = sound playback only
-    % [] = default sound device
-    % 1 = mono output
-    % 44100 Hz = sample frequency
-    % 2 = number of playback channels (stereo)
-    pahandle = PsychPortAudio('Open', [], 1, 1, 44100, 2);
-
-    % Define correct and incorrect response frequencies
-    correctFreq = 800; % in Hz
-    incorrectFreq = 350; % in Hz
-
-    % Define time
-    t = 0:1/44100:0.1; % 0.1 second duration
-
-    % Generate two pure sine wave tones
-    correctTone = sin(2 * pi * correctFreq * t);
-    incorrectTone = sin(2 * pi * incorrectFreq * t);
-
+    %% init eye tracker
+    
+    tracker = eyetracker(cclab.dummymode_EYE, p.Results.Name, window);
+    
 
 end
 
+
+
+
+% Cleanup function used throughout the script above
+function cleanup
+    fprintf('in cleanup()\n');
+    try
+        Screen('CloseAll'); % Close window if it is open
+        % see eyetracker.m 'delete' 
+        % Eyelink('ShutDown');
+        PsychPortAudio('Close');
+    catch
+        warning('Problem during `cleanup` function.');
+    end
+    ListenChar(1); % Restore keyboard output to Matlab
+    ShowCursor; % Restore mouse cursor
+end
