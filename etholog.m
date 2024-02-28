@@ -49,7 +49,8 @@ function [] = etholog(varargin)
     Screen('Preference', 'SkipSyncTests', cclab.SkipSyncTests);
     
     %% Open window for visual stim
-    [window, windowRect] = PsychImaging('OpenWindow', p.Results.Screen, p.Results.Bkgd, p.Results.Rect);
+    [windowIndex, windowRect] = PsychImaging('OpenWindow', p.Results.Screen, p.Results.Bkgd, p.Results.Rect);
+    [windowCenterPixX windowCenterPixY] = RectCenter(windowRect);
     
     %% create converter and a keyboard queue for later. 
     if isnan(p.Results.Fovx)
@@ -69,26 +70,117 @@ function [] = etholog(varargin)
 
     %% init eye tracker
     
-    tracker = eyetracker(cclab.dummymode_EYE, p.Results.Name, window);
+    tracker = eyetracker(cclab.dummymode_EYE, p.Results.Name, windowIndex);
     
     %% load images
-    WaitSecs(2.0);
+    images = imageset(cclab.ImageFiles);
     
     %% Now start the experiment. 
     
     state = 'START';
     tStateStarted = GetSecs;
     bQuit = false;
+    itrial = 1
+    bkgdColor = [.5 .5 .5];
+    
+    % Fixation point and stim parameters. TODO: These are either from config or command line
+    % Derive other stuff from this below. 
+    fixDiamDeg = 5;
+    fixXYDeg = [0 0];
+    fixColor = [1 0 0];
+    stim1XYDeg = [-10 0];
+    stim2XYDeg = [10 0];
+
+    % aforementioned conversions, to be used below. Note that stim rect is
+    % generated on the fly, in case of different sizes. 
+    fixDiamPix = converter.deg2pix(fixDiamDeg);
+    fixRect = [0 0 fixDiamPix fixDiamPix]; 
+    fixXYPix = converter.deg2pix(fixXYDeg);
+    stim1XYPix = converter.deg2pix(stim1XYDeg);
+    stim2XYPix = converter.deg2pix(stim2XYDeg);
     
     while ~bQuit && ~strcmp(state, 'DONE')
         
         switch upper(state)
             case 'START'
-                state = 'DRAW1';
+                % get textures ready for this trial
+                tex1a = images.texture(windowIndex, cclab.trials.Img1(itrial));
+                tex2a = images.texture(windowIndex, cclab.trials.Img2(itrial));
+                stim1Rect = CenterRectOnPoint(images.rect(cclab.trials.Img1(itrial)), stim1XYPix(1), stim1XYPix(2));
+                stim2Rect = CenterRectOnPoint(images.rect(cclab.trials.Img2(itrial)), stim2XYPix(1), stim2XYPix(2));
+                disp(stim1Rect);
+                disp(stim2Rect);
+
+                switch cclab.trials.Change(itrial)
+                    case 1
+                        tex1b = images.texture(windowIndex, cclab.trials.Img1(itrial), cclab.trials.ChangeContrast(itrial));
+                        tex2b = tex2a;
+                    case 2
+                        tex1b = tex1a;
+                        tex2b = images.texture(windowIndex, cclab.trials.Img2(itrial), cclab.trials.ChangeContrast(itrial));
+                    case 0
+                        tex1b = tex1a;
+                        tex2b = tex2a;
+                    otherwise
+                        error('Change can only be 0,1, or 2.');
+                end
+                state = 'DRAW_FIXPT';
                 tStateStarted = GetSecs;
-            case 'DRAW1'
+            case 'DRAW_FIXPT'
                 % fixpt only
-                Screen('FillRect', window);
+                Screen('FillRect', windowIndex, bkgdColor);
+                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYPix(1), fixXYPix(2)));
+                Screen('Flip', windowIndex);
+                state = 'WAIT_ACQ';
+                tStateStarted = GetSecs;
+            case 'WAIT_ACQ'
+                % testing - just wait 2.0sec and print something
+                fprintf('in WAIT_ACQ...');
+                WaitSecs(2.0);
+                fprintf('done.\n');
+                state = 'WAIT_FIX';
+                tStateStarted = GetSecs;
+            case 'WAIT_FIX'
+                fprintf('in WAIT_FIX...');
+                WaitSecs(2.0);
+                fprintf('done.\n');
+                state = 'DRAW_A';
+                tStateStarted = GetSecs;
+            case 'DRAW_A'
+                Screen('FillRect', windowIndex, bkgdColor);
+                Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
+                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYPix(1), fixXYPix(2)));
+                Screen('Flip', windowIndex);
+                state = 'WAIT_AB';
+                tStateStarted = GetSecs;
+            case 'WAIT_AB'
+                if GetSecs - tStateStarted >= cclab.trials.SampTime
+                    state = 'DRAW_B';
+                    tStateStarted = GetSecs;
+                end
+            case 'DRAW_B'
+                Screen('FillRect', windowIndex, bkgdColor);
+                Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
+                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYPix(1), fixXYPix(2)));
+                Screen('Flip', windowIndex);
+                state = 'WAIT_RESPONSE';
+                tStateStarted = GetSecs;
+            case 'WAIT_RESPONSE'
+                if GetSecs - tStateStarted >= cclab.trials.RespTime
+                    state = 'TRIAL_COMPLETE';
+                    tStateStarted = GetSecs;
+                end
+            case 'TRIAL_COMPLETE'
+                itrial = itrial + 1;
+                if itrial > height(cclab.trials)
+                    % do stuff for being all done like write output file
+                    state = 'DONE';
+                    tStateStarted = GetSecs;
+                end
+            otherwise
+                error('Unhandled state %s\n', state);
+        end
+                    
                 
         
     end
