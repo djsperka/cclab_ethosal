@@ -10,6 +10,7 @@ function [] = etholog(varargin)
     p.addParameter('Bkgd', [.5 .5 .5], @(x) isrow(x) && length(x) == 3);
     p.addParameter('Name', 'demo', @(x) ischar(x) && length(x)<9 && ~isempty(x));
     p.addParameter('Out', 'out', @(x) ischar(x));
+    p.addParameter('Fovx', nan, @(x) isscalar(x) && isnumeric(x));
     p.parse(varargin{:});
     
 %     fprintf('Input name: %s\n', p.Results.Name);
@@ -26,7 +27,14 @@ function [] = etholog(varargin)
     end
     
     
+    %% Now load the expt config, then do a couple of checks
     cclab = load_local_config();
+    if isnan(p.Results.Fovx)
+       if any(~isfield(cclab, {'ScreenWidthMM', 'EyeDistMM'}))
+           error('local config must have dimensions unless Fovx is in args');
+       end
+    end
+    
 
     %% Cleanup object
     myCleanupObj = onCleanup(@cleanup);
@@ -42,6 +50,18 @@ function [] = etholog(varargin)
     
     %% Open window for visual stim
     [window, windowRect] = PsychImaging('OpenWindow', p.Results.Screen, p.Results.Bkgd, p.Results.Rect);
+    
+    %% create converter and a keyboard queue for later. 
+    if isnan(p.Results.Fovx)
+        converter = pixdegconverter(windowRect, cclab.ScreenWidthMM, cclab.EyeDistMM);
+    else
+        converter = pixdegconverter(windowRect, p.Results.Fovx);
+    end
+    
+    % Kb queue using default keyboard. TODO: might need to allow an ind arg
+    [ind, ~, ~] = GetKeyboardIndices();
+    kbindex = ind(1);
+    KbQueueCreate(kbindex);
 
     %% Init audio
     
@@ -51,12 +71,44 @@ function [] = etholog(varargin)
     
     tracker = eyetracker(cclab.dummymode_EYE, p.Results.Name, window);
     
-    %% stop for a sec
+    %% load images
     WaitSecs(2.0);
     
+    %% Now start the experiment. 
+    
+    state = 'START';
+    tStateStarted = GetSecs;
+    bQuit = false;
+    
+    while ~bQuit && ~strcmp(state, 'DONE')
+        
+        switch upper(state)
+            case 'START'
+                state = 'DRAW1';
+                tStateStarted = GetSecs;
+            case 'DRAW1'
+                % fixpt only
+                Screen('FillRect', window);
+                
+        
+    end
 
+    
+    % 
+    
+
+    end
+
+
+
+    
+function [tflip] = drawScreen(cfg, wp, fixpt_xy)
+    Screen('FillRect', wp, cfg.background_color);
+    if ~isempty(fixpt_xy)
+        Screen('FillOval', wp, cfg.fixation_color, CenterRectOnPoint(cfg.fixpt_rect, fixpt_xy(1), fixpt_xy(2)))
+    end
+    tflip = Screen('Flip', wp);
 end
-
 
 
 

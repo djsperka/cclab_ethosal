@@ -1,4 +1,4 @@
-classdef twotonebeeper
+classdef twotonebeeper < handle
     %beeper Generate one of two beeps.
     %   Detailed explanation goes here
     
