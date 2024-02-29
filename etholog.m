@@ -11,6 +11,7 @@ function [] = etholog(varargin)
     p.addParameter('Name', 'demo', @(x) ischar(x) && length(x)<9 && ~isempty(x));
     p.addParameter('Out', 'out', @(x) ischar(x));
     p.addParameter('Fovx', nan, @(x) isscalar(x) && isnumeric(x));
+    p.addParameter('NumTrials', inf, @(x) isscalar(x));
     p.parse(varargin{:});
     
 %     fprintf('Input name: %s\n', p.Results.Name);
@@ -95,19 +96,24 @@ function [] = etholog(varargin)
     % generated on the fly, in case of different sizes. 
     fixDiamPix = converter.deg2pix(fixDiamDeg);
     fixRect = [0 0 fixDiamPix fixDiamPix]; 
-    fixXYPix = converter.deg2pix(fixXYDeg);
-    stim1XYPix = converter.deg2pix(stim1XYDeg);
-    stim2XYPix = converter.deg2pix(stim2XYDeg);
+    fixXYScr = converter.deg2scr(fixXYDeg);
+    stim1XYScr = converter.deg2scr(stim1XYDeg);
+    stim2XYScr = converter.deg2scr(stim2XYDeg);
+    
+    % The number of trials to run. Unless you set 'NumTrials' on command
+    % line, we run all trials in cclab.trials. 
+    NumTrials = min(height(cclab.trials), p.Results.NumTrials);
     
     while ~bQuit && ~strcmp(state, 'DONE')
         
         switch upper(state)
             case 'START'
                 % get textures ready for this trial
+                fprintf('START trial %d\n', itrial);
                 tex1a = images.texture(windowIndex, cclab.trials.Img1(itrial));
                 tex2a = images.texture(windowIndex, cclab.trials.Img2(itrial));
-                stim1Rect = CenterRectOnPoint(images.rect(cclab.trials.Img1(itrial)), stim1XYPix(1), stim1XYPix(2));
-                stim2Rect = CenterRectOnPoint(images.rect(cclab.trials.Img2(itrial)), stim2XYPix(1), stim2XYPix(2));
+                stim1Rect = CenterRectOnPoint(images.rect(cclab.trials.Img1(itrial)), stim1XYScr(1), stim1XYScr(2));
+                stim2Rect = CenterRectOnPoint(images.rect(cclab.trials.Img2(itrial)), stim2XYScr(1), stim2XYScr(2));
                 disp(stim1Rect);
                 disp(stim2Rect);
 
@@ -129,7 +135,7 @@ function [] = etholog(varargin)
             case 'DRAW_FIXPT'
                 % fixpt only
                 Screen('FillRect', windowIndex, bkgdColor);
-                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYPix(1), fixXYPix(2)));
+                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
                 Screen('Flip', windowIndex);
                 state = 'WAIT_ACQ';
                 tStateStarted = GetSecs;
@@ -149,7 +155,7 @@ function [] = etholog(varargin)
             case 'DRAW_A'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
-                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYPix(1), fixXYPix(2)));
+                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
                 Screen('Flip', windowIndex);
                 state = 'WAIT_AB';
                 tStateStarted = GetSecs;
@@ -161,7 +167,7 @@ function [] = etholog(varargin)
             case 'DRAW_B'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
-                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYPix(1), fixXYPix(2)));
+                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
                 Screen('Flip', windowIndex);
                 state = 'WAIT_RESPONSE';
                 tStateStarted = GetSecs;
@@ -172,9 +178,12 @@ function [] = etholog(varargin)
                 end
             case 'TRIAL_COMPLETE'
                 itrial = itrial + 1;
-                if itrial > height(cclab.trials)
+                if itrial > NumTrials
                     % do stuff for being all done like write output file
                     state = 'DONE';
+                    tStateStarted = GetSecs;
+                else
+                    state = 'START';
                     tStateStarted = GetSecs;
                 end
             otherwise
