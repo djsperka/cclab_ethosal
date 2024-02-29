@@ -12,11 +12,21 @@ The expt is displayed in a window on your screen 0 with the rectangle shown. Thi
 
 ## Beeper
 
-I made a helper class to encapsulate the sound(s) used for correct and incorrect. Should be able to test this easily:
+I made a helper class to encapsulate the sound(s) used for correct and incorrect. Should be able to test this easily - see below. The hardware should be properly handled when the beeper object is cleared or deleted. 
+
 
 ```
+% Create beeper that uses 0.25s tone of 800Hz "correct" tone, and 350Hz "incorrect" tone.
+>> beeper = twotonebeeper();
+>> beeper.correct();  % plays 800Hz tone for 0.25s.
+>> beeper.incorrect(); % plays 350Hz tone for 0.25s.
 
+% create beeper with different frequencies and duration.
+>> beeper = twotonebeeper('Correct', 2500, 'Incorrect', 400, 'Duration', .5)
+>> beeper.correct() % plays 2500Hz tone for 0.5s.
+>> beeper.incorrect() % plays 400Hz tone for 0.5s.
 ```
+
 ## Images
 
 The images are loaded to a matlab class that I use for display later in the script. This class will change once we start using the real image set. The usage of the columns 'Img1' and 'Img2' in the trials struct may change as well, depending on the real image set.
