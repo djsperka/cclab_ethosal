@@ -40,12 +40,16 @@ classdef twotonebeeper < handle
             obj.FreqPlayback = p.Results.Playback;
             obj.Duration = p.Results.Duration;
             
-            t = 0:1/44100:obj.Duration; % 0.1 second duration
+            % Open default audio device
+            obj.PAHandle = PsychPortAudio('Open');
+            
+            status = PsychPortAudio('GetStatus', obj.PAHandle);
+            sampleRate = status.SampleRate;
+
+            t = 0:1/sampleRate:obj.Duration; % 0.1 second duration
             obj.SoundCorrect = sin(2 * pi * obj.FreqCorrect * t);
             obj.SoundIncorrect = sin(2 * pi * obj.FreqIncorrect * t);
 
-            obj.PAHandle = PsychPortAudio('Open', [], 1, 1, obj.FreqPlayback, 2);
-            
         end
         
         function playsound(obj, ch1, ch2, dur)
