@@ -55,7 +55,7 @@ function [] = etholog(varargin)
 
     % Init audio
     
-    beeper = twotonebeeper();
+    %beeper = twotonebeeper();
 
     % init eye tracker
     
@@ -175,11 +175,11 @@ function [] = etholog(varargin)
                 if GetSecs - tStateStarted >= cclab.trials.RespTime
                     state = 'TRIAL_COMPLETE';
                     tStateStarted = GetSecs;
-                    if mod(itrial, 2)
-                        beeper.correct();
-                    else
-                        beeper.incorrect();
-                    end
+%                     if mod(itrial, 2)
+%                         beeper.correct();
+%                     else
+%                         beeper.incorrect();
+%                     end
                 end
             case 'TRIAL_COMPLETE'
                 itrial = itrial + 1;
@@ -199,16 +199,8 @@ function [] = etholog(varargin)
             otherwise
                 error('Unhandled state %s\n', state);
         end
-                    
-                
-        
     end
-
-    
-    % 
-    
-
-    end
+ end
 
 
 
