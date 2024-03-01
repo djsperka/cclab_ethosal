@@ -1,29 +1,109 @@
 classdef imageset
-    %imageset Set of images, can be made into textures at a contrast.
+    %imageset Set of images, can be made into textures (in the PTB/OpenGL 
+    %   sense of the word) at a contrast.
     %   Detailed explanation goes here
     
     properties
-        Images  % Will be a cell array of images
-        TextureParser
+        Images  % Will be a container.Map of image arrays
+        ImageFilenames % container.Map of filename
     end
     
+    methods (Static)
+        function key = make_key(folder_key, file_key)
+            if isempty(folder_key)
+                key = file_key;
+            else
+                key = [folder_key '/' file_key];
+            end
+        end
+    end
+    
+    methods (Access = private)
+    
+        function key = parse_key(obj, k)
+            if ~ischar(k)
+                exception = MException('imageset.parse_key', 'Wrong type, expecting char');
+                throw(exception);
+            elseif ~obj.Images.isKey(k)
+                exception = MException('imageset.parse_key', ['Not a key: ' k]);
+                throw(exception);
+            else
+                key = k;
+            end
+        end
+    
+        function [w, key, contrast] = parse_wkc(obj, varargin)
+            persistent p;
+            if isempty(p)
+                p = inputParser;
+                addRequired(p, 'Window', @(x) isscalar(x));
+                addRequired(p, 'Key', @(x) ischar(x) && obj.Images.isKey(x));
+                addOptional(p, 'Contrast', 1.0, @(x) isnumeric(x) && x >= 0 && x <= 1.0);
+            end
+            p.parse(varargin{:});
+            w = p.Results.Window;
+            key = p.Results.Key;
+            contrast = p.Results.Contrast;
+        end
+
+    end
+        
     methods
         function obj = imageset(varargin)
-            %imageset Construct an instance of this class
+            %imageset Load images from a set of folders. Each folder has a
+            %key prefix. Full key for each file is prefix + '/' + basename.
             %   Detailed explanation goes here
-            obj.Images = {};
-            if nargin==1
-                for i=1:length(varargin{1})
-                    obj.Images{i} = imread(varargin{1}{i});
+            p = inputParser;
+            addRequired(p, 'Root', @(x) ischar(x) && isdir(x));
+            addParameter(p, 'Subfolders', {'H', 'natT'; 'L', 'texture'}, @(x) iscellstr(x) && size(x, 2)==2);
+            p.parse(varargin{:});
+            
+            % create container for images and filenames
+            obj.Images = containers.Map;
+            obj.ImageFilenames = containers.Map;
+            
+
+            % now process files. Each row of the cell array is two elements
+            % - the key and the subfolder.
+            root = p.Results.Root;
+            subs = p.Results.Subfolders;
+            for i=1:size(subs, 1)
+                add_images_from_folder(obj, fullfile(root, subs{i,2}), subs{i,1});
+            end
+        end
+        
+        function add_image(obj, filename, key)
+            if obj.Images.isKey(key)
+                exception = MException('imageset.add_image', sprintf('Adding a duplicate key %s with filename %s\n', key, filename));
+                throw(exception);
+            end
+            obj.Images(key) = imread(filename);
+            obj.ImageFilenames(key) = filename;
+        end
+        
+        function add_images_from_folder(obj, folder, folder_key)
+            % look at all files in the folder
+            if ~isdir(folder)
+                exception = MException('imageset.add_images_from_folder', sprintf('This is not a folder: %s\n', folder));
+                throw(exception);
+            end
+            d=dir(folder);
+            for i=1:height(d)
+                fname = fullfile(d(i).folder, d(i).name);
+                if isfile(fname)
+                    [~,base,~] = fileparts(fname);
+                    
+                    % the full key is folder_key/base, but if folder_key is
+                    % empty, then the full key is just base
+                    
+                    if isempty(folder_key)
+                        key = base;
+                    else
+                        key = [folder_key '/' base];
+                    end
+                    obj.add_image(fname, key);
                 end
             end
-            
-            % this is the parser used in texture() below
-            obj.TextureParser = inputParser;
-            addRequired(obj.TextureParser, 'Window');
-            addRequired(obj.TextureParser, 'Index', @(x) isscalar(x) && x>0 && x<length(obj.Images));
-            addOptional(obj.TextureParser, 'Contrast', 1.0, @(x) isnumeric(x) && x >= 0 && x <= 1.0);
-            
         end
         
         function textureID = texture(obj, varargin)
@@ -33,22 +113,33 @@ classdef imageset
             
             % The use of a parser is maybe overkill, but I want the last
             % arg to be optional and I want to hide the tedious code that
-            % deals with it.
-            obj.TextureParser.parse(varargin{:});
-            index = obj.TextureParser.Results.Index;
-            w = obj.TextureParser.Results.Window;
-            contrast = obj.TextureParser.Results.Contrast;
-
+            
+            % parse
+            [w, key, contrast] = obj.parse_wkc(varargin{:});
             if contrast == 1.0
-                textureID = Screen('MakeTexture', w, obj.Images{index});
+                textureID = Screen('MakeTexture', w, obj.Images(key));
             else
-                tmpImage = uint8((contrast * (double(obj.Images{index})-127)) + 127);
+                tmpImage = uint8((contrast * (double(obj.Images(key))-127)) + 127);
                 textureID = Screen('MakeTexture', w, tmpImage);
             end
         end
         
-        function r = rect(obj, index)
-            r = [0 0 size(obj.Images{index}, 1:2)];
+        function r = rect(obj, k)
+            key = obj.parse_key(k);
+            r = [0 0 size(obj.Images(key), 1:2)];
+        end
+        
+        function flip(obj, varargin)
+            [w, key, contrast] = obj.parse_wkc(varargin{:});
+            Screen('FillRect', w, [.5 .5 .5]);
+            Screen('DrawTexture', w, obj.texture(w, key, contrast));
+            Screen('Flip', w);
+        end
+        
+        function fname = filename(obj, k)
+            % keys expected folder,file
+            key = obj.parse_key(k);
+            fname = obj.ImageFilenames(key);
         end
     end
 end
