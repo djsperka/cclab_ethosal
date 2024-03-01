@@ -3,12 +3,15 @@ Ethological salience expt
 
 ## Run
 
+An image set root folder is set with the ImageRoot parameter. There should be a "textures" folder and a "natT' folder here containing images like the ones Jodi has put together.
 ```
->> etholog('Screen', 0, 'Rect', [0 0 800 600], 'NumTrials', 2, 'Fovx', 45);
+>> etholog('Screen', 0, 'Rect', [0 0 800 600], 'Fovx', 45, 'ImageRoot', '/Users/dan/cclab/images/ethosal/Animals', 'NumTrials', 2)
 ```
 This will run the first two trials taken from cclab.trials. If the #NumTrials# arg is omitted, all trials are run. 
 
 The expt is displayed in a window on your screen 0 with the rectangle shown. This runs on my laptop, and should be flexible enough to run on a rig when we have multiple screens.
+
+The expt now expects mouse action to initiate a trial - mouse simulates fixation so move mouse hear fixation dot to initiate trial. The tracking is minimal - after initial acquisiution there is no tracking in this version. Coming soon.
 
 ## Beeper
 
