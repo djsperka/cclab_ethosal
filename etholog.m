@@ -9,26 +9,13 @@ function [] = etholog(varargin)
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Bkgd', [.5 .5 .5], @(x) isrow(x) && length(x) == 3);
     p.addParameter('Name', 'demo', @(x) ischar(x) && length(x)<9 && ~isempty(x));
-    p.addParameter('Out', 'out', @(x) ischar(x));
+    p.addParameter('Out', 'out', @(x) isdir(x));
     p.addParameter('Fovx', nan, @(x) isscalar(x) && isnumeric(x));
     p.addParameter('NumTrials', inf, @(x) isscalar(x));
+    p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
     p.parse(varargin{:});
-    
-%     fprintf('Input name: %s\n', p.Results.Name);
-%     fprintf('Background color %f %f %f\n', p.Results.Bkgd(1), p.Results.Bkgd(2), p.Results.Bkgd(3)); 
-%     fprintf('Screen %d\n', p.Results.Screen);
-    
-    % verify output folder existence.
-    if ~isdir(p.Results.Out)
-        error('Output folder ''%s'' not found', p.Results.Out);
-    end
-    outputMatFilename = fullfile(p.Results.Out, sprintf('%s-%s.mat', datestr(now, 'yyyy-mm-dd-HH-MM-SS'), p.Results.Name));
-    if isfile(outputMatFilename)
-        error('Output file %s already exists', outputMatFilename);
-    end
-    
-    
-    %% Now load the expt config, then do a couple of checks
+
+    % Now load the expt config, then do a couple of checks
     cclab = load_local_config();
     if isnan(p.Results.Fovx)
        if any(~isfield(cclab, {'ScreenWidthMM', 'EyeDistMM'}))
@@ -36,11 +23,12 @@ function [] = etholog(varargin)
        end
     end
     
-
-    %% Cleanup object
+    % Create a cleanup object, that will execute whenever this script ends
+    % (even if it crashes). Use it to restore matlab to a usable state -
+    % see cleanup() below.
     myCleanupObj = onCleanup(@cleanup);
     
-    %% Init ptb. 
+    % Init ptb, set preferences. 
     % arg == 0 : AssertOpenGL
     % arg == 1 : also KbName('UnifyKeyNames')
     % arg == 2 : also setcolor range 0-1, must use PsychImaging('OpenWindow') 
@@ -49,11 +37,11 @@ function [] = etholog(varargin)
     Screen('Preference', 'VisualDebugLevel', cclab.VisualDebugLevel);
     Screen('Preference', 'SkipSyncTests', cclab.SkipSyncTests);
     
-    %% Open window for visual stim
+    % Open window for visual stim
     [windowIndex, windowRect] = PsychImaging('OpenWindow', p.Results.Screen, p.Results.Bkgd, p.Results.Rect);
     [windowCenterPixX windowCenterPixY] = RectCenter(windowRect);
     
-    %% create converter and a keyboard queue for later. 
+    % create converter for dealing with pixels&degrees 
     if isnan(p.Results.Fovx)
         converter = pixdegconverter(windowRect, cclab.ScreenWidthMM, cclab.EyeDistMM);
     else
@@ -65,32 +53,33 @@ function [] = etholog(varargin)
     kbindex = ind(1);
     KbQueueCreate(kbindex);
 
-    %% Init audio
+    % Init audio
     
     beeper = twotonebeeper();
 
-    %% init eye tracker
+    % init eye tracker
     
     tracker = eyetracker(cclab.dummymode_EYE, p.Results.Name, windowIndex);
     
-    %% load images
-    images = imageset(cclab.ImageFiles);
+    % load images
+    images = imageset(p.Results.ImageRoot);
     
     %% Now start the experiment. 
     
     state = 'START';
     tStateStarted = GetSecs;
     bQuit = false;
-    itrial = 1
+    itrial = 1;
     bkgdColor = [.5 .5 .5];
     
     % Fixation point and stim parameters. TODO: These are either from config or command line
     % Derive other stuff from this below. 
-    fixDiamDeg = 5;
+    fixDiamDeg = 1;
     fixXYDeg = [0 0];
     fixColor = [1 0 0];
     stim1XYDeg = [-10 0];
     stim2XYDeg = [10 0];
+    fixWindowDiamDeg = 3;
 
     % aforementioned conversions, to be used below. Note that stim rect is
     % generated on the fly, in case of different sizes. 
@@ -99,6 +88,9 @@ function [] = etholog(varargin)
     fixXYScr = converter.deg2scr(fixXYDeg);
     stim1XYScr = converter.deg2scr(stim1XYDeg);
     stim2XYScr = converter.deg2scr(stim2XYDeg);
+    fixWindowDiamPix = converter.deg2pix(fixWindowDiamDeg);
+    fixWindowRect = CenterRectOnPoint([0 0 fixWindowDiamPix fixWindowDiamPix], fixXYScr(1), fixXYScr(2));
+    
     
     % The number of trials to run. Unless you set 'NumTrials' on command
     % line, we run all trials in cclab.trials. 
@@ -109,27 +101,27 @@ function [] = etholog(varargin)
         switch upper(state)
             case 'START'
                 % get textures ready for this trial
-                fprintf('START trial %d\n', itrial);
-                tex1a = images.texture(windowIndex, cclab.trials.Img1(itrial));
-                tex2a = images.texture(windowIndex, cclab.trials.Img2(itrial));
-                stim1Rect = CenterRectOnPoint(images.rect(cclab.trials.Img1(itrial)), stim1XYScr(1), stim1XYScr(2));
-                stim2Rect = CenterRectOnPoint(images.rect(cclab.trials.Img2(itrial)), stim2XYScr(1), stim2XYScr(2));
-                disp(stim1Rect);
-                disp(stim2Rect);
+                key1 = [ cclab.trials.Type1(itrial) '/' cclab.trials.FName{itrial} ];
+                key2 = [ cclab.trials.Type2(itrial) '/' cclab.trials.FName{itrial} ];
+                tex1a = images.texture(windowIndex, key1);
+                tex2a = images.texture(windowIndex, key2);
+                stim1Rect = CenterRectOnPoint(images.rect(key1), stim1XYScr(1), stim1XYScr(2));
+                stim2Rect = CenterRectOnPoint(images.rect(key2), stim2XYScr(1), stim2XYScr(2));
 
                 switch cclab.trials.Change(itrial)
                     case 1
-                        tex1b = images.texture(windowIndex, cclab.trials.Img1(itrial), cclab.trials.ChangeContrast(itrial));
+                        tex1b = images.texture(windowIndex, key1, cclab.trials.ChangeContrast(itrial));
                         tex2b = tex2a;
                     case 2
                         tex1b = tex1a;
-                        tex2b = images.texture(windowIndex, cclab.trials.Img2(itrial), cclab.trials.ChangeContrast(itrial));
+                        tex2b = images.texture(windowIndex, key2, cclab.trials.ChangeContrast(itrial));
                     case 0
                         tex1b = tex1a;
                         tex2b = tex2a;
                     otherwise
                         error('Change can only be 0,1, or 2.');
                 end
+                fprintf('START trial %d images %s %s change %d %f\n', itrial, key1, key2, cclab.trials.Change(itrial), cclab.trials.ChangeContrast(itrial));
                 state = 'DRAW_FIXPT';
                 tStateStarted = GetSecs;
             case 'DRAW_FIXPT'
@@ -140,16 +132,14 @@ function [] = etholog(varargin)
                 state = 'WAIT_ACQ';
                 tStateStarted = GetSecs;
             case 'WAIT_ACQ'
-                % testing - just wait 2.0sec and print something
-                fprintf('in WAIT_ACQ...');
-                WaitSecs(2.0);
-                fprintf('done.\n');
-                state = 'WAIT_FIX';
-                tStateStarted = GetSecs;
+                % no maximum here, could go forever
+                [x y] = tracker.eyepos();
+                if IsInRect(x, y, fixWindowRect)
+                    state = 'WAIT_FIX';
+                    tStateStarted = GetSecs;
+                end
             case 'WAIT_FIX'
-                fprintf('in WAIT_FIX...');
                 WaitSecs(2.0);
-                fprintf('done.\n');
                 state = 'DRAW_A';
                 tStateStarted = GetSecs;
             case 'DRAW_A'
@@ -169,12 +159,27 @@ function [] = etholog(varargin)
                 Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
                 Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
                 Screen('Flip', windowIndex);
+                state = 'WAIT_B';
+                tStateStarted = GetSecs;
+            case 'WAIT_B'
+                if GetSecs - tStateStarted >= cclab.trials.TestTime
+                    state = 'DRAW_BKGD';
+                    tStateStarted = GetSecs;
+                end
+            case 'DRAW_BKGD'
+                Screen('FillRect', windowIndex, bkgdColor);
+                Screen('Flip', windowIndex);
                 state = 'WAIT_RESPONSE';
                 tStateStarted = GetSecs;
             case 'WAIT_RESPONSE'
                 if GetSecs - tStateStarted >= cclab.trials.RespTime
                     state = 'TRIAL_COMPLETE';
                     tStateStarted = GetSecs;
+                    if mod(itrial, 2)
+                        beeper.correct();
+                    else
+                        beeper.incorrect();
+                    end
                 end
             case 'TRIAL_COMPLETE'
                 itrial = itrial + 1;
@@ -183,6 +188,11 @@ function [] = etholog(varargin)
                     state = 'DONE';
                     tStateStarted = GetSecs;
                 else
+                    state = 'WAIT_ITI';
+                    tStateStarted = GetSecs;
+                end
+            case 'WAIT_ITI'
+                if GetSecs - tStateStarted >= cclab.ITI
                     state = 'START';
                     tStateStarted = GetSecs;
                 end
@@ -211,19 +221,9 @@ function [tflip] = drawScreen(cfg, wp, fixpt_xy)
     tflip = Screen('Flip', wp);
 end
 
-
-
-% Cleanup function used throughout the script above
+% PortAudio and eye tracker should be handled by objects, not here.
 function cleanup
-    fprintf('in cleanup()\n');
-    try
-        Screen('CloseAll'); % Close window if it is open
-        % see eyetracker.m 'delete' 
-        % Eyelink('ShutDown');
-        PsychPortAudio('Close');
-    catch
-        warning('Problem during `cleanup` function.');
-    end
-    ListenChar(1); % Restore keyboard output to Matlab
-    ShowCursor; % Restore mouse cursor
+    Screen('CloseAll');
+    ListenChar(1);
+    ShowCursor;
 end

@@ -15,38 +15,17 @@ function [cclab] = load_local_config()
     cclab.ScreenWidthMM = 1000;
     cclab.EyeDistMM = 500;
     
-    % Going to create a table called 'trials' using these arrays of vars.
-    cclab.ImageFiles = {
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Natural/Image1.bmp';  
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Natural/Image2.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Natural/Image3.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Natural/Image4.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Natural/Image5.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Natural/Image13.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Natural/Image15.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Natural/Image16.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Natural/Image17.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Natural/Image18.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Texture/Image1.bmp';  
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Texture/Image2.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Texture/Image3.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Texture/Image4.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Texture/Image5.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Texture/Image13.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Texture/Image15.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Texture/Image16.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Texture/Image17.bmp';
-        '/Users/dan/git/orhan-ptb-scripts/standAlone_learningAttention/Images/Texture/Image18.bmp'
-        };
-    Img1 = (1:10)';
-    Img2 = (11:20)';
+    Type1 = ['H';'H';'H';'H';'H';'H';'H';'H';'H';'H'];
+    Type2 = ['L';'L';'L';'L';'L';'L';'L';'L';'L';'L'];
+    FName = {'1';'2';'3';'4';'5';'6';'7';'8';'9';'10'};
     Change = [1;2;1;2;0;1;2;1;2;0];
     ChangeContrast = [.5;.5;.5;.5;.5;.5;.5;.5;.5;.5];
     FixTime  = [1;1;1;1;1;1;1;1;1;1];
-    SampTime = [3;3;3;3;3;3;3;3;3;3];
-    TestTime = [3;3;3;3;3;3;3;3;3;3];
+    SampTime = [2;2;2;2;2;2;2;2;2;2];
+    TestTime = [2;2;2;2;2;2;2;2;2;2];
     RespTime = [2;2;2;2;2;2;2;2;2;2];
     
-    cclab.trials = table(Img1, Img2, Change, ChangeContrast, FixTime, SampTime, TestTime, RespTime);
+    cclab.trials = table(Type1, Type2, FName, Change, ChangeContrast, FixTime, SampTime, TestTime, RespTime);
+    cclab.ITI = 1.0;
 end
 
