@@ -13,6 +13,7 @@ function [] = etholog(varargin)
     p.addParameter('Fovx', nan, @(x) isscalar(x) && isnumeric(x));
     p.addParameter('NumTrials', inf, @(x) isscalar(x));
     p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
+    p.addParameter('Response', 'Saccade', @(x) ischar(x));
     p.parse(varargin{:});
 
     % Now load the expt config, then do a couple of checks
@@ -55,9 +56,9 @@ function [] = etholog(varargin)
 
     % Init audio
     
-    %beeper = twotonebeeper();
+    beeper = twotonebeeper();
 
-    % init eye tracker
+    % init eye tracker. 
     
     tracker = eyetracker(cclab.dummymode_EYE, p.Results.Name, windowIndex);
     
@@ -96,8 +97,49 @@ function [] = etholog(varargin)
     % line, we run all trials in cclab.trials. 
     NumTrials = min(height(cclab.trials), p.Results.NumTrials);
     
+    % start kbd queue now
+    KbQueueStart(kbindex);
+    ListenChar(-1);
+    
     while ~bQuit && ~strcmp(state, 'DONE')
         
+        
+        % any keys pressed? 
+        [keyPressed, keyCode,  ~, ~] = checkKbdQueue(kbindex);
+        if keyPressed
+            switch keyCode
+                case KbName('space')
+                    % pause OR UNpause
+                    if strcmp(state, 'WAIT_PAUSE')
+                        % we are currently paused. Resume by transitioning
+                        % to the START state. Current trial is NOT
+                        % repeated.
+                        state = 'TRIAL_COMPLETE';
+                        tStateStarted = GetSecs;
+                        fprintf('Resume after pause.\n');
+                    else
+                        % not paused, so we now stop current trial, clear
+                        % screen. If there is output, the output from this
+                        % trial will have to be flushed. TODO. 
+                        Screen('FillRect', windowIndex, bkgdColor);
+                        Screen('Flip', windowIndex);
+                        state = 'WAIT_PAUSE';
+                        tStateStarted = GetSecs;
+                        fprintf('Paused.\n');
+                    end
+                case KbName('q')
+                        % trial will have to be flushed. TODO. 
+                        Screen('FillRect', windowIndex, bkgdColor);
+                        Screen('Flip', windowIndex);
+                        state = 'DONE';
+                        tStateStarted = GetSecs;
+                        fprintf('Quit from kbd.\n');
+                otherwise
+                    fprintf('Keys:\n<space> - toggle pause\n\n');
+            end
+        end
+
+                    
         switch upper(state)
             case 'START'
                 % get textures ready for this trial
@@ -147,10 +189,21 @@ function [] = etholog(varargin)
                 Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
                 Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
                 Screen('Flip', windowIndex);
+                state = 'WAIT_A';
+                tStateStarted = GetSecs;
+            case 'WAIT_A'
+                if GetSecs - tStateStarted >= cclab.trials.SampTime
+                    state = 'DRAW_AB';
+                    tStateStarted = GetSecs;
+                end
+            case 'DRAW_AB'
+                Screen('FillRect', windowIndex, bkgdColor);
+                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
+                Screen('Flip', windowIndex);
                 state = 'WAIT_AB';
                 tStateStarted = GetSecs;
             case 'WAIT_AB'
-                if GetSecs - tStateStarted >= cclab.trials.SampTime
+                if GetSecs - tStateStarted >= cclab.trials.GapTime
                     state = 'DRAW_B';
                     tStateStarted = GetSecs;
                 end
@@ -172,14 +225,31 @@ function [] = etholog(varargin)
                 state = 'WAIT_RESPONSE';
                 tStateStarted = GetSecs;
             case 'WAIT_RESPONSE'
-                if GetSecs - tStateStarted >= cclab.trials.RespTime
+                response = 0;
+                switch p.Results.Response
+                    case 'Saccade'
+                        sac = tracker.saccade([stim1Rect;stim2Rect]');
+                        % We should ensure that the rectangles cannot
+                        % overlap!
+                        if any(sac)
+                            response = find(sac);
+                        end
+                    case 'None'
+                    case 'Device'
+                end
+                if response || (GetSecs - tStateStarted) >= cclab.trials.RespTime(itrial)
                     state = 'TRIAL_COMPLETE';
                     tStateStarted = GetSecs;
-%                     if mod(itrial, 2)
-%                         beeper.correct();
-%                     else
-%                         beeper.incorrect();
-%                     end
+                    if response == cclab.trials.Change(itrial)
+                        fprintf('Correct response\n');
+                        beeper.correct();
+                    elseif response < 0
+                        fprintf('No response\n');
+                        beeper.incorrect();
+                    else
+                        fprintf('Correct response\n');
+                        beeper.incorrect();
+                    end
                 end
             case 'TRIAL_COMPLETE'
                 itrial = itrial + 1;
@@ -196,22 +266,39 @@ function [] = etholog(varargin)
                     state = 'START';
                     tStateStarted = GetSecs;
                 end
+            case {'WAIT_PAUSE', 'DONE'}
+                % no-op here, the only way out is to use space bar when paused.
             otherwise
                 error('Unhandled state %s\n', state);
         end
     end
- end
-
-
-
-    
-function [tflip] = drawScreen(cfg, wp, fixpt_xy)
-    Screen('FillRect', wp, cfg.background_color);
-    if ~isempty(fixpt_xy)
-        Screen('FillOval', wp, cfg.fixation_color, CenterRectOnPoint(cfg.fixpt_rect, fixpt_xy(1), fixpt_xy(2)))
-    end
-    tflip = Screen('Flip', wp);
 end
+
+function [keyPressed, keyCode,  tDown, tUp] = checkKbdQueue(kbindex)
+
+    keyPressed = false;
+    keyCode = 0;
+    tDown = -1;
+    tUp = -1;
+    bquit = false;
+    
+    % Fetch events until a key is released.
+    % This could theoretically miss one, if called while it was held down.
+    
+     while ~bquit && KbEventAvail(kbindex) 
+        [event, ~] = KbEventGet(kbindex);
+        if event.Pressed
+            tDown =  event.Time;
+        else
+            tUp = event.Time;
+            keyCode = event.Keycode;
+            bquit = true;
+            keyPressed = true;
+        end
+     end
+end
+
+
 
 % PortAudio and eye tracker should be handled by objects, not here.
 function cleanup
