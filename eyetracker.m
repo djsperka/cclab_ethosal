@@ -76,7 +76,7 @@ classdef eyetracker < handle
                         throw exception;
                 end
             end
-                
+                        
             switch (obj.DummyMode)
                 case 1
                     [x y] = GetMouse(obj.Window);
@@ -89,6 +89,19 @@ classdef eyetracker < handle
                     throw(exception);
             end
         end
+    
+        function S = saccade(obj, R)
+            if size(R,1) ~= 4
+                exception = MException('eyetracker.saccade', 'input should be 4xN array of rects');
+                throw exception;
+            end
+            S = zeros(1, size(R,2));
+            [x, y] = obj.eyepos();
+            for i=1:size(R,2)
+                S(i) = IsInRect(x, y, R(:,i));
+            end
+        end
+
     end
     
     methods (Access = private)
