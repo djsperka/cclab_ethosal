@@ -22,10 +22,11 @@ function [cclab] = load_local_config()
     ChangeContrast = [.5;.5;.5;.5;.5;.5;.5;.5;.5;.5];
     FixTime  = [1;1;1;1;1;1;1;1;1;1];
     SampTime = [2;2;2;2;2;2;2;2;2;2];
+    GapTime = [1;1;1;1;1;1;1;1;1;1];
     TestTime = [2;2;2;2;2;2;2;2;2;2];
     RespTime = [2;2;2;2;2;2;2;2;2;2];
     
-    cclab.trials = table(Type1, Type2, FName, Change, ChangeContrast, FixTime, SampTime, TestTime, RespTime);
+    cclab.trials = table(Type1, Type2, FName, Change, ChangeContrast, FixTime, SampTime, GapTime, TestTime, RespTime);
     cclab.ITI = 1.0;
 end
 
