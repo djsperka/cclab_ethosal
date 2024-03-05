@@ -1,4 +1,4 @@
-function [] = etholog(varargin)
+function [allResults] = etholog(varargin)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -14,6 +14,7 @@ function [] = etholog(varargin)
     p.addParameter('NumTrials', inf, @(x) isscalar(x));
     p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
     p.addParameter('Response', 'Saccade', @(x) ischar(x));
+    p.addParameter('Beep', false, @(x) islogical(x));
     p.parse(varargin{:});
 
     % Now load the expt config, then do a couple of checks
@@ -67,8 +68,7 @@ function [] = etholog(varargin)
     
     %% Now start the experiment. 
     
-    state = 'START';
-    tStateStarted = GetSecs;
+    stateMgr = statemgr('START', true);
     bQuit = false;
     itrial = 1;
     bkgdColor = [.5 .5 .5];
@@ -96,12 +96,15 @@ function [] = etholog(varargin)
     % The number of trials to run. Unless you set 'NumTrials' on command
     % line, we run all trials in cclab.trials. 
     NumTrials = min(height(cclab.trials), p.Results.NumTrials);
+    variableNames = { 'Started', 'trialIndex', 'tAon', 'tAoff', 'tBon', 'tBoff', 'tResp', 'iResp' };
+    variableTypes = {'logical', 'int32', 'double', 'double', 'double', 'double', 'double', 'int32' };
+    allResults = table('Size', [ NumTrials, length(variableNames)], 'VariableNames', variableNames, 'VariableTypes', variableTypes);
     
     % start kbd queue now
     KbQueueStart(kbindex);
     ListenChar(-1);
     
-    while ~bQuit && ~strcmp(state, 'DONE')
+    while ~bQuit && ~strcmp(stateMgr.Current, 'DONE')
         
         
         % any keys pressed? 
@@ -110,12 +113,11 @@ function [] = etholog(varargin)
             switch keyCode
                 case KbName('space')
                     % pause OR UNpause
-                    if strcmp(state, 'WAIT_PAUSE')
+                    if strcmp(stateMgr.Current, 'WAIT_PAUSE')
                         % we are currently paused. Resume by transitioning
                         % to the START state. Current trial is NOT
                         % repeated.
-                        state = 'TRIAL_COMPLETE';
-                        tStateStarted = GetSecs;
+                        stateMgr.transitionTo('TRIAL_COMPLETE');
                         fprintf('Resume after pause.\n');
                     else
                         % not paused, so we now stop current trial, clear
@@ -123,16 +125,14 @@ function [] = etholog(varargin)
                         % trial will have to be flushed. TODO. 
                         Screen('FillRect', windowIndex, bkgdColor);
                         Screen('Flip', windowIndex);
-                        state = 'WAIT_PAUSE';
-                        tStateStarted = GetSecs;
+                        stateMgr.transitionTo('WAIT_PAUSE');
                         fprintf('Paused.\n');
                     end
                 case KbName('q')
                         % trial will have to be flushed. TODO. 
                         Screen('FillRect', windowIndex, bkgdColor);
                         Screen('Flip', windowIndex);
-                        state = 'DONE';
-                        tStateStarted = GetSecs;
+                        stateMgr.transitionTo('DONE');
                         fprintf('Quit from kbd.\n');
                 otherwise
                     fprintf('Keys:\n<space> - toggle pause\n\n');
@@ -140,7 +140,7 @@ function [] = etholog(varargin)
         end
 
                     
-        switch upper(state)
+        switch stateMgr.Current
             case 'START'
                 % get textures ready for this trial
                 key1 = [ cclab.trials.Type1(itrial) '/' cclab.trials.FName{itrial} ];
@@ -164,114 +164,124 @@ function [] = etholog(varargin)
                         error('Change can only be 0,1, or 2.');
                 end
                 fprintf('START trial %d images %s %s change %d %f\n', itrial, key1, key2, cclab.trials.Change(itrial), cclab.trials.ChangeContrast(itrial));
-                state = 'DRAW_FIXPT';
-                tStateStarted = GetSecs;
+                stateMgr.transitionTo('DRAW_FIXPT');
+                
+                % results
+                allResults.Started(itrial) = true;
+                allResults.trialIndex(itrial) = itrial;
             case 'DRAW_FIXPT'
                 % fixpt only
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
                 Screen('Flip', windowIndex);
-                state = 'WAIT_ACQ';
-                tStateStarted = GetSecs;
+                stateMgr.transitionTo('WAIT_ACQ');
             case 'WAIT_ACQ'
                 % no maximum here, could go forever
                 [x y] = tracker.eyepos();
                 if IsInRect(x, y, fixWindowRect)
-                    state = 'WAIT_FIX';
-                    tStateStarted = GetSecs;
+                    stateMgr.transitionTo('WAIT_FIX');
                 end
             case 'WAIT_FIX'
                 WaitSecs(2.0);
-                state = 'DRAW_A';
-                tStateStarted = GetSecs;
+                stateMgr.transitionTo('DRAW_A');
             case 'DRAW_A'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
                 Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
-                Screen('Flip', windowIndex);
-                state = 'WAIT_A';
-                tStateStarted = GetSecs;
+                % flip and save time
+                [ allResults.tAon(itrial) ] = Screen('Flip', windowIndex);
+                stateMgr.transitionTo('WAIT_A');
             case 'WAIT_A'
-                if GetSecs - tStateStarted >= cclab.trials.SampTime
-                    state = 'DRAW_AB';
-                    tStateStarted = GetSecs;
+                if stateMgr.timeInState() >= cclab.trials.SampTime(itrial)
+                    stateMgr.transitionTo('DRAW_AB');
                 end
             case 'DRAW_AB'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
-                Screen('Flip', windowIndex);
-                state = 'WAIT_AB';
-                tStateStarted = GetSecs;
+                [ allResults.tAoff(itrial) ] = Screen('Flip', windowIndex);
+                stateMgr.transitionTo('WAIT_AB');
             case 'WAIT_AB'
-                if GetSecs - tStateStarted >= cclab.trials.GapTime
-                    state = 'DRAW_B';
-                    tStateStarted = GetSecs;
+                if stateMgr.timeInState() >= cclab.trials.GapTime(itrial)
+                    stateMgr.transitionTo('DRAW_B');
                 end
             case 'DRAW_B'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
                 Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
-                Screen('Flip', windowIndex);
-                state = 'WAIT_B';
-                tStateStarted = GetSecs;
+                [ allResults.tBon(itrial) ] = Screen('Flip', windowIndex);
+                stateMgr.transitionTo('WAIT_B');
             case 'WAIT_B'
-                if GetSecs - tStateStarted >= cclab.trials.TestTime
-                    state = 'DRAW_BKGD';
-                    tStateStarted = GetSecs;
+                if stateMgr.timeInState() >= cclab.trials.TestTime(itrial)
+                    stateMgr.transitionTo('DRAW_BKGD');
                 end
             case 'DRAW_BKGD'
                 Screen('FillRect', windowIndex, bkgdColor);
-                Screen('Flip', windowIndex);
-                state = 'WAIT_RESPONSE';
-                tStateStarted = GetSecs;
+                [ allResults.tBoff(itrial) ] = Screen('Flip', windowIndex);
+                stateMgr.transitionTo('WAIT_RESPONSE');
             case 'WAIT_RESPONSE'
                 response = 0;
+                tResp = 0;
+                
+                % TODO - more accuracy w/r/to the response time would be
+                % good. That will change when we nail down what to use as a
+                % response device. 
+                
                 switch p.Results.Response
                     case 'Saccade'
                         sac = tracker.saccade([stim1Rect;stim2Rect]');
                         % We should ensure that the rectangles cannot
                         % overlap!
                         if any(sac)
+                            disp(sac)
                             response = find(sac);
+                            tResp = GetSecs;    % not an accurate measurement at all! 
                         end
                     case 'None'
                     case 'Device'
                 end
-                if response || (GetSecs - tStateStarted) >= cclab.trials.RespTime(itrial)
-                    state = 'TRIAL_COMPLETE';
-                    tStateStarted = GetSecs;
-                    if response == cclab.trials.Change(itrial)
-                        fprintf('Correct response\n');
-                        beeper.correct();
-                    elseif response < 0
-                        fprintf('No response\n');
-                        beeper.incorrect();
-                    else
-                        fprintf('Correct response\n');
-                        beeper.incorrect();
+                if response || stateMgr.timeInState() >= cclab.trials.RespTime(itrial)
+                    stateMgr.transitionTo('TRIAL_COMPLETE');
+                    fprintf('TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt);
+                    % record response
+                    allResults.iResp(itrial) = response;
+                    allResults.tResp(itrial) = tResp;
+                    
+                    % beep maybe
+                    if p.Results.Beep
+                        if allResults.iResp(itrial) == cclab.trials.Change(itrial)
+                            fprintf('Correct response\n');
+                            beeper.correct();
+                        elseif allResults.iResp(itrial) < 0
+                            fprintf('No response\n');
+                            beeper.incorrect();
+                        else
+                            fprintf('Correct response\n');
+                            beeper.incorrect();
+                        end
                     end
                 end
             case 'TRIAL_COMPLETE'
                 itrial = itrial + 1;
                 if itrial > NumTrials
                     % do stuff for being all done like write output file
-                    state = 'DONE';
-                    tStateStarted = GetSecs;
+                    stateMgr.transitionTo('DONE');
                 else
-                    state = 'WAIT_ITI';
-                    tStateStarted = GetSecs;
+                    stateMgr.transitionTo('WAIT_ITI');
                 end
             case 'WAIT_ITI'
-                if GetSecs - tStateStarted >= cclab.ITI
-                    state = 'START';
-                    tStateStarted = GetSecs;
+                if stateMgr.timeInState() >= cclab.ITI
+                    stateMgr.transitionTo('START');
                 end
             case {'WAIT_PAUSE', 'DONE'}
                 % no-op here, the only way out is to use space bar when paused.
             otherwise
-                error('Unhandled state %s\n', state);
+                error('Unhandled state %s\n', stateMgr.Current);
         end
     end
+    
+    % all done, either because all trials complete or quit
+    disp(allResults);
+    
 end
 
 function [keyPressed, keyCode,  tDown, tUp] = checkKbdQueue(kbindex)
