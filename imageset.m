@@ -22,10 +22,10 @@ classdef imageset
     
         function key = parse_key(obj, k)
             if ~ischar(k)
-                exception = MException('imageset.parse_key', 'Wrong type, expecting char');
+                exception = MException('imageset:parse_key:wrongType', 'Wrong type, expecting char');
                 throw(exception);
             elseif ~obj.Images.isKey(k)
-                exception = MException('imageset.parse_key', ['Not a key: ' k]);
+                exception = MException('imageset:parse_key:NotAKey', ['Not a key: ' k]);
                 throw(exception);
             else
                 key = k;
@@ -74,7 +74,7 @@ classdef imageset
         
         function add_image(obj, filename, key)
             if obj.Images.isKey(key)
-                exception = MException('imageset.add_image', sprintf('Adding a duplicate key %s with filename %s\n', key, filename));
+                exception = MException('imageset:add_image:duplicateKey', sprintf('Adding a duplicate key %s with filename %s\n', key, filename));
                 throw(exception);
             end
             obj.Images(key) = imread(filename);
@@ -84,7 +84,7 @@ classdef imageset
         function add_images_from_folder(obj, folder, folder_key)
             % look at all files in the folder
             if ~isdir(folder)
-                exception = MException('imageset.add_images_from_folder', sprintf('This is not a folder: %s\n', folder));
+                exception = MException('imageset:add_images_from_folder:NotAFolder', sprintf('This is not a folder: %s\n', folder));
                 throw(exception);
             end
             d=dir(folder);
