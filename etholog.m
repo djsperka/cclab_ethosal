@@ -13,8 +13,10 @@ function [allResults] = etholog(varargin)
     p.addParameter('Fovx', nan, @(x) isscalar(x) && isnumeric(x));
     p.addParameter('NumTrials', inf, @(x) isscalar(x));
     p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
+    p.addParameter('ImageSubFolders', {'H', 'naturalT'; 'L', 'texture'},  @(x) iscellstr(x) && size(x,2)==2);
     p.addParameter('Response', 'Saccade', @(x) ischar(x));
     p.addParameter('Beep', false, @(x) islogical(x));
+    p.addParameter('KeyboardIndex', 0, @(x) isscalar(x));
     p.parse(varargin{:});
 
     % Now load the expt config, then do a couple of checks
@@ -64,7 +66,7 @@ function [allResults] = etholog(varargin)
     tracker = eyetracker(cclab.dummymode_EYE, p.Results.Name, windowIndex);
     
     % load images
-    images = imageset(p.Results.ImageRoot);
+    images = imageset(p.Results.ImageRoot, 'SubFolders', p.Results.ImageSubFolders);
     
     %% Now start the experiment. 
     
@@ -232,7 +234,6 @@ function [allResults] = etholog(varargin)
                         % We should ensure that the rectangles cannot
                         % overlap!
                         if any(sac)
-                            disp(sac)
                             response = find(sac);
                             tResp = GetSecs;    % not an accurate measurement at all! 
                         end
