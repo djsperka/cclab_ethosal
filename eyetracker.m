@@ -41,7 +41,7 @@ classdef eyetracker < handle
         end
         
         function delete(obj)
-            fprintf('eyetracker:delete\n');
+            %fprintf('eyetracker:delete\n');
             Eyelink('Shutdown');
         end
         
@@ -88,8 +88,8 @@ classdef eyetracker < handle
                     [x y] = GetMouse(obj.Window);
                 case 0
                     evt = Eyelink('NewestFloatSample');
-                    x = evt.gx(eyeUsed+1);
-                    y = evt.gy(eyeUsed+1);
+                    x = evt.gx(eyeUsedIndex);
+                    y = evt.gy(eyeUsedIndex);
                 otherwise
                     exception = MException('eyetracker:message','Mode must be 0,1, or 2.');
                     throw(exception);
