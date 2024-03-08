@@ -6,6 +6,8 @@ classdef eyetracker < handle
         DummyMode
         EyelinkDefaults
         Window
+        ScreenWidthPix
+        ScreenHeightPix
         Name
     end
     
@@ -27,7 +29,10 @@ classdef eyetracker < handle
             obj.DummyMode = p.Results.DummyMode;
             obj.Name = p.Results.Name;
             obj.Window = p.Results.Window;
-            
+            rect = Screen('Rect', obj.Window);
+            obj.ScreenWidthPix = rect(3);
+            obj.ScreenHeightPix = rect(4);
+
             if obj.DummyMode
                 fprintf('Using eyetracker in dummy mode.\n');
             else
@@ -36,28 +41,29 @@ classdef eyetracker < handle
         end
         
         function delete(obj)
+            fprintf('eyetracker:delete\n');
             Eyelink('Shutdown');
         end
         
-        function [] = command(obj, varargin)
+        function [] = command(obj, formatstring, varargin)
             %command Issues Eyelink('Command', cmdString) if not in dummy
             %mode. In dummy mode, nothing happens.
             %   Detailed explanation goes here
             if obj.DummyMode
                 warning('No Eyelink(Command) in dummy mode: %s', cmdString);
             else
-                Eyelink('Command', varargin{:});
+                Eyelink('Command', formatstring, varargin{:});
             end
         end
         
-        function [] = message(obj, varargin)
+        function [] = message(obj, formatstring, varargin)
             %command Issues Eyelink('Command', cmdString) if not in dummy
             %mode. In dummy mode, nothing happens.
             %   Detailed explanation goes here
             if obj.DummyMode
                 warning('No Eyelink(Message) in dummy mode: %s', cmdString);
             else
-                Eyelink('Message', varargin{:});
+                Eyelink('Message', formatstring, varargin{:});
             end
         end
 
@@ -72,7 +78,7 @@ classdef eyetracker < handle
                     case {1,2}
                         eyeUsedIndex = 2; % Get samples from right eye if binocular
                     otherwise
-                        exception = MException('eyetracker.eyepos', sprintf('Unknown response (%d) from Eyelink(''EyeAvailable'')', i));
+                        exception = MException('eyetracker:eyepos', sprintf('Unknown response (%d) from Eyelink(''EyeAvailable'')', i));
                         throw exception;
                 end
             end
@@ -127,7 +133,7 @@ classdef eyetracker < handle
                 % Open EDF file. Note that filename must be 8 char or less (like on windows, 
                 % but somehow preserved on the Eyelink QNX version.
                 status = Eyelink('OpenFile', obj.Name);
-                if ~status
+                if status
                     errID = 'eyetracker:eyelink_setup';
                     msg = sprintf('EyelinkInit failed open EDF file with name %s.', obj.Name);
                     baseException = MException(errID,msg);
@@ -147,12 +153,17 @@ classdef eyetracker < handle
                 obj.command('link_sample_data  = LEFT,RIGHT,GAZE,GAZERES,AREA,HTARGET,STATUS,INPUT');
 
                 % Provide EyeLink with some defaults, which are returned in the structure "el".
-                EyelinkDefaults = EyelinkInitDefaults(window);
+                EyelinkDefaults = EyelinkInitDefaults(obj.Window);
                 % set calibration/validation/drift-check(or drift-correct) size as well as background and target colors.
                 % It is important that this background colour is similar to that of the stimuli to prevent large luminance-based
                 % pupil size changes (which can cause a drift in the eye movement data)
                 EyelinkDefaults.calibrationtargetsize = 2; % Outer target size as percentage of the screen
                 EyelinkDefaults.calibrationtargetwidth = 0.7; % Inner target size as percentage of the screen
+
+                % colors
+                grey = [0.5, 0.5, 0.5];
+                black = [0, 0, 0];
+
                 EyelinkDefaults.backgroundcolour = grey; % RGB grey
                 EyelinkDefaults.calibrationtargetcolour = black; % RGB black
                 % set "Camera Setup" instructions text colour so it is different from background colour
@@ -164,15 +175,13 @@ classdef eyetracker < handle
                 % You must call this function to apply the changes made to the el structure above
                 EyelinkUpdateDefaults(EyelinkDefaults);
 
-                % Need window size in pixels
-                [widthPixels, heightPixels] = Screen('Rect', obj.Window);
-                obj.command({'screen_pixel_coords = %ld %ld %ld %ld', 0, 0, width-1, height-1});
+                obj.command('screen_pixel_coords = %ld %ld %ld %ld', 0, 0, obj.ScreenWidthPix-1, obj.ScreenHeightPix-1);
                 % Write DISPLAY_COORDS message to EDF file: sets display coordinates in DataViewer
                 % See DataViewer manual section: Protocol for EyeLink Data to Viewer Integration > Pre-trial Message Commands
-                obj.message({'DISPLAY_COORDS %ld %ld %ld %ld', 0, 0, width-1, height-1});
-                obj.command({'calibration_type = HV5'}); % horizontal-vertical 9-points
-                obj.command({'button_function 5 "accept_target_fixation"'});
-                obj.command({'clear_screen 0'});
+                obj.message('DISPLAY_COORDS %ld %ld %ld %ld', 0, 0, obj.ScreenWidthPix-1, obj.ScreenHeightPix-1);
+                obj.command('calibration_type = HV5'); % horizontal-vertical 9-points
+                obj.command('button_function 5 "accept_target_fixation"');
+                obj.command('clear_screen 0');
 
                 % Put EyeLink Host PC in Camera Setup mode for participant setup/calibration
                 EyelinkDoTrackerSetup(EyelinkDefaults);
