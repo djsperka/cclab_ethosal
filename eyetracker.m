@@ -26,7 +26,8 @@ classdef eyetracker < handle
                 rethrow(ME);
             end
             
-            obj.DummyMode = p.Results.DummyMode;
+            obj.DummyMode = true;
+            if ~p.Results.DummyMode obj.DummyMode = false; end
             obj.Name = p.Results.Name;
             obj.Window = p.Results.Window;
             rect = Screen('Rect', obj.Window);
@@ -41,7 +42,6 @@ classdef eyetracker < handle
         end
         
         function delete(obj)
-            %fprintf('eyetracker:delete\n');
             Eyelink('Shutdown');
         end
         
@@ -67,39 +67,56 @@ classdef eyetracker < handle
             end
         end
 
+        function start_recording(obj)
+            Eyelink('SetOfflineMode');
+            Eyelink('StartRecording');
+        end
+
+        function offline(obj)
+            Eyelink('SetOfflineMode');
+        end            
+
         function [x y] = eyepos(obj)
             persistent eyeUsedIndex;
-            if ~obj.DummyMode && isempty(eyeUsedIndex)
-                % Check which eye is available. Returns 0 (left), 1 (right) or 2 (binocular)
-                i = Eyelink('EyeAvailable');
-                switch i
-                    case 0
-                        eyeUsedIndex = 1;
-                    case {1,2}
-                        eyeUsedIndex = 2; % Get samples from right eye if binocular
-                    otherwise
-                        exception = MException('eyetracker:eyepos', sprintf('Unknown response (%d) from Eyelink(''EyeAvailable'')', i));
-                        throw exception;
+
+            if ~obj.DummyMode
+                if Eyelink('CurrentMode') ~= obj.EyelinkDefaults.IN_RECORD_MODE
+                    exception = MException('eyetracker:eyepos', 'Tracker is not recording, call start_recording.');
+                    throw(exception);
+                end
+    
+                if isempty(eyeUsedIndex)
+                    % Check which eye is available. Returns 0 (left), 1 (right) or 2 (binocular)
+                    i = Eyelink('EyeAvailable');
+                    switch i
+                        case obj.EyelinkDefaults.LEFT_EYE
+                            eyeUsedIndex = 1;
+                        case obj.EyelinkDefaults.RIGHT_EYE
+                            eyeUsedIndex = 2; 
+                        case obj.EyelinkDefaults.BINOCULAR
+                            eyeUsedIndex = 2; % Get samples from right eye if binocular
+                        otherwise
+                            exception = MException('eyetracker:eyepos', sprintf('Unknown response (%d) from Eyelink(''EyeAvailable'')', i));
+                            throw(exception);
+                    end
                 end
             end
-                        
-            switch (obj.DummyMode)
-                case 1
-                    [x y] = GetMouse(obj.Window);
-                case 0
-                    evt = Eyelink('NewestFloatSample');
-                    x = evt.gx(eyeUsedIndex);
-                    y = evt.gy(eyeUsedIndex);
-                otherwise
-                    exception = MException('eyetracker:message','Mode must be 0,1, or 2.');
-                    throw(exception);
+
+            % now get the actual eye position
+            if obj.DummyMode
+                [x y] = GetMouse(obj.Window);
+            else
+                evt = Eyelink('NewestFloatSample');
+                x = evt.gx(eyeUsedIndex);
+                y = evt.gy(eyeUsedIndex);
             end
+
         end
     
         function S = saccade(obj, R)
             if size(R,1) ~= 4
                 exception = MException('eyetracker.saccade', 'input should be 4xN array of rects');
-                throw exception;
+                throw(exception);
             end
             S = zeros(1, size(R,2));
             [x, y] = obj.eyepos();
@@ -153,27 +170,27 @@ classdef eyetracker < handle
                 obj.command('link_sample_data  = LEFT,RIGHT,GAZE,GAZERES,AREA,HTARGET,STATUS,INPUT');
 
                 % Provide EyeLink with some defaults, which are returned in the structure "el".
-                EyelinkDefaults = EyelinkInitDefaults(obj.Window);
+                obj.EyelinkDefaults = EyelinkInitDefaults(obj.Window);
                 % set calibration/validation/drift-check(or drift-correct) size as well as background and target colors.
                 % It is important that this background colour is similar to that of the stimuli to prevent large luminance-based
                 % pupil size changes (which can cause a drift in the eye movement data)
-                EyelinkDefaults.calibrationtargetsize = 2; % Outer target size as percentage of the screen
-                EyelinkDefaults.calibrationtargetwidth = 0.7; % Inner target size as percentage of the screen
+                obj.EyelinkDefaults.calibrationtargetsize = 2; % Outer target size as percentage of the screen
+                obj.EyelinkDefaults.calibrationtargetwidth = 0.7; % Inner target size as percentage of the screen
 
                 % colors
                 grey = [0.5, 0.5, 0.5];
                 black = [0, 0, 0];
 
-                EyelinkDefaults.backgroundcolour = grey; % RGB grey
-                EyelinkDefaults.calibrationtargetcolour = black; % RGB black
+                obj.EyelinkDefaults.backgroundcolour = grey; % RGB grey
+                obj.EyelinkDefaults.calibrationtargetcolour = black; % RGB black
                 % set "Camera Setup" instructions text colour so it is different from background colour
-                EyelinkDefaults.msgfontcolour = black; % RGB black
+                obj.EyelinkDefaults.msgfontcolour = black; % RGB black
                 % Set calibration beeps (0 = sound off, 1 = sound on)
-                EyelinkDefaults.targetbeep = 1;  % sound a beep when a target is presented
-                EyelinkDefaults.feedbackbeep = 1;  % sound a beep after calibration or drift check/correction
+                obj.EyelinkDefaults.targetbeep = 1;  % sound a beep when a target is presented
+                obj.EyelinkDefaults.feedbackbeep = 1;  % sound a beep after calibration or drift check/correction
 
                 % You must call this function to apply the changes made to the el structure above
-                EyelinkUpdateDefaults(EyelinkDefaults);
+                EyelinkUpdateDefaults(obj.EyelinkDefaults);
 
                 obj.command('screen_pixel_coords = %ld %ld %ld %ld', 0, 0, obj.ScreenWidthPix-1, obj.ScreenHeightPix-1);
                 % Write DISPLAY_COORDS message to EDF file: sets display coordinates in DataViewer
@@ -184,7 +201,7 @@ classdef eyetracker < handle
                 obj.command('clear_screen 0');
 
                 % Put EyeLink Host PC in Camera Setup mode for participant setup/calibration
-                EyelinkDoTrackerSetup(EyelinkDefaults);
+                EyelinkDoTrackerSetup(obj.EyelinkDefaults);
             end
         end
     end
