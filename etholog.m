@@ -14,10 +14,13 @@ function [allResults] = etholog(varargin)
     p.addParameter('NumTrials', inf, @(x) isscalar(x));
     p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
     p.addParameter('ImageSubFolders', {'H', 'naturalT'; 'L', 'texture'},  @(x) iscellstr(x) && size(x,2)==2);
-    p.addParameter('Response', 'Saccade', @(x) ischar(x));
+    responseTypes = {'Saccade', 'MilliKey'};
+    p.addParameter('Response', 'Saccade', @(x) any(validatestring(x, responseTypes));
     p.addParameter('Beep', false, @(x) islogical(x));
     p.addParameter('KeyboardIndex', 0, @(x) isscalar(x));
+    p.addParameter('MilliKeyIndex', 0, @(x) isscalar(x));
     p.parse(varargin{:});
+    subjectResponseType = validatestring(p.Results.Response, responseTypes);
 
     % Now load the expt config, then do a couple of checks
     cclab = load_local_config();
@@ -60,6 +63,14 @@ function [allResults] = etholog(varargin)
     % Init audio
     
     beeper = twotonebeeper();
+
+    % input response device if needed
+    if strcmp(subjectResponseType, 'MilliKey')
+        if ~p.Results.MilliKeyIndex
+            error('If MilliKey used as response device, you must supply the keyboard index with MilliKeyIndex');
+        end
+        millikey = responder(p.Results.MilliKeyIndex);
+    end
 
     % init eye tracker. 
     
@@ -228,17 +239,19 @@ function [allResults] = etholog(varargin)
                 % good. That will change when we nail down what to use as a
                 % response device. 
                 
-                switch p.Results.Response
+                isResponse = false;
+                switch subjectResponseType
                     case 'Saccade'
                         sac = tracker.saccade([stim1Rect;stim2Rect]');
                         % We should ensure that the rectangles cannot
                         % overlap!
                         if any(sac)
                             response = find(sac);
+                            isResponse = true;
                             tResp = GetSecs;    % not an accurate measurement at all! 
                         end
-                    case 'None'
-                    case 'Device'
+                    case 'MilliKey'
+                        [isResponse, response] = responder.response();
                 end
                 if response || stateMgr.timeInState() >= cclab.trials.RespTime(itrial)
                     stateMgr.transitionTo('TRIAL_COMPLETE');
