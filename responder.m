@@ -30,7 +30,7 @@ classdef responder < handle
         function obj = responder(index)
             %responder Construct a responder object for device with index.
             %   Detailed explanation goes here
-
+            KbName('UnifyKeyNames');
             obj.Responses = { KbName('1!'), 1; KbName('return'), 0; KbName('2@'), 2 };
             obj.DevIndex = index;
             KbQueueCreate(obj.DevIndex);
@@ -66,7 +66,7 @@ classdef responder < handle
             responseIndex = -999;
 
             %look at key PRESSES
-            [keyPressed keyCode tPressed] = obj.nextPress()
+            [keyPressed, keyCode, tPressed] = obj.nextPress();
             while keyPressed
                 A = cellfun(@(x) any(x==keyCode), obj.Responses(:,1));
                 if any(A)
