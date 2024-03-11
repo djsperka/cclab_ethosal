@@ -44,6 +44,10 @@ function [allResults] = etholog(varargin)
     % macbook (testing only) and it works fine. 
     %
     p.addParameter('KeyboardIndex', 0, @(x) isscalar(x));
+
+    p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
+    p.addParameter('CueWidth', 2, @(x) isscalar(x));
+
     p.parse(varargin{:});
     subjectResponseType = validatestring(p.Results.Response, responseTypes);
 
@@ -79,7 +83,7 @@ function [allResults] = etholog(varargin)
     else
         converter = pixdegconverter(windowRect, p.Results.Fovx);
     end
-    
+
     % Kb queue - need to know correct index!
     if ~p.Results.KeyboardIndex
         error('Need to specify keyboard index');
@@ -133,6 +137,15 @@ function [allResults] = etholog(varargin)
     fixDiamPix = converter.deg2pix(fixDiamDeg);
     fixRect = [0 0 fixDiamPix fixDiamPix]; 
     fixXYScr = converter.deg2scr(fixXYDeg);
+    % row 1 = x values, row2 = y values
+    % first (second) column: start(end) of first segment
+    % and so on
+    fixLines = [ ...
+        fixXYScr(1) + fixDiamPix/2, fixXYScr(2); ...
+        fixXYScr(1) - fixDiamPix/2, fixXYScr(2); ...
+        fixXYScr(1), fixXYScr(2) + fixDiamPix/2; ...
+        fixXYScr(1), fixXYScr(2) - fixDiamPix/2
+        ]';
     stim1XYScr = converter.deg2scr(stim1XYDeg);
     stim2XYScr = converter.deg2scr(stim2XYDeg);
     fixWindowDiamPix = converter.deg2pix(fixWindowDiamDeg);
@@ -222,7 +235,8 @@ function [allResults] = etholog(varargin)
             case 'DRAW_FIXPT'
                 % fixpt only
                 Screen('FillRect', windowIndex, bkgdColor);
-                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
+                %Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
+                Screen('DrawLines', windowIndex, fixLines, 4, [0, 0, 0]');
                 Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_ACQ');
             case 'WAIT_ACQ'
@@ -247,9 +261,14 @@ function [allResults] = etholog(varargin)
             case 'DRAW_A'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
-                Screen('FrameRect', windowIndex, [cueColor1; cueColor2]', [stim1Rect;stim2Rect]', cuePenWidth);
+                Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
                 Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
-                % flip and save time
+
+                % Note - convert fixpt from oval to cross. 
+                %Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
+                Screen('DrawLines', windowIndex, fixLines, 4, [0, 0, 0]');
+
+                % flip and save the flip time
                 [ allResults.tAon(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_A');
             case 'WAIT_A'
@@ -273,7 +292,8 @@ function [allResults] = etholog(varargin)
                 end                
             case 'DRAW_AB'
                 Screen('FillRect', windowIndex, bkgdColor);
-                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
+                %Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
+                Screen('DrawLines', windowIndex, fixLines, 4, [0, 0, 0]');
                 [ allResults.tAoff(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_AB');
             case 'WAIT_AB'
@@ -283,8 +303,10 @@ function [allResults] = etholog(varargin)
             case 'DRAW_B'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
-                Screen('FrameRect', windowIndex, [cueColor1; cueColor2]', [stim1Rect;stim2Rect]', cuePenWidth);
-                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
+                Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                % Note - convert fixpt to cross
+                %Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
+                Screen('DrawLines', windowIndex, fixLines, 4, [0, 0, 0]');
                 [ allResults.tBon(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('START_RESPONSE');
             % case 'WAIT_B'
