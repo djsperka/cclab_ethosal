@@ -6,6 +6,9 @@ classdef imageset
     properties
         Images  % Will be a container.Map of image arrays
         ImageFilenames % container.Map of filename
+        Extensions
+        Root
+        Subfolders
     end
     
     methods (Static)
@@ -56,19 +59,22 @@ classdef imageset
             p = inputParser;
             addRequired(p, 'Root', @(x) ischar(x) && isdir(x));
             addParameter(p, 'Subfolders', {'H', 'natT'; 'L', 'texture'}, @(x) iscellstr(x) && size(x, 2)==2);
+            addParameter(p, 'Extensions', {'.bmp', '.jpg', '.png'});
             p.parse(varargin{:});
             
             % create container for images and filenames
             obj.Images = containers.Map;
             obj.ImageFilenames = containers.Map;
+
+            obj.Root = p.Results.Root;
+            obj.Subfolders = p.Results.Subfolders;
+            obj.Extensions = p.Results.Extensions;
             
 
             % now process files. Each row of the cell array is two elements
             % - the key and the subfolder.
-            root = p.Results.Root;
-            subs = p.Results.Subfolders;
-            for i=1:size(subs, 1)
-                add_images_from_folder(obj, fullfile(root, subs{i,2}), subs{i,1});
+            for i=1:size(obj.Subfolders, 1)
+                add_images_from_folder(obj, fullfile(obj.Root, obj.Subfolders{i,2}), obj.Subfolders{i,1});
             end
         end
         
@@ -77,8 +83,13 @@ classdef imageset
                 exception = MException('imageset:add_image:duplicateKey', sprintf('Adding a duplicate key %s with filename %s\n', key, filename));
                 throw(exception);
             end
-            obj.Images(key) = imread(filename);
-            obj.ImageFilenames(key) = filename;
+            try
+                obj.Images(key) = imread(filename);
+                obj.ImageFilenames(key) = filename;
+            catch ME
+                fprintf('Error reading file %s\n', filename);
+                rethrow(ME);
+            end
         end
         
         function add_images_from_folder(obj, folder, folder_key)
@@ -91,17 +102,24 @@ classdef imageset
             for i=1:height(d)
                 fname = fullfile(d(i).folder, d(i).name);
                 if isfile(fname)
-                    [~,base,~] = fileparts(fname);
+                    [~,base,ext] = fileparts(fname);
+
+                    % Check file extension
+                    if any(strcmp(lower(ext), lower(obj.Extensions)))
                     
-                    % the full key is folder_key/base, but if folder_key is
-                    % empty, then the full key is just base
-                    
-                    if isempty(folder_key)
-                        key = base;
+                        % the full key is folder_key/base, but if folder_key is
+                        % empty, then the full key is just base
+                        
+                        if isempty(folder_key)
+                            key = base;
+                        else
+                            key = [folder_key '/' base];
+                        end
+                        obj.add_image(fname, key);
+
                     else
-                        key = [folder_key '/' base];
+                        fprintf('imageset - skipping file %s\n', fname);
                     end
-                    obj.add_image(fname, key);
                 end
             end
         end
