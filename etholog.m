@@ -15,7 +15,7 @@ function [allResults] = etholog(varargin)
     p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
     p.addParameter('ImageSubFolders', {'H', 'naturalT'; 'L', 'texture'},  @(x) iscellstr(x) && size(x,2)==2);
     responseTypes = {'Saccade', 'MilliKey'};
-    p.addParameter('Response', 'Saccade', @(x) any(validatestring(x, responseTypes));
+    p.addParameter('Response', 'Saccade', @(x) any(validatestring(x, responseTypes)));
     p.addParameter('Beep', false, @(x) islogical(x));
     p.addParameter('KeyboardIndex', 0, @(x) isscalar(x));
     p.addParameter('MilliKeyIndex', 0, @(x) isscalar(x));
@@ -55,14 +55,11 @@ function [allResults] = etholog(varargin)
         converter = pixdegconverter(windowRect, p.Results.Fovx);
     end
     
-    % Kb queue using default keyboard. TODO: might need to allow an ind arg
-    [ind, ~, ~] = GetKeyboardIndices();
-    kbindex = ind(1);
-    KbQueueCreate(kbindex);
-
-    % Init audio
-    
-    beeper = twotonebeeper();
+    % Kb queue - need to know correct index!
+    if ~p.Results.KeyboardIndex
+        error('Need to specify keyboard index');
+    end
+    KbQueueCreate(p.Results.KeyboardIndex);
 
     % input response device if needed
     if strcmp(subjectResponseType, 'MilliKey')
@@ -74,8 +71,15 @@ function [allResults] = etholog(varargin)
 
     % init eye tracker. 
     
+    if ~cclab.dummymode_EYE
+        warning('Initializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup');
+    end
     tracker = eyetracker(cclab.dummymode_EYE, p.Results.Name, windowIndex);
-    
+
+    % Init audio - AFTER the tracker is initialized (avoid PortAudio msgs)
+    beeper = twotonebeeper();
+
+
     % load images
     images = imageset(p.Results.ImageRoot, 'SubFolders', p.Results.ImageSubFolders);
     
@@ -114,14 +118,14 @@ function [allResults] = etholog(varargin)
     allResults = table('Size', [ NumTrials, length(variableNames)], 'VariableNames', variableNames, 'VariableTypes', variableTypes);
     
     % start kbd queue now
-    KbQueueStart(kbindex);
+    KbQueueStart(p.Results.KeyboardIndex);
     ListenChar(-1);
     
     while ~bQuit && ~strcmp(stateMgr.Current, 'DONE')
         
         
         % any keys pressed? 
-        [keyPressed, keyCode,  ~, ~] = checkKbdQueue(kbindex);
+        [keyPressed, keyCode,  ~, ~] = checkKbdQueue(p.Results.KeyboardIndex);
         if keyPressed
             switch keyCode
                 case KbName('space')
@@ -182,6 +186,10 @@ function [allResults] = etholog(varargin)
                 % results
                 allResults.Started(itrial) = true;
                 allResults.trialIndex(itrial) = itrial;
+
+                % start tracker recording
+                tracker.start_recording();
+
             case 'DRAW_FIXPT'
                 % fixpt only
                 Screen('FillRect', windowIndex, bkgdColor);
@@ -190,13 +198,23 @@ function [allResults] = etholog(varargin)
                 stateMgr.transitionTo('WAIT_ACQ');
             case 'WAIT_ACQ'
                 % no maximum here, could go forever
-                [x y] = tracker.eyepos();
-                if IsInRect(x, y, fixWindowRect)
+                if tracker.is_in_rect(fixWindowRect)
                     stateMgr.transitionTo('WAIT_FIX');
                 end
             case 'WAIT_FIX'
-                WaitSecs(2.0);
-                stateMgr.transitionTo('DRAW_A');
+                if stateMgr.timeInState() > cclab.FixationTime
+                    stateMgr.transitionTo('DRAW_A');
+                elseif ~tracker.is_in_rect(fixWindowRect)
+                    stateMgr.transitionTo('FIXATION_BREAK_EARLY');
+                end
+            case 'FIXATION_BREAK_EARLY'
+                Screen('FillRect', windowIndex, bkgdColor);
+                Screen('Flip', windowIndex);
+                stateMgr.transitionTo('FIXATION_BREAK_EARLY_WAIT');
+            case 'FIXATION_BREAK_EARLY_WAIT'
+                if stateMgr.timeInState() > cclab.FixationBreakEarlyTime
+                    stateMgr.transitionTo('DRAW_FIXPT');
+                end
             case 'DRAW_A'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
@@ -206,8 +224,23 @@ function [allResults] = etholog(varargin)
                 stateMgr.transitionTo('WAIT_A');
             case 'WAIT_A'
                 if stateMgr.timeInState() >= cclab.trials.SampTime(itrial)
-                    stateMgr.transitionTo('DRAW_AB');
+                    % if GapTime is zero, transition directly to DRAW_B
+                    if cclab.trials.GapTime(itrial) > 0
+                        stateMgr.transitionTo('DRAW_AB');
+                    else
+                        stateMgr.transitionTo('DRAW_B');
+                    end
+                elseif ~tracker.is_in_rect(fixWindowRect)
+                    stateMgr.transitionTo('FIXATION_BREAK_LATE')
                 end
+            case 'FIXATION_BREAK_LATE'
+                Screen('FillRect', windowIndex, bkgdColor);
+                Screen('Flip', windowIndex);
+                stateMgr.transitionTo('FIXATION_BREAK_LATE_WAIT');
+            case 'FIXATION_BREAK_LATE_WAIT'
+                if stateMgr.timeInState() > cclab.FixationBreakLateTime
+                    stateMgr.transitionTo('TRIAL_COMPLETE');
+                end                
             case 'DRAW_AB'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
@@ -222,14 +255,19 @@ function [allResults] = etholog(varargin)
                 Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
                 Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
                 [ allResults.tBon(itrial) ] = Screen('Flip', windowIndex);
-                stateMgr.transitionTo('WAIT_B');
-            case 'WAIT_B'
-                if stateMgr.timeInState() >= cclab.trials.TestTime(itrial)
-                    stateMgr.transitionTo('DRAW_BKGD');
+                stateMgr.transitionTo('START_RESPONSE');
+            % case 'WAIT_B'
+            %     if stateMgr.timeInState() >= cclab.trials.TestTime(itrial)
+            %         stateMgr.transitionTo('DRAW_BKGD');
+            %     end
+            % case 'DRAW_BKGD'
+            %     Screen('FillRect', windowIndex, bkgdColor);
+            %     [ allResults.tBoff(itrial) ] = Screen('Flip', windowIndex);
+            %     stateMgr.transitionTo('START_RESPONSE');
+            case 'START_RESPONSE'
+                if strcmp(subjectResponseType, 'MilliKey')
+                    millikey.start();
                 end
-            case 'DRAW_BKGD'
-                Screen('FillRect', windowIndex, bkgdColor);
-                [ allResults.tBoff(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_RESPONSE');
             case 'WAIT_RESPONSE'
                 response = 0;
@@ -251,11 +289,14 @@ function [allResults] = etholog(varargin)
                             tResp = GetSecs;    % not an accurate measurement at all! 
                         end
                     case 'MilliKey'
-                        [isResponse, response] = responder.response();
+                        [isResponse, response, tResp] = millikey.response();
                 end
-                if response || stateMgr.timeInState() >= cclab.trials.RespTime(itrial)
+                if isResponse || stateMgr.timeInState() >= cclab.trials.RespTime(itrial)
                     stateMgr.transitionTo('TRIAL_COMPLETE');
-                    fprintf('TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt);
+                    fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt);
+                    if strcmp(subjectResponseType, 'MilliKey')
+                        millikey.stop(true);
+                    end
                     % record response
                     allResults.iResp(itrial) = response;
                     allResults.tResp(itrial) = tResp;
@@ -263,18 +304,28 @@ function [allResults] = etholog(varargin)
                     % beep maybe
                     if p.Results.Beep
                         if allResults.iResp(itrial) == cclab.trials.Change(itrial)
-                            fprintf('Correct response\n');
+                            fprintf('etholog: Correct response\n');
                             beeper.correct();
                         elseif allResults.iResp(itrial) < 0
-                            fprintf('No response\n');
+                            fprintf('etholog: No response\n');
                             beeper.incorrect();
                         else
-                            fprintf('Correct response\n');
+                            fprintf('etholog: Incorrect response\n');
                             beeper.incorrect();
                         end
                     end
                 end
             case 'TRIAL_COMPLETE'
+
+                % stop tracker recording
+                tracker.offline();
+
+                % stop millikey queue
+                if strcmp(subjectResponseType, 'MilliKey')
+                    millikey.stop(true);
+                end
+
+                % increment trial
                 itrial = itrial + 1;
                 if itrial > NumTrials
                     % do stuff for being all done like write output file
