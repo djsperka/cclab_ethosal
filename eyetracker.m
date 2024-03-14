@@ -21,6 +21,7 @@ classdef eyetracker < handle
                 p.addRequired('DummyMode', @(x) isscalar(x) && (x == 0 || x == 1));
                 p.addRequired('Name', @(x) ischar(x) && length(x) > 0 && length(x) < 9);
                 p.addRequired('Window', @(x) isscalar(x));
+                p.addOptional('DoSetup', false, @(x) islogical(x));
                 p.parse(mode, name, window);
             catch ME
                 rethrow(ME);
@@ -75,6 +76,12 @@ classdef eyetracker < handle
         function offline(obj)
             Eyelink('SetOfflineMode');
         end            
+
+        function [tf] = is_in_rect(obj, rect)
+            %is_in_rect Is current eye pos in the rect? Returns 1/0.
+            [x, y] = obj.eyepos();
+            tf = IsInRect(x, y, rect);
+        end
 
         function [x y] = eyepos(obj)
             persistent eyeUsedIndex;
