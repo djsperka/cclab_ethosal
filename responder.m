@@ -46,10 +46,21 @@ classdef responder < handle
         end
 
         function stop(obj, varargin)
+        %stop(bFlush=false) Stops the queue, optionally flushes events
+        %using flushType=3 (see KbQueueFlush; this type seems to be needed
+        %by MilliKey)
             KbQueueStop(obj.DevIndex);
-            if nargin > 0 && islogical(varargin{1}) && isscalar(varargin{1})
-                KbQueueFlush(obj.DevIndex);
+            if nargin > 1 && islogical(varargin{1}) && isscalar(varargin{1}) && varargin{1}
+                obj.flush();
             end
+        end
+
+        function flush(obj, varargin)
+            flushType = 3;
+            if nargin > 1
+                flushType = varargin{1};
+            end
+            KbQueueFlush(obj.DevIndex, flushType);
         end
 
         function dump(obj)
@@ -61,9 +72,10 @@ classdef responder < handle
             end
         end
 
-        function [isResponse, responseIndex] = response(obj)
+        function [isResponse, responseIndex, tResponse] = response(obj)
             isResponse = false;
             responseIndex = -999;
+            tResponse = -1;
 
             %look at key PRESSES
             [keyPressed, keyCode, tPressed] = obj.nextPress();
@@ -74,6 +86,7 @@ classdef responder < handle
                         error('Found overlapping responses. Check responses arg to responder constructor.');
                     end
                     isResponse = true;
+                    tResponse = tPressed;
                     responseIndex = obj.Responses{find(A), 2};
                     break;
                 end
