@@ -69,12 +69,20 @@ classdef eyetracker < handle
         end
 
         function start_recording(obj)
-            Eyelink('SetOfflineMode');
-            Eyelink('StartRecording');
+            if ~obj.DummyMode
+                Eyelink('SetOfflineMode');
+                Eyelink('StartRecording');
+            else
+                fprintf('eyetracker.start_recording: dummy mode.\n');
+            end
         end
 
         function offline(obj)
-            Eyelink('SetOfflineMode');
+            if ~obj.DummyMode
+                Eyelink('SetOfflineMode');
+            else
+                fprintf('eyetracker.offline: dummy mode.\n');
+            end
         end            
 
         function [tf] = is_in_rect(obj, rect)
