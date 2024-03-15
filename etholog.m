@@ -94,10 +94,14 @@ function [allResults] = etholog(varargin)
     % Derive other stuff from this below. 
     fixDiamDeg = 1;
     fixXYDeg = [0 0];
-    fixColor = [1 0 0];
+    fixColor = [0 0 0];
     stim1XYDeg = [-10 0];
     stim2XYDeg = [10 0];
     fixWindowDiamDeg = 3;
+    cueColor1 = [1, 0, 0];
+    cueColor2 = [0, 0, 1];
+    cuePenWidth = 2;
+
 
     % aforementioned conversions, to be used below. Note that stim rect is
     % generated on the fly, in case of different sizes. 
@@ -218,6 +222,7 @@ function [allResults] = etholog(varargin)
             case 'DRAW_A'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
+                Screen('FrameRect', windowIndex, [cueColor1; cueColor2]', [stim1Rect;stim2Rect]', cuePenWidth);
                 Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
                 % flip and save time
                 [ allResults.tAon(itrial) ] = Screen('Flip', windowIndex);
@@ -253,6 +258,7 @@ function [allResults] = etholog(varargin)
             case 'DRAW_B'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
+                Screen('FrameRect', windowIndex, [cueColor1; cueColor2]', [stim1Rect;stim2Rect]', cuePenWidth);
                 Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
                 [ allResults.tBon(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('START_RESPONSE');
@@ -272,7 +278,8 @@ function [allResults] = etholog(varargin)
             case 'WAIT_RESPONSE'
                 response = 0;
                 tResp = 0;
-                
+
+               
                 % TODO - more accuracy w/r/to the response time would be
                 % good. That will change when we nail down what to use as a
                 % response device. 
