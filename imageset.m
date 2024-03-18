@@ -9,6 +9,8 @@ classdef imageset
         Extensions
         Root
         Subfolders
+        OnLoadFunc
+        TextureParser
     end
     
     methods (Static)
@@ -35,19 +37,19 @@ classdef imageset
             end
         end
     
-        function [w, key, contrast] = parse_wkc(obj, varargin)
-            persistent p;
-            if isempty(p)
-                p = inputParser;
-                addRequired(p, 'Window', @(x) isscalar(x));
-                addRequired(p, 'Key', @(x) ischar(x) && obj.Images.isKey(x));
-                addOptional(p, 'Contrast', 1.0, @(x) isnumeric(x) && x >= 0 && x <= 1.0);
-            end
-            p.parse(varargin{:});
-            w = p.Results.Window;
-            key = p.Results.Key;
-            contrast = p.Results.Contrast;
-        end
+%         function [w, key, preProcessFunc] = parse_wkc(obj, varargin)
+%             persistent p;
+%             if isempty(p)
+%                 p = inputParser;
+%                 addRequired(p, 'Window', @(x) isscalar(x));
+%                 addRequired(p, 'Key', @(x) ischar(x) && obj.Images.isKey(x));
+%                 addOptional(p, 'PreProcessFunc', [], @(x) isa(x, 'function_handle'));
+%             end
+%             p.parse(varargin{:});
+%             w = p.Results.Window;
+%             key = p.Results.Key;
+%             contrast = p.Results.Contrast;
+%         end
 
     end
         
@@ -60,15 +62,24 @@ classdef imageset
             addRequired(p, 'Root', @(x) ischar(x) && isdir(x));
             addParameter(p, 'Subfolders', {'H', 'natT'; 'L', 'texture'}, @(x) iscellstr(x) && size(x, 2)==2);
             addParameter(p, 'Extensions', {'.bmp', '.jpg', '.png'});
+            addParameter(p, 'OnLoad', [], @(x) isa(x, 'function_handle'));  % check if isempty()
             p.parse(varargin{:});
             
             % create container for images and filenames
             obj.Images = containers.Map;
             obj.ImageFilenames = containers.Map;
+            
+            % create parser for texture() function
+            obj.TextureParser = inputParser;
+            addRequired(obj.TextureParser, 'Window', @(x) isscalar(x));
+            addRequired(obj.TextureParser, 'Key', @(x) ischar(x) && obj.Images.isKey(x));
+            addOptional(obj.TextureParser, 'PreProcessFunc', [], @(x) isa(x, 'function_handle'));
+
 
             obj.Root = p.Results.Root;
             obj.Subfolders = p.Results.Subfolders;
             obj.Extensions = p.Results.Extensions;
+            obj.OnLoadFunc = p.Results.OnLoad;
             
 
             % now process files. Each row of the cell array is two elements
@@ -84,7 +95,11 @@ classdef imageset
                 throw(exception);
             end
             try
-                obj.Images(key) = imread(filename);
+                if isempty(obj.OnLoadFunc)
+                    obj.Images(key) = imread(filename);
+                else
+                    obj.Images(key) = obj.OnLoadFunc(imread(filename));
+                end
                 obj.ImageFilenames(key) = filename;
             catch ME
                 fprintf('Error reading file %s\n', filename);
@@ -133,12 +148,13 @@ classdef imageset
             % arg to be optional and I want to hide the tedious code that
             
             % parse
-            [w, key, contrast] = obj.parse_wkc(varargin{:});
-            if contrast == 1.0
+            obj.TextureParser.parse(varargin{:});
+            w = obj.TextureParser.Results.Window;
+            key = obj.TextureParser.Results.Key;
+            if isempty(obj.TextureParser.Results.PreProcessFunc)
                 textureID = Screen('MakeTexture', w, obj.Images(key));
             else
-                tmpImage = uint8((contrast * (double(obj.Images(key))-127)) + 127);
-                textureID = Screen('MakeTexture', w, tmpImage);
+                textureID = Screen('MakeTexture', w, obj.TextureParser.Results.PreProcessFunc(obj.Images(key)));
             end
         end
         
@@ -148,9 +164,10 @@ classdef imageset
         end
         
         function flip(obj, varargin)
-            [w, key, contrast] = obj.parse_wkc(varargin{:});
+            obj.TextureParser.parse(varargin{:});
+            w = obj.TextureParser.Results.Window;
             Screen('FillRect', w, [.5 .5 .5]);
-            Screen('DrawTexture', w, obj.texture(w, key, contrast));
+            Screen('DrawTexture', w, obj.texture(varargin{:}));
             Screen('Flip', w);
         end
         
