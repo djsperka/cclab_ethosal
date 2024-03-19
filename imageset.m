@@ -4,13 +4,15 @@ classdef imageset
     %   Detailed explanation goes here
     
     properties
-        Images  % Will be a container.Map of image arrays
-        ImageFilenames % container.Map of filename
         Extensions
         Root
         Subfolders
         OnLoadFunc
         TextureParser
+        Images
+        IsBalanced
+        BalancedFileKeys
+        MissingKeys
     end
     
     methods (Static)
@@ -21,6 +23,19 @@ classdef imageset
                 key = [folder_key '/' file_key];
             end
         end
+        
+        function [folder_key, file_key] = split_key(key)
+            folder_key='';
+            file_key='';
+            if contains(key, '/')
+                k = split(key, '/');
+                folder_key = k{1};
+                file_key = k{2};
+            else
+                file_key = key;
+            end
+        end
+            
     end
     
     methods (Access = private)
@@ -29,28 +44,50 @@ classdef imageset
             if ~ischar(k)
                 exception = MException('imageset:parse_key:wrongType', 'Wrong type, expecting char');
                 throw(exception);
-            elseif ~obj.Images.isKey(k)
+            elseif ~obj.isKey(k)
                 exception = MException('imageset:parse_key:NotAKey', ['Not a key: ' k]);
                 throw(exception);
             else
                 key = k;
             end
         end
-    
-%         function [w, key, preProcessFunc] = parse_wkc(obj, varargin)
-%             persistent p;
-%             if isempty(p)
-%                 p = inputParser;
-%                 addRequired(p, 'Window', @(x) isscalar(x));
-%                 addRequired(p, 'Key', @(x) ischar(x) && obj.Images.isKey(x));
-%                 addOptional(p, 'PreProcessFunc', [], @(x) isa(x, 'function_handle'));
-%             end
-%             p.parse(varargin{:});
-%             w = p.Results.Window;
-%             key = p.Results.Key;
-%             contrast = p.Results.Contrast;
-%         end
-
+        
+        function [isBalanced, balancedFileKeys, missingKeys] = check_key_balance(obj)
+            %check_key_balance Tests whether each file key has an image for
+            %each folder key. Returns unique filel keys found. If any 
+            %unbalanced keys are found, they are returned in nonUniqueKeys.
+            
+            isBalanced = false;
+            balancedFileKeys = {};
+            missingKeys = {};
+            allKeys = obj.Images.keys;
+            allFileKeys = {};
+            for i=1:length(allKeys)
+                [~,fil] = imageset.split_key(allKeys{i});
+                allFileKeys{end+1} = fil;
+            end
+            uniqueFileKeys = unique(allFileKeys);
+            
+            % now check each folder for each key. Each row in
+            % obj.Subfolders refers to a subfolder (and a folder key)
+            for ikey=1:length(uniqueFileKeys)
+                kfail = false;
+                for itype = 1:size(obj.Subfolders, 1)
+                    k=imageset.make_key(obj.Subfolders{itype, 1}, uniqueFileKeys{ikey});
+                    if ~obj.Images.isKey(k)
+                        missingKeys{end+1} = k;
+                        kfail = true; 
+                    end
+                end
+                
+                % if kfail is false, then each subfolder had an image 
+                % with that basename. 
+                if ~kfail 
+                    balancedFileKeys{end+1} = uniqueFileKeys{ikey};
+                end
+            end
+            isBalanced = isempty(missingKeys);
+        end
     end
         
     methods
@@ -58,16 +95,21 @@ classdef imageset
             %imageset Load images from a set of folders. Each folder has a
             %key prefix. Full key for each file is prefix + '/' + basename.
             %   Detailed explanation goes here
+            
             p = inputParser;
-            addRequired(p, 'Root', @(x) ischar(x) && isdir(x));
+            %addRequired(p, 'Root', @(x) ischar(x) && isdir(x));
+            addRequired(p, 'Root');
             addParameter(p, 'Subfolders', {'H', 'natT'; 'L', 'texture'}, @(x) iscellstr(x) && size(x, 2)==2);
             addParameter(p, 'Extensions', {'.bmp', '.jpg', '.png'});
             addParameter(p, 'OnLoad', [], @(x) isa(x, 'function_handle'));  % check if isempty()
-            p.parse(varargin{:});
             
-            % create container for images and filenames
+            p.parse(varargin{:});
+
+            obj.Root = p.Results.Root;
+            obj.Subfolders = p.Results.Subfolders;
+            obj.Extensions = p.Results.Extensions;
+            obj.OnLoadFunc = p.Results.OnLoad;
             obj.Images = containers.Map;
-            obj.ImageFilenames = containers.Map;
             
             % create parser for texture() function
             obj.TextureParser = inputParser;
@@ -75,18 +117,15 @@ classdef imageset
             addRequired(obj.TextureParser, 'Key', @(x) ischar(x) && obj.Images.isKey(x));
             addOptional(obj.TextureParser, 'PreProcessFunc', [], @(x) isa(x, 'function_handle'));
 
-
-            obj.Root = p.Results.Root;
-            obj.Subfolders = p.Results.Subfolders;
-            obj.Extensions = p.Results.Extensions;
-            obj.OnLoadFunc = p.Results.OnLoad;
-            
-
             % now process files. Each row of the cell array is two elements
             % - the key and the subfolder.
             for i=1:size(obj.Subfolders, 1)
                 add_images_from_folder(obj, fullfile(obj.Root, obj.Subfolders{i,2}), obj.Subfolders{i,1});
             end
+            
+            % check key balance
+            [obj.IsBalanced, obj.BalancedFileKeys, obj.MissingKeys] = check_key_balance(obj);
+            
         end
         
         function add_image(obj, filename, key)
@@ -96,11 +135,11 @@ classdef imageset
             end
             try
                 if isempty(obj.OnLoadFunc)
-                    obj.Images(key) = imread(filename);
+                    image = imread(filename);
                 else
-                    obj.Images(key) = obj.OnLoadFunc(imread(filename));
+                    image = obj.OnLoadFunc(imread(filename));
                 end
-                obj.ImageFilenames(key) = filename;
+                obj.Images(key) = struct('fname', filename, 'image', image);
             catch ME
                 fprintf('Error reading file %s\n', filename);
                 rethrow(ME);
@@ -109,7 +148,7 @@ classdef imageset
         
         function add_images_from_folder(obj, folder, folder_key)
             % look at all files in the folder
-            if ~isdir(folder)
+            if ~isfolder(folder)
                 exception = MException('imageset:add_images_from_folder:NotAFolder', sprintf('This is not a folder: %s\n', folder));
                 throw(exception);
             end
@@ -120,16 +159,9 @@ classdef imageset
                     [~,base,ext] = fileparts(fname);
 
                     % Check file extension
-                    if any(strcmp(lower(ext), lower(obj.Extensions)))
+                    if any(strcmpi(ext, obj.Extensions))
                     
-                        % the full key is folder_key/base, but if folder_key is
-                        % empty, then the full key is just base
-                        
-                        if isempty(folder_key)
-                            key = base;
-                        else
-                            key = [folder_key '/' base];
-                        end
+                        key = imageset.make_key(folder_key, base);                        
                         obj.add_image(fname, key);
 
                     else
@@ -144,23 +176,21 @@ classdef imageset
             %[0,1]
             %   Detailed explanation goes here
             
-            % The use of a parser is maybe overkill, but I want the last
-            % arg to be optional and I want to hide the tedious code that
             
             % parse
             obj.TextureParser.parse(varargin{:});
             w = obj.TextureParser.Results.Window;
             key = obj.TextureParser.Results.Key;
             if isempty(obj.TextureParser.Results.PreProcessFunc)
-                textureID = Screen('MakeTexture', w, obj.Images(key));
+                textureID = Screen('MakeTexture', w, obj.Images(key).image);
             else
-                textureID = Screen('MakeTexture', w, obj.TextureParser.Results.PreProcessFunc(obj.Images(key)));
+                textureID = Screen('MakeTexture', w, obj.TextureParser.Results.PreProcessFunc(obj.Images(key).image));
             end
         end
         
         function r = rect(obj, k)
             key = obj.parse_key(k);
-            r = [0 0 size(obj.Images(key), 1:2)];
+            r = [0 0 size(obj.Images(key).image, 1:2)];
         end
         
         function flip(obj, varargin)
@@ -174,7 +204,7 @@ classdef imageset
         function fname = filename(obj, k)
             % keys expected folder,file
             key = obj.parse_key(k);
-            fname = obj.ImageFilenames(key);
+            fname = obj.Images(key).fname;
         end
     end
 end
