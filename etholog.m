@@ -5,20 +5,45 @@ function [allResults] = etholog(varargin)
 
 %% deal with input arguments
     p = inputParser;
+    
     p.addParameter('Screen', 0, @(x) isscalar(x));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Bkgd', [.5 .5 .5], @(x) isrow(x) && length(x) == 3);
+    p.addParameter('SkipSyncTests', 0, @(x) isscalar(x) && (x==0 || x==1));
     p.addParameter('Name', 'demo', @(x) ischar(x) && length(x)<9 && ~isempty(x));
     p.addParameter('Out', 'out', @(x) isdir(x));
     p.addParameter('Fovx', nan, @(x) isscalar(x) && isnumeric(x));
     p.addParameter('NumTrials', inf, @(x) isscalar(x));
     p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
     p.addParameter('ImageSubFolders', {'H', 'naturalT'; 'L', 'texture'},  @(x) iscellstr(x) && size(x,2)==2);
+    
+    p.addParameter('EyelinkDummyMode', 1,  @(x) isscalar(x) && (x == 0 || x == 1));
+    
+    % This func is applied to each image after it is read by imread. The
+    % result is saved as the image. 
+    p.addParameter('OnLoad', @onLoadImage, @(x) isa(x, 'function_handle'));
+    
+    % Where to look for responses. The 'Saccade' is intended for usage with
+    % eyelink dummy mode ('EyelinkDummyMode', 1) - which is the default.
     responseTypes = {'Saccade', 'MilliKey'};
     p.addParameter('Response', 'Saccade', @(x) any(validatestring(x, responseTypes)));
-    p.addParameter('Beep', false, @(x) islogical(x));
-    p.addParameter('KeyboardIndex', 0, @(x) isscalar(x));
     p.addParameter('MilliKeyIndex', 0, @(x) isscalar(x));
+    
+    % make an annoying beep telling subject right/wrong response
+    p.addParameter('Beep', false, @(x) islogical(x));
+    
+    % The keyboard index is used to get input from the experimenter.
+    % Keystrokes can pause, quit, maybe even other stuff. 
+    % 
+    % One must first solve the mystery of what your keyboard index is.
+    % Use this command:
+    % >> [ind names allinf] = GetKeyboardIndices();
+    %
+    % On my macbook, this command gives a single index, a device with the
+    % name 'Apple Internal Keyboard / Trackpad'. I use this index with my
+    % macbook (testing only) and it works fine. 
+    %
+    p.addParameter('KeyboardIndex', 0, @(x) isscalar(x));
     p.parse(varargin{:});
     subjectResponseType = validatestring(p.Results.Response, responseTypes);
 
@@ -40,9 +65,9 @@ function [allResults] = etholog(varargin)
     % arg == 1 : also KbName('UnifyKeyNames')
     % arg == 2 : also setcolor range 0-1, must use PsychImaging('OpenWindow') 
     PsychDefaultSetup(2);
-    Screen('Preference', 'Verbosity', cclab.Verbosity);
-    Screen('Preference', 'VisualDebugLevel', cclab.VisualDebugLevel);
-    Screen('Preference', 'SkipSyncTests', cclab.SkipSyncTests);
+    %Screen('Preference', 'Verbosity', cclab.Verbosity);
+    %Screen('Preference', 'VisualDebugLevel', cclab.VisualDebugLevel);
+    Screen('Preference', 'SkipSyncTests', p.Results.SkipSyncTests);
     
     % Open window for visual stim
     [windowIndex, windowRect] = PsychImaging('OpenWindow', p.Results.Screen, p.Results.Bkgd, p.Results.Rect);
@@ -71,10 +96,10 @@ function [allResults] = etholog(varargin)
 
     % init eye tracker. 
     
-    if ~cclab.dummymode_EYE
+    if ~p.Results.EyelinkDummyMode
         warning('Initializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup');
     end
-    tracker = eyetracker(cclab.dummymode_EYE, p.Results.Name, windowIndex);
+    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.Name, windowIndex);
 
     % Init audio - AFTER the tracker is initialized (avoid PortAudio msgs)
     beeper = twotonebeeper();

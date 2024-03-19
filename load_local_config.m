@@ -3,21 +3,24 @@ function [cclab] = load_local_config()
 %   Detailed explanation goes here
 
 
-    cclab.dummymode_EYE = 0;
-    cclab.SkipSyncTests = 1;
-    cclab.Verbosity = 0;
-    cclab.VisualDebugLevel = 1;
+    %cclab.dummymode_EYE = 0;
+    %cclab.SkipSyncTests = 1;
+    %cclab.Verbosity = 0;
+    %cclab.VisualDebugLevel = 1;
 
     cclab.FixationTime = 0.5;
     cclab.MaxAcquisitionTime = 2.0;
     cclab.FixationBreakEarlyTime = 0.5;
     cclab.FixationBreakLateTime = 2.0;
+    cclab.SampTimeRange = [1.0, 2.0];
 
 
-    % If 'Fovx' is defined, these two measurements are ignored, and don't
-    % need to be present at all but don't hurt. Otherwise, make sure they
-    % are correct for your experimental setup and screen. They should be in
-    % the same units, MM aren't strictly required (ratio is what matters).
+    % The screen width (the width of all visible pixels) and the eye
+    % distance are used for visual angle calculations. The definitions here
+    % are overridden by the 'Fovx' arg on the command line. That arg is
+    % meant for testing - where you are using a window on a screen, not
+    % full screen. TODO - fix PsychImaging pipeline to correctly scale
+    % stuff in that case. 
     cclab.ScreenWidthMM = 1000;
     cclab.EyeDistMM = 500;
     
@@ -26,7 +29,6 @@ function [cclab] = load_local_config()
     FName = {'N51';'N52';'N53';'N54';'N55';'N56';'N57';'N58';'N59';'N60'};
     Change = [1;2;1;2;0;1;2;1;2;0];
     ChangeContrast = [.5;.5;.5;.5;.5;.5;.5;.5;.5;.5];
-    SampTime = [2;2;2;2;2;2;2;2;2;2];
     GapTime = [0;0;0;0;0;0;0;0;0;0];
     TestTime = [2;2;2;2;2;2;2;2;2;2];
     RespTime = [2;2;2;2;2;2;2;2;2;2];
