@@ -1,106 +1,121 @@
-function [trials] = generateEthBlocks(varargin)
+function [blocks] = generateEthBlocks(varargin)
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
 
-    trials = [];
+    blocks = [];
     
     p=inputParser;
     p.addRequired('FileKeys', @(x) iscellstr(x));
-    p.addRequired('LNRCounts', @(x) isvector(x) && length(x)==3);
+    
+    % LRNCounts is a 3xN matrix. First, second, third rows are change-left, -right,
+    % -none.
+    p.addRequired('LRNCounts', @(x) isnumeric(x) && size(x, 1)==3);
     p.addOptional('FolderKeys', {'H'; 'L'},  @(x) iscellstr(x));
     p.parse(varargin{:});
     
-    fprintf('%d keys, counts %d %d %d sum %d\n', length(p.Results.FileKeys), p.Results.LNRCounts(1), p.Results.LNRCounts(2), p.Results.LNRCounts(3), sum(p.Results.LNRCounts));
-
     % for each image selected, there are 4 stim types. 
     % Type 1: HH
     % Type 2: HL
     % Type 3: LH
     % Type 4: LL
-    numStimTypes = 4;
+    nStimTypes = 4;
     
-    % select images to use. 
-    % The LNRCounts array should be 1x3, where the 3 columns are the number
-    % of Left-change, NO-change, Right-change images. The sum of those
-    % values is the total number of images to be used. 
-    % So, fileKeyIndices is a permutation of  1:(number of images).
-    % We multiply by 4 (the number of stim types - HH, HL, LH, LL), so the
-    % numbers 1-4 represent the image p.Results.FileKeys{1} in type 1-4.
-    % The numbers 5-8 are image key p.Results.FileKeys{2} in type 1-4, and
-    % so on. 
+    % Each column of LRNCounts should sum to the same value = the number of
+    % images we will use.
+    sums = sum(p.Results.LRNCounts, 1);
+    if ~all(sums==sums(1))
+        error('Each column of LRNCounts input should add to the same number.');
+    end
+    nImages = sums(1);
+    nTrials = nImages * nStimTypes;
     
-    % fileKeyIndices is the same length as sum(LeftChange + NoChange +
-    % RightChange) - same as total number of images (counting the H and L 
-    % as one image) to be used. 
-    %
-    % trialIndices is length (number of images) * 4, where 4 is the number
-    % of different stim types (HH, HL, LH, LL). 
-    % 
-    % To determine the image for a trial, take the value of
-    % trialIndices(itrial), and do 1+trialIndices(itrial)/4 (int division)
+    % Now choose the images. Do this by permuting the order of the images
+    % (represented by their key in p.Results.FileKeys), and taking the
+    % first 'nImages' images as the ones we will use. randperm does something 
+    % like that. 
+    % Below the var imageIndex will refer to this array, which itself has
+    % indices into p.Results.FileKeys. In other words, a value of
+    % 'imageIndex' has the file key
+    % p.Results.FileKeys{fileKeyIndices(imageIndex))
+    fileKeyIndices = randperm(length(p.Results.FileKeys), nImages);
+
     
-    fileKeyIndices = randperm(length(p.Results.FileKeys), sum(p.Results.LNRCounts));
-    trialIndices = randperm(length(fileKeyIndices) * numStimTypes);
+    % Generate a trials struct for each COLUMN in LRNCounts
+    blocks=cell(1,size(p.Results.LRNCounts, 2));
+    for iblock = 1:size(p.Results.LRNCounts, 2)
     
-    % for the stim that change, randomize the direction of the change.
-    LChangeDirections = ones(p.Results.LNRCounts(1) * numStimTypes, 1);
-    LChangeDirections(randperm(p.Results.LNRCounts(1) * numStimTypes, p.Results.LNRCounts(1) * numStimTypes/2)) = -1;
-    RChangeDirections = ones(p.Results.LNRCounts(3) * numStimTypes, 1);
-    RChangeDirections(randperm(p.Results.LNRCounts(3) * numStimTypes, p.Results.LNRCounts(3) * numStimTypes/2)) = -1;
-    lCount = 0;
-    rCount = 0;
+        trialIndices = randperm(nTrials);
+
+        % for the stim that change, randomize the direction of the change.
+        lrnCounts = p.Results.LRNCounts(:,iblock);
+        LChanges = ones(lrnCounts(1) * nStimTypes, 1);
+        LChanges(randperm(lrnCounts(1) * nStimTypes, lrnCounts(1) * nStimTypes/2)) = -1;
+        RChanges = ones(lrnCounts(2) * nStimTypes, 1);
+        RChanges(randperm(lrnCounts(2) * nStimTypes, lrnCounts(2) * nStimTypes/2)) = -1;
+        lCount = 0;
+        rCount = 0;
     
-    Stim1Key=cell(length(trialIndices), 1);
-    Stim2Key=cell(length(trialIndices), 1);
-    StimChange = zeros(length(trialIndices), 1);
-    StimChangeDirection = zeros(length(trialIndices), 1);
+        % initialize arrays for table. Each element of the arrays is the
+        % value for that trial.
+        Stim1Key=cell(nTrials, 1);
+        Stim2Key=cell(nTrials, 1);
+        StimChangeWhich = zeros(nTrials, 1);
+        StimChangeDirection = zeros(nTrials, 1);
     
-    for itrial=1:length(trialIndices)
-        fileKeyIndex = 1 + fix((trialIndices(itrial)-1)/numStimTypes);
-        stIndex = 1 + rem((trialIndices(itrial)-1), numStimTypes);
-        fprintf('itrial %d trialInd %d imageInd %d stInd %d key \n', itrial, trialIndices(itrial), fileKeyIndex, stIndex);
-        % , p.Results.FileKeys{fileKeyIndices(fileKeyIndex)}
-        switch stIndex
-            case 1
-                % treat as type 1: HH
-                key1 = imageset.make_key(p.Results.FolderKeys{1}, p.Results.FileKeys{fileKeyIndices(fileKeyIndex)});
-                key2 = key1;
-            case 2
-                % treat as type 2: HL
-                key1 = imageset.make_key(p.Results.FolderKeys{1}, p.Results.FileKeys{fileKeyIndices(fileKeyIndex)});
-                key2 = imageset.make_key(p.Results.FolderKeys{2}, p.Results.FileKeys{fileKeyIndices(fileKeyIndex)});
-            case 3
-                % treat as type 3: LH
-                key1 = imageset.make_key(p.Results.FolderKeys{2}, p.Results.FileKeys{fileKeyIndices(fileKeyIndex)});
-                key2 = imageset.make_key(p.Results.FolderKeys{1}, p.Results.FileKeys{fileKeyIndices(fileKeyIndex)});
-            case 4
-                % treat as type 4: LL
-                key1 = imageset.make_key(p.Results.FolderKeys{2}, p.Results.FileKeys{fileKeyIndices(fileKeyIndex)});
-                key2 = key1;
-            otherwise
-                error('invalid stim type'); % there should only be 4
-        end   
-        Stim1Key{itrial, 1} = key1;
-        Stim2Key{itrial, 1} = key2;
-        
-        % determine which stim changes
-        if fileKeyIndex > sum(p.Results.LNRCounts(1:2))
-            % R-change
-            StimChange(itrial) = 2;
-            rCount = rCount + 1;
-            StimChangeDirection(itrial) = RChangeDirections(rCount);
-        elseif fileKeyIndex > p.Results.LNRCounts(1)
-            % NO change
-            StimChange(itrial) = 0;
-        else
-            % L-change
-            StimChange(itrial) = 1;
-            lCount = lCount + 1;
-            StimChangeDirection(itrial) = LChangeDirections(lCount);
+        for itrial=1:nTrials
+            % imageIndex is the index into fileKeyIndices, which has indices
+            % into p.Results.FileKeys. Got it?
+            imageIndex = 1 + fix((trialIndices(itrial)-1)/nStimTypes);
+
+            % stIndex is the stim type 1,2,3 or 4.
+            stIndex = 1 + rem((trialIndices(itrial)-1), nStimTypes);
+
+            switch stIndex
+                case 1
+                    % treat as type 1: HH
+                    key1 = imageset.make_key(p.Results.FolderKeys{1}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
+                    key2 = key1;
+                case 2
+                    % treat as type 2: HL
+                    key1 = imageset.make_key(p.Results.FolderKeys{1}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
+                    key2 = imageset.make_key(p.Results.FolderKeys{2}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
+                case 3
+                    % treat as type 3: LH
+                    key1 = imageset.make_key(p.Results.FolderKeys{2}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
+                    key2 = imageset.make_key(p.Results.FolderKeys{1}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
+                case 4
+                    % treat as type 4: LL
+                    key1 = imageset.make_key(p.Results.FolderKeys{2}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
+                    key2 = key1;
+                otherwise
+                    error('invalid stim type'); % there should only be 4
+            end   
+            Stim1Key{itrial, 1} = key1;
+            Stim2Key{itrial, 1} = key2;
+            
+            fprintf('itrial %d trialIndex %d imageIndex %d stIndex %d key1 %s key2%s\n', ...
+                itrial, trialIndices(itrial), imageIndex, stIndex, key1, key2);
+            
+            % determine which stim changes
+            if imageIndex > sum(lrnCounts(1:2))
+                % NO change
+                StimChangeWhich(itrial) = 0;
+            elseif imageIndex > lrnCounts(1)                
+                % R-change
+                StimChangeWhich(itrial) = 2;
+                rCount = rCount + 1;
+                StimChangeDirection(itrial) = RChanges(rCount);
+            else
+                % L-change
+                StimChangeWhich(itrial) = 1;
+                lCount = lCount + 1;
+                StimChangeDirection(itrial) = LChanges(lCount);
+            end
+            
         end
-                
-    end     
-    trials = table(Stim1Key, Stim2Key, StimChange, StimChangeDirection);
-    
+
+        % now create
+        blocks{iblock} = table(Stim1Key, Stim2Key, StimChangeWhich, StimChangeDirection);
+    end    
 end
 
