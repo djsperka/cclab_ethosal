@@ -7,6 +7,16 @@ function [allResults] = etholog(varargin)
     p = inputParser;
     
     p.addRequired('Trials', @(x) istable(x));
+    
+    % pass images or specify root (and optional subfolders). 
+    % You really should make sure that the root you pass matches the
+    % imageset you used to generate your trials. I do not have a
+    % onLoad option here yet - TODO. 
+    p.addParameter('Images', [], @(x) isa(x, 'imageset'));
+    p.addParameter('NumTrials', inf, @(x) isscalar(x));
+    p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
+    p.addParameter('ImageSubFolders', {'H', 'naturalT'; 'L', 'texture'},  @(x) iscellstr(x) && size(x,2)==2);
+    
     p.addParameter('ITI', 0.5, @(x) isscalar(x));   % inter-trial interval.
     p.addParameter('Screen', 0, @(x) isscalar(x));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
@@ -15,9 +25,6 @@ function [allResults] = etholog(varargin)
     p.addParameter('Name', 'demo', @(x) ischar(x) && length(x)<9 && ~isempty(x));
     p.addParameter('Out', 'out', @(x) isdir(x));
     p.addParameter('Fovx', nan, @(x) isscalar(x) && isnumeric(x));
-    p.addParameter('NumTrials', inf, @(x) isscalar(x));
-    p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
-    p.addParameter('ImageSubFolders', {'H', 'naturalT'; 'L', 'texture'},  @(x) iscellstr(x) && size(x,2)==2);
     p.addParameter('StimChangeMagnitude', 30, @(x) isscalar(x));
     
     p.addParameter('EyelinkDummyMode', 1,  @(x) isscalar(x) && (x == 0 || x == 1));
@@ -169,8 +176,13 @@ function [allResults] = etholog(varargin)
     beeper = twotonebeeper();
 
 
-    % load images
-    images = imageset(p.Results.ImageRoot, 'SubFolders', p.Results.ImageSubFolders);
+    % load images. Not handling this well - you have to do the right thing.
+    % Recommended to load images.
+    if isempty(p.Results.Images)
+        images = imageset(p.Results.ImageRoot, 'SubFolders', p.Results.ImageSubFolders);
+    else
+        images = p.Results.Images;
+    end
     
     %% Now start the experiment. 
     
@@ -272,12 +284,15 @@ function [allResults] = etholog(varargin)
 
                 switch trial.StimChangeWhich
                     case 1
-                        tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imadd(x, trial.StimChangeDirection * p.Results.StimChangeMagnitude);
+                        fprintf('Change L by %d\n', trial.StimChangeDirection * p.Results.StimChangeMagnitude);
+                        tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imadd(x, trial.StimChangeDirection * p.Results.StimChangeMagnitude));
                         tex2b = tex2a;
                     case 2
+                        fprintf('Change R by %d\n', trial.StimChangeDirection * p.Results.StimChangeMagnitude);
                         tex1b = tex1a;
-                        tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imadd(x, trial.StimChangeDirection * p.Results.StimChangeMagnitude);
+                        tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imadd(x, trial.StimChangeDirection * p.Results.StimChangeMagnitude));
                     case 0
+                        fprintf('Change none\n');
                         tex1b = tex1a;
                         tex2b = tex2a;
                     otherwise
@@ -323,7 +338,6 @@ function [allResults] = etholog(varargin)
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
                 Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
-                Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
 
                 % Note - convert fixpt from oval to cross. 
                 %Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
@@ -358,7 +372,7 @@ function [allResults] = etholog(varargin)
                 [ allResults.tAoff(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_AB');
             case 'WAIT_AB'
-                if stateMgr.timeInState() >= trials.GapTime
+                if stateMgr.timeInState() >= trial.GapTime
                     stateMgr.transitionTo('DRAW_B');
                 end
             case 'DRAW_B'
