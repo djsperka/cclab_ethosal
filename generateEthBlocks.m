@@ -11,6 +11,14 @@ function [blocks] = generateEthBlocks(varargin)
     % -none.
     p.addRequired('LRNCounts', @(x) isnumeric(x) && size(x, 1)==3);
     p.addOptional('FolderKeys', {'H'; 'L'},  @(x) iscellstr(x));
+    p.addOptional('FixationTime', 0.5, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('MaxAcquisitionTime', 2.0, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('FixationBreakEarlyTime', 0.5, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('FixationBreakLateTime', 2.0, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('SampTime', [1.0, 2.0], @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('RespTime', 1.0, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('GapTime', 1.0, @(x) isnumeric(x) && length(x)<3);
+
     p.parse(varargin{:});
     
     % for each image selected, there are 4 stim types. 
@@ -114,8 +122,33 @@ function [blocks] = generateEthBlocks(varargin)
             
         end
 
+
+        % generate timing columns
+        FixationTime = generateColumn(nTrials, p.Results.FixationTime);
+        MaxAcquisitionTime = generateColumn(nTrials, p.Results.MaxAcquisitionTime);
+        FixationBreakEarlyTime = generateColumn(nTrials, p.Results.FixationBreakEarlyTime);
+        FixationBreakLateTime = generateColumn(nTrials, p.Results.FixationBreakLateTime);
+        SampTime = generateColumn(nTrials, p.Results.SampTime);
+        GapTime = generateColumn(nTrials, p.Results.GapTime);
+        RespTime = generateColumn(nTrials, p.Results.RespTime);
+
         % now create
-        blocks{iblock} = table(Stim1Key, Stim2Key, StimChangeWhich, StimChangeDirection);
+        blocks{iblock} = table(Stim1Key, Stim2Key, StimChangeWhich, StimChangeDirection, ...
+            FixationTime, MaxAcquisitionTime, FixationBreakEarlyTime, FixationBreakLateTime, SampTime, GapTime, RespTime);
     end    
+end
+
+
+function [A] = generateColumn(n, valueOrRange)
+% generateColumn - generate a column of n values. If 'valueOrRange' is
+% scalar, all n values are set to it. If 'valueOrRange' is a two-element
+% vector, it should be a range within which the values should vall - they
+% are drawn from a uniform distribtion.
+
+    if length(valueOrRange)==1
+        A = valueOrRange * ones(n, 1);
+    else
+        A = valueOrRange(1) + (valueOrRange(2)-valueOrRange(1)) * rand(n, 1);
+    end
 end
 

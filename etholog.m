@@ -6,6 +6,8 @@ function [allResults] = etholog(varargin)
 %% deal with input arguments
     p = inputParser;
     
+    p.addRequired('Trials', @(x) istable(x));
+    p.addParameter('ITI', 0.5, @(x) isscalar(x));   % inter-trial interval.
     p.addParameter('Screen', 0, @(x) isscalar(x));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Bkgd', [.5 .5 .5], @(x) isrow(x) && length(x) == 3);
@@ -16,9 +18,10 @@ function [allResults] = etholog(varargin)
     p.addParameter('NumTrials', inf, @(x) isscalar(x));
     p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
     p.addParameter('ImageSubFolders', {'H', 'naturalT'; 'L', 'texture'},  @(x) iscellstr(x) && size(x,2)==2);
+    p.addParameter('StimChangeMagnitude', 30, @(x) isscalar(x));
     
     p.addParameter('EyelinkDummyMode', 1,  @(x) isscalar(x) && (x == 0 || x == 1));
-    
+
     % This func is applied to each image after it is read by imread. The
     % result is saved as the image. 
     p.addParameter('OnLoad', @onLoadImage, @(x) isa(x, 'function_handle'));
@@ -39,10 +42,49 @@ function [allResults] = etholog(varargin)
     % Use this command:
     % >> [ind names allinf] = GetKeyboardIndices();
     %
+    % MAC
+    %
     % On my macbook, this command gives a single index, a device with the
     % name 'Apple Internal Keyboard / Trackpad'. I use this index with my
     % macbook (testing only) and it works fine. 
     %
+    %
+    % LINUX (ubuntu 22.04.4)
+    %
+    % On my linux desktop, here is the output of xinput -list:
+    %
+    %     dan@bucky:~/git/cclab_ethosal$ xinput -list
+    %     ⎡ Virtual core pointer                    	id=2	[master pointer  (3)]
+    %     ⎜   ↳ Virtual core XTEST pointer              	id=4	[slave  pointer  (2)]
+    %     ⎜   ↳ Logitech USB Trackball                  	id=10	[slave  pointer  (2)]
+    %     ⎣ Virtual core keyboard                   	id=3	[master keyboard (2)]
+    %         ↳ Virtual core XTEST keyboard             	id=5	[slave  keyboard (3)]
+    %         ↳ Power Button                            	id=6	[slave  keyboard (3)]
+    %         ↳ Power Button                            	id=7	[slave  keyboard (3)]
+    %         ↳ Sleep Button                            	id=8	[slave  keyboard (3)]
+    %         ↳ Dell Dell USB Keyboard                  	id=9	[slave  keyboard (3)]
+    %
+    % Your keyboard is listed as one of the "slave keyboard" entries. 
+    % When I run (in Matlab) GetKeyboardIndices:
+    %
+    % >> [ind names allinf] = GetKeyboardIndices();
+    % 
+    % This is the contents of 'names':
+    %     >> names
+    %     
+    %     names =
+    %     
+    %       1×5 cell array
+    %     
+    %         {'Virtual core XTEST key…'}    {'Power Button'}    {'Power Button'}    {'Sleep Button'}    {'Dell Dell USB Keyboard'}
+    % 
+    % Your task is to decide which of the 'names' best describes your
+    % keyboard. In my case, the name matches exactly what is listed in the
+    % 'xinput' command output, so I use the index at position 5 in the 
+    % ind() array (from GetKeyboardIndices): for me ind(5) is 7, and I use
+    % 7 as my keyboard index. 
+    %
+
     p.addParameter('KeyboardIndex', 0, @(x) isscalar(x));
 
     p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
@@ -52,7 +94,24 @@ function [allResults] = etholog(varargin)
     subjectResponseType = validatestring(p.Results.Response, responseTypes);
 
     % Now load the expt config, then do a couple of checks
-    cclab = load_local_config();
+    %cclab = load_local_config();
+
+    % HACK - this should come on cmd line? 
+%     cclab.FixationTime = 0.5;
+%     cclab.MaxAcquisitionTime = 2.0;
+%     cclab.FixationBreakEarlyTime = 0.5;
+%     cclab.FixationBreakLateTime = 2.0;
+%     cclab.SampTimeRange = [1.0, 2.0];
+    % The screen width (the width of all visible pixels) and the eye
+    % distance are used for visual angle calculations. The definitions here
+    % are overridden by the 'Fovx' arg on the command line. That arg is
+    % meant for testing - where you are using a window on a screen, not
+    % full screen. TODO - fix PsychImaging pipeline to correctly scale
+    % stuff in that case. 
+    %cclab.ScreenWidthMM = 1000;
+    %cclab.EyeDistMM = 500;
+    %END HACK
+
     if isnan(p.Results.Fovx)
        if any(~isfield(cclab, {'ScreenWidthMM', 'EyeDistMM'}))
            error('local config must have dimensions unless Fovx is in args');
@@ -79,6 +138,7 @@ function [allResults] = etholog(varargin)
     
     % create converter for dealing with pixels&degrees 
     if isnan(p.Results.Fovx)
+        error('Need to implement this!');
         converter = pixdegconverter(windowRect, cclab.ScreenWidthMM, cclab.EyeDistMM);
     else
         converter = pixdegconverter(windowRect, p.Results.Fovx);
@@ -154,7 +214,7 @@ function [allResults] = etholog(varargin)
     
     % The number of trials to run. Unless you set 'NumTrials' on command
     % line, we run all trials in cclab.trials. 
-    NumTrials = min(height(cclab.trials), p.Results.NumTrials);
+    NumTrials = min(height(p.Results.Trials), p.Results.NumTrials);
     variableNames = { 'Started', 'trialIndex', 'tAon', 'tAoff', 'tBon', 'tBoff', 'tResp', 'iResp' };
     variableTypes = {'logical', 'int32', 'double', 'double', 'double', 'double', 'double', 'int32' };
     allResults = table('Size', [ NumTrials, length(variableNames)], 'VariableNames', variableNames, 'VariableTypes', variableTypes);
@@ -201,28 +261,29 @@ function [allResults] = etholog(varargin)
                     
         switch stateMgr.Current
             case 'START'
-                % get textures ready for this trial
-                key1 = [ cclab.trials.Type1(itrial) '/' cclab.trials.FName{itrial} ];
-                key2 = [ cclab.trials.Type2(itrial) '/' cclab.trials.FName{itrial} ];
-                tex1a = images.texture(windowIndex, key1);
-                tex2a = images.texture(windowIndex, key2);
-                stim1Rect = CenterRectOnPoint(images.rect(key1), stim1XYScr(1), stim1XYScr(2));
-                stim2Rect = CenterRectOnPoint(images.rect(key2), stim2XYScr(1), stim2XYScr(2));
+                % get trial structure
+                trial = table2struct(p.Results.Trials(itrial, :));
 
-                switch cclab.trials.Change(itrial)
+                % get textures ready for this trial
+                tex1a = images.texture(windowIndex, trial.Stim1Key);
+                tex2a = images.texture(windowIndex, trial.Stim2Key);
+                stim1Rect = CenterRectOnPoint(images.rect(trial.Stim1Key), stim1XYScr(1), stim1XYScr(2));
+                stim2Rect = CenterRectOnPoint(images.rect(trial.Stim2Key), stim2XYScr(1), stim2XYScr(2));
+
+                switch trial.StimChangeWhich
                     case 1
-                        tex1b = images.texture(windowIndex, key1, cclab.trials.ChangeContrast(itrial));
+                        tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imadd(x, trial.StimChangeDirection * p.Results.StimChangeMagnitude);
                         tex2b = tex2a;
                     case 2
                         tex1b = tex1a;
-                        tex2b = images.texture(windowIndex, key2, cclab.trials.ChangeContrast(itrial));
+                        tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imadd(x, trial.StimChangeDirection * p.Results.StimChangeMagnitude);
                     case 0
                         tex1b = tex1a;
                         tex2b = tex2a;
                     otherwise
                         error('Change can only be 0,1, or 2.');
                 end
-                fprintf('START trial %d images %s %s change %d %f\n', itrial, key1, key2, cclab.trials.Change(itrial), cclab.trials.ChangeContrast(itrial));
+                fprintf('START trial %d images %s %s which %d %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeWhich, trial.StimChangeDirection);
                 stateMgr.transitionTo('DRAW_FIXPT');
                 
                 % results
@@ -245,7 +306,7 @@ function [allResults] = etholog(varargin)
                     stateMgr.transitionTo('WAIT_FIX');
                 end
             case 'WAIT_FIX'
-                if stateMgr.timeInState() > cclab.FixationTime
+                if stateMgr.timeInState() > trial.FixationTime
                     stateMgr.transitionTo('DRAW_A');
                 elseif ~tracker.is_in_rect(fixWindowRect)
                     stateMgr.transitionTo('FIXATION_BREAK_EARLY');
@@ -255,7 +316,7 @@ function [allResults] = etholog(varargin)
                 Screen('Flip', windowIndex);
                 stateMgr.transitionTo('FIXATION_BREAK_EARLY_WAIT');
             case 'FIXATION_BREAK_EARLY_WAIT'
-                if stateMgr.timeInState() > cclab.FixationBreakEarlyTime
+                if stateMgr.timeInState() > trial.FixationBreakEarlyTime
                     stateMgr.transitionTo('DRAW_FIXPT');
                 end
             case 'DRAW_A'
@@ -272,9 +333,9 @@ function [allResults] = etholog(varargin)
                 [ allResults.tAon(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_A');
             case 'WAIT_A'
-                if stateMgr.timeInState() >= cclab.trials.SampTime(itrial)
+                if stateMgr.timeInState() >= trial.SampTime
                     % if GapTime is zero, transition directly to DRAW_B
-                    if cclab.trials.GapTime(itrial) > 0
+                    if trial.GapTime > 0
                         stateMgr.transitionTo('DRAW_AB');
                     else
                         stateMgr.transitionTo('DRAW_B');
@@ -287,7 +348,7 @@ function [allResults] = etholog(varargin)
                 Screen('Flip', windowIndex);
                 stateMgr.transitionTo('FIXATION_BREAK_LATE_WAIT');
             case 'FIXATION_BREAK_LATE_WAIT'
-                if stateMgr.timeInState() > cclab.FixationBreakLateTime
+                if stateMgr.timeInState() > trial.FixationBreakLateTime
                     stateMgr.transitionTo('TRIAL_COMPLETE');
                 end                
             case 'DRAW_AB'
@@ -297,7 +358,7 @@ function [allResults] = etholog(varargin)
                 [ allResults.tAoff(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_AB');
             case 'WAIT_AB'
-                if stateMgr.timeInState() >= cclab.trials.GapTime(itrial)
+                if stateMgr.timeInState() >= trials.GapTime
                     stateMgr.transitionTo('DRAW_B');
                 end
             case 'DRAW_B'
@@ -345,7 +406,7 @@ function [allResults] = etholog(varargin)
                     case 'MilliKey'
                         [isResponse, response, tResp] = millikey.response();
                 end
-                if isResponse || stateMgr.timeInState() >= cclab.trials.RespTime(itrial)
+                if isResponse || stateMgr.timeInState() >= trial.RespTime
                     stateMgr.transitionTo('TRIAL_COMPLETE');
                     fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt);
                     if strcmp(subjectResponseType, 'MilliKey')
@@ -357,7 +418,7 @@ function [allResults] = etholog(varargin)
                     
                     % beep maybe
                     if p.Results.Beep
-                        if allResults.iResp(itrial) == cclab.trials.Change(itrial)
+                        if allResults.iResp(itrial) == trial.StimChangeWhich
                             fprintf('etholog: Correct response\n');
                             beeper.correct();
                         elseif allResults.iResp(itrial) < 0
@@ -388,7 +449,7 @@ function [allResults] = etholog(varargin)
                     stateMgr.transitionTo('WAIT_ITI');
                 end
             case 'WAIT_ITI'
-                if stateMgr.timeInState() >= cclab.ITI
+                if stateMgr.timeInState() >= p.Results.ITI
                     stateMgr.transitionTo('START');
                 end
             case {'WAIT_PAUSE', 'DONE'}
