@@ -16,8 +16,8 @@ function [blocks] = generateEthBlocks(varargin)
     p.addOptional('FixationBreakEarlyTime', 0.5, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('FixationBreakLateTime', 2.0, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('SampTime', [1.0, 2.0], @(x) isnumeric(x) && length(x)<3);
-    p.addOptional('RespTime', 1.0, @(x) isnumeric(x) && length(x)<3);
-    p.addOptional('GapTime', 1.0, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('RespTime', 2.0, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('GapTime', 0.25, @(x) isnumeric(x) && length(x)<3);
 
     p.parse(varargin{:});
     
