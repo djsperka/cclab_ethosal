@@ -44,7 +44,7 @@ classdef imageset
             if ~ischar(k)
                 exception = MException('imageset:parse_key:wrongType', 'Wrong type, expecting char');
                 throw(exception);
-            elseif ~obj.isKey(k)
+            elseif ~obj.Images.isKey(k)
                 exception = MException('imageset:parse_key:NotAKey', ['Not a key: ' k]);
                 throw(exception);
             else
