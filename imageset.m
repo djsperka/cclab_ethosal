@@ -206,6 +206,11 @@ classdef imageset
             key = obj.parse_key(k);
             fname = obj.Images(key).fname;
         end
+
+        function image = get_image(obj, k)
+            key=obj.parse_key(k);
+            image = obj.Images(key).image;
+        end
     end
 end
 
