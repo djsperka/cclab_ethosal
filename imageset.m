@@ -99,9 +99,9 @@ classdef imageset
             p = inputParser;
             %addRequired(p, 'Root', @(x) ischar(x) && isdir(x));
             addRequired(p, 'Root');
-            addParameter(p, 'Subfolders', {'H', 'natT'; 'L', 'texture'}, @(x) iscellstr(x) && size(x, 2)==2);
+            addParameter(p, 'Subfolders', {'H', {'natT', 'naturalT'}; 'L', 'texture'}, @(x) iscellstr(x) && size(x, 2)==2);
             addParameter(p, 'Extensions', {'.bmp', '.jpg', '.png'});
-            addParameter(p, 'OnLoad', [], @(x) isa(x, 'function_handle'));  % check if isempty()
+            addParameter(p, 'OnLoad', @onLoadImage, @(x) isa(x, 'function_handle'));  % check if isempty()
             
             p.parse(varargin{:});
 
@@ -118,9 +118,21 @@ classdef imageset
             addOptional(obj.TextureParser, 'PreProcessFunc', [], @(x) isa(x, 'function_handle'));
 
             % now process files. Each row of the cell array is two elements
-            % - the key and the subfolder.
+            % - the key and the subfolder. The subfolder arg itself can be
+            % a cell array; the subfolder names are tested in order. Two
+            % cannot exist - this is for 'natT' and 'naturalT'.
             for i=1:size(obj.Subfolders, 1)
-                add_images_from_folder(obj, fullfile(obj.Root, obj.Subfolders{i,2}), obj.Subfolders{i,1});
+                useSubFolderName = obj.Subfolders{i,2};
+                if iscell(obj.Subfolders{i,2})
+                    z=cellfun(@(x) isfolder(fullfile(obj.Root, x)), obj.Subfolders{i,2});
+                    if length(find(z))==1
+                        useSubFolderName = obj.Subfolders{i,2}{z};
+                    else
+                        exception = MException('imageset:imageset:BadInput', sprintf('No suitable subfolders found for key %s\n', obj.Subfolders{i,1}));
+                        throw(exception);
+                    end
+                end
+                add_images_from_folder(obj, fullfile(obj.Root, useSubFolderName), obj.Subfolders{i,1});
             end
             
             % check key balance
