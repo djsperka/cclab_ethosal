@@ -16,6 +16,9 @@ function [allResults] = etholog(varargin)
     p.addParameter('NumTrials', inf, @(x) isscalar(x));
     p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
     p.addParameter('ImageSubFolders', {'H', 'naturalT'; 'L', 'texture'},  @(x) iscellstr(x) && size(x,2)==2);
+    % This func is applied to each image after it is read by imread. The
+    % result is saved as the image. 
+    p.addParameter('OnLoad', @onLoadImage, @(x) isa(x, 'function_handle'));
     
     p.addParameter('ITI', 0.5, @(x) isscalar(x));   % inter-trial interval.
     p.addParameter('Screen', 0, @(x) isscalar(x));
@@ -29,9 +32,6 @@ function [allResults] = etholog(varargin)
     
     p.addParameter('EyelinkDummyMode', 1,  @(x) isscalar(x) && (x == 0 || x == 1));
 
-    % This func is applied to each image after it is read by imread. The
-    % result is saved as the image. 
-    p.addParameter('OnLoad', @onLoadImage, @(x) isa(x, 'function_handle'));
     
     % Where to look for responses. The 'Saccade' is intended for usage with
     % eyelink dummy mode ('EyelinkDummyMode', 1) - which is the default.
@@ -176,10 +176,9 @@ function [allResults] = etholog(varargin)
     beeper = twotonebeeper();
 
 
-    % load images. Not handling this well - you have to do the right thing.
-    % Recommended to load images.
+    % load images.
     if isempty(p.Results.Images)
-        images = imageset(p.Results.ImageRoot, 'SubFolders', p.Results.ImageSubFolders);
+        images = imageset(p.Results.ImageRoot, 'SubFolders', p.Results.ImageSubFolders, 'OnLoad', p.Results.OnLoad);
     else
         images = p.Results.Images;
     end
