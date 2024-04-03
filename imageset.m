@@ -75,7 +75,7 @@ classdef imageset
                 for itype = 1:size(obj.Subfolders, 1)
                     k=imageset.make_key(obj.Subfolders{itype, 1}, uniqueFileKeys{ikey});
                     if ~obj.Images.isKey(k)
-                        missingKeys{end+1} = k;
+                        missingKeys = vertcat(missingKeys, k);
                         kfail = true; 
                     end
                 end
@@ -83,7 +83,7 @@ classdef imageset
                 % if kfail is false, then each subfolder had an image 
                 % with that basename. 
                 if ~kfail 
-                    balancedFileKeys{end+1} = uniqueFileKeys{ikey};
+                    balancedFileKeys = vertcat(balancedFileKeys, uniqueFileKeys{ikey});
                 end
             end
             isBalanced = isempty(missingKeys);
