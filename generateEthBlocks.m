@@ -4,7 +4,7 @@ function [blocks] = generateEthBlocks(varargin)
 
     blocks = [];
     
-    p=inputParser;
+    p=inputParser;  
     p.addRequired('FileKeys', @(x) iscellstr(x));
     
     % LRNCounts is a 3xN matrix. First, second, third rows are change-left, -right,
