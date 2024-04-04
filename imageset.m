@@ -13,17 +13,42 @@ classdef imageset
         IsBalanced
         BalancedFileKeys
         MissingKeys
+        Bkgd
+        IsUniform
+        UniformOrFirstRect
     end
     
     methods (Static)
         function key = make_key(folder_key, file_key)
             if isempty(folder_key)
                 key = file_key;
+            elseif strcmp(folder_key,'*')
+                key = 'BKGD';
             else
-                key = [folder_key '/' file_key];
+                key = strcat(folder_key, '/', file_key);
             end
         end
-        
+
+        function [keys] = make_keys(folder_keys, file_keys)
+            if ~iscell(folder_keys) || ~iscell(file_keys)
+                me = MException('imageset.make_keys.bad_input', 'Both args must be cell arrays.');
+                throw(me);
+            end
+            keys = strcat(folder_keys, '/', file_keys);
+
+            % corrections for blank folder keys
+            blanks = matches(folder_keys, '');
+            if any(blanks)
+                keys(blanks) = file_keys(blanks);
+            end
+
+            % corrections for bkgd
+            bkgds = matches(folder_keys, '*');
+            if any(bkgds)
+                keys(bkgds) = {'BKGD'};
+            end
+        end
+
         function [folder_key, file_key] = split_key(key)
             folder_key='';
             file_key='';
@@ -51,7 +76,26 @@ classdef imageset
                 key = k;
             end
         end
-        
+
+        function [isUniformSize, rectUniformOrFirst] = check_sizes(obj)
+            isUniformSize = true;
+            rectUniformOrFirst = [];
+            haveFirstSize = false;
+            allKeys = obj.Images.keys;
+            for i=1:length(allKeys)
+                r = obj.rect(allKeys{i});
+                if ~isequal(r, rectUniformOrFirst)
+                    if haveFirstSize
+                        isUniformSize = false;  % sorry, dude
+                    else
+                        rectUniformOrFirst = r;
+                        haveFirstSize = true;
+                    end
+                end
+            end
+        end
+
+
         function [isBalanced, balancedFileKeys, missingKeys] = check_key_balance(obj)
             %check_key_balance Tests whether each file key has an image for
             %each folder key. Returns unique filel keys found. If any 
@@ -102,6 +146,7 @@ classdef imageset
             addParameter(p, 'Subfolders', {'H', {'natT', 'naturalT'}; 'L', 'texture'}, @(x) iscellstr(x) && size(x, 2)==2);
             addParameter(p, 'Extensions', {'.bmp', '.jpg', '.png'});
             addParameter(p, 'OnLoad', @onLoadImage, @(x) isa(x, 'function_handle'));  % check if isempty()
+            addParameter(p, 'Bkgd', [.5; .5; .5], @(x) isnumeric(x) && iscolumn(x) && length(x)==3);
             
             p.parse(varargin{:});
 
@@ -109,6 +154,7 @@ classdef imageset
             obj.Subfolders = p.Results.Subfolders;
             obj.Extensions = p.Results.Extensions;
             obj.OnLoadFunc = p.Results.OnLoad;
+            obj.Bkgd = p.Results.Bkgd;
             obj.Images = containers.Map;
             
             % create parser for texture() function
@@ -137,7 +183,12 @@ classdef imageset
             
             % check key balance
             [obj.IsBalanced, obj.BalancedFileKeys, obj.MissingKeys] = check_key_balance(obj);
-            
+
+            % check for uniform size, make background image, add with key
+            % BKGD
+            [obj.IsUniform, obj.UniformOrFirstRect] = check_sizes(obj);
+            image = ones(obj.UniformOrFirstRect(4), obj.UniformOrFirstRect(3), 3).*reshape(obj.Bkgd, 1, 1, 3);
+            obj.Images('BKGD') = struct('fname', 'NO_FILENAME', 'image', image);
         end
         
         function add_image(obj, filename, key)
