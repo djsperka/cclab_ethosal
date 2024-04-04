@@ -10,6 +10,7 @@ function [blocks] = generateEthBlocks(varargin)
     % LRNCounts is a 3xN matrix. First, second, third rows are change-left, -right,
     % -none.
     p.addRequired('LRNCounts', @(x) isnumeric(x) && size(x, 1)==3);
+    p.addRequired('Delta', @(x) isnumeric(x) && isscalar(x));
     p.addOptional('FolderKeys', {'H'; 'L'},  @(x) iscellstr(x));
     p.addOptional('FixationTime', 0.5, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('MaxAcquisitionTime', 2.0, @(x) isnumeric(x) && length(x)<3);
@@ -67,8 +68,8 @@ function [blocks] = generateEthBlocks(varargin)
         % value for that trial.
         Stim1Key=cell(nTrials, 1);
         Stim2Key=cell(nTrials, 1);
-        StimChangeWhich = zeros(nTrials, 1);
-        StimChangeDirection = zeros(nTrials, 1);
+        StimChangeType = zeros(nTrials, 1);
+        Delta = zeros(nTrials, 1);
     
         for itrial=1:nTrials
             % imageIndex is the index into fileKeyIndices, which has indices
@@ -107,17 +108,17 @@ function [blocks] = generateEthBlocks(varargin)
             % determine which stim changes
             if imageIndex > sum(lrnCounts(1:2))
                 % NO change
-                StimChangeWhich(itrial) = 0;
+                StimChangeType(itrial) = 0;
             elseif imageIndex > lrnCounts(1)                
                 % R-change
-                StimChangeWhich(itrial) = 2;
+                StimChangeType(itrial) = 2;
                 rCount = rCount + 1;
-                StimChangeDirection(itrial) = RChanges(rCount);
+                Delta(itrial) = RChanges(rCount) * p.Results.Delta;
             else
                 % L-change
-                StimChangeWhich(itrial) = 1;
+                StimChangeType(itrial) = 1;
                 lCount = lCount + 1;
-                StimChangeDirection(itrial) = LChanges(lCount);
+                Delta(itrial) = LChanges(lCount) * p.Results.Delta;
             end
             
         end
@@ -133,7 +134,7 @@ function [blocks] = generateEthBlocks(varargin)
         RespTime = generateColumn(nTrials, p.Results.RespTime);
 
         % now create
-        blocks{iblock} = table(Stim1Key, Stim2Key, StimChangeWhich, StimChangeDirection, ...
+        blocks{iblock} = table(Stim1Key, Stim2Key, StimChangeType, Delta, ...
             FixationTime, MaxAcquisitionTime, FixationBreakEarlyTime, FixationBreakLateTime, SampTime, GapTime, RespTime);
     end    
 end

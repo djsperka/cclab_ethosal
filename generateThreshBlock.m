@@ -8,9 +8,9 @@ function t = generateThreshBlock(varargin)
     p.addRequired('FileKeys', @(x) iscellstr(x));
     
     p.addRequired('NumImages', @(x) isnumeric(x) && isscalar(x));
-    p.addRequired('LDispFolderKeys', @(x) ischar(x) && ~isempty(x));
-    p.addRequired('RDispFolderKeys', @(x) ischar(x) && ~isempty(x));
+    p.addRequired('FolderKeys', @(x) ischar(x) && ~isempty(x));
     p.addRequired('Deltas', @(x) isnumeric(x) && isvector(x)); % TODO || (iscell(x) && all(cellfun(@(y) isnumeric(y) && isvector(y), x))));
+    p.addRequired('ChangeType', @(x) isnumeric(x) && isscalar(x) && ismember(x,[1,2]));
     p.addOptional('FixationTime', 0.5, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('MaxAcquisitionTime', 2.0, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('FixationBreakEarlyTime', 0.5, @(x) isnumeric(x) && length(x)<3);
@@ -24,17 +24,24 @@ function t = generateThreshBlock(varargin)
     % Make a single block - Counts is the number of images to be used.
 
     nImages = p.Results.NumImages;
-    nLeftFolderKeys = length(p.Results.LDispFolderKeys);
-    nRightFolderKeys = length(p.Results.RDispFolderKeys);
+    if p.Results.ChangeType == 1
+        RFolderKeys = '*';
+        LFolderKeys = p.Results.FolderKeys;
+    else
+        LFolderKeys = '*';
+        RFolderKeys = p.Results.FolderKeys;
+    end        
+    nLeftFolderKeys = length(LFolderKeys);
+    nRightFolderKeys = length(RFolderKeys);
     nDeltas = length(p.Results.Deltas);
 
     % build replacements arrays
     reps = cell(4,1);
     imageIndices = randperm(length(p.Results.FileKeys), p.Results.NumImages);
     reps{1} = p.Results.FileKeys(imageIndices);
-    dfk = p.Results.LDispFolderKeys;
+    dfk = LFolderKeys;
     reps{2} = cellstr(reshape(dfk, length(dfk), 1));
-    dfk = p.Results.RDispFolderKeys;
+    dfk = RFolderKeys;
     reps{3} = cellstr(reshape(dfk, length(dfk), 1));
     deltas = p.Results.Deltas;
     reps{4} = reshape(deltas, length(deltas), 1);
@@ -43,8 +50,11 @@ function t = generateThreshBlock(varargin)
     multiplicities = [nImages, nLeftFolderKeys, nRightFolderKeys, nDeltas];
     t = randomizeParams(multiplicities, 'VariableNames', names, 'Replacements', reps);
  
-    % generate timing columns
+    % generate timing and stimulus columns
+    t.Stim1Key=imageset.make_keys(t.LType, t.ImageKey);
+    t.Stim2Key=imageset.make_keys(t.RType, t.ImageKey);
     nTrials = height(t);
+    t.StimChangeType = generateColumn(nTrials, p.Results.ChangeType);
     t.FixationTime = generateColumn(nTrials, p.Results.FixationTime);
     t.MaxAcquisitionTime = generateColumn(nTrials, p.Results.MaxAcquisitionTime);
     t.FixationBreakEarlyTime = generateColumn(nTrials, p.Results.FixationBreakEarlyTime);
@@ -52,10 +62,7 @@ function t = generateThreshBlock(varargin)
     t.SampTime = generateColumn(nTrials, p.Results.SampTime);
     t.GapTime = generateColumn(nTrials, p.Results.GapTime);
     t.RespTime = generateColumn(nTrials, p.Results.RespTime);
-% 
-%         % now create
-%         blocks{iblock} = table(Stim1Key, Stim2Key, StimChangeWhich, StimChangeDirection, ...
-%             FixationTime, MaxAcquisitionTime, FixationBreakEarlyTime, FixationBreakLateTime, SampTime, GapTime, RespTime);
+
 end
 
 

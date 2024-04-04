@@ -28,7 +28,6 @@ function [allResults] = etholog(varargin)
     p.addParameter('Name', 'demo', @(x) ischar(x) && length(x)<9 && ~isempty(x));
     p.addParameter('Out', 'out', @(x) isdir(x));
     p.addParameter('Fovx', nan, @(x) isscalar(x) && isnumeric(x));
-    p.addParameter('StimChangeMagnitude', 30, @(x) isscalar(x));
     
     p.addParameter('EyelinkDummyMode', 1,  @(x) isscalar(x) && (x == 0 || x == 1));
 
@@ -281,15 +280,15 @@ function [allResults] = etholog(varargin)
                 stim1Rect = CenterRectOnPoint(images.rect(trial.Stim1Key), stim1XYScr(1), stim1XYScr(2));
                 stim2Rect = CenterRectOnPoint(images.rect(trial.Stim2Key), stim2XYScr(1), stim2XYScr(2));
 
-                switch trial.StimChangeWhich
+                switch trial.StimChangeType
                     case 1
-                        fprintf('Change L by %d\n', trial.StimChangeDirection * p.Results.StimChangeMagnitude);
-                        tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imadd(x, trial.StimChangeDirection * p.Results.StimChangeMagnitude));
+                        fprintf('Change L by %d\n', trial.Delta);
+                        tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imadd(x, trial.Delta));
                         tex2b = tex2a;
                     case 2
-                        fprintf('Change R by %d\n', trial.StimChangeDirection * p.Results.StimChangeMagnitude);
+                        fprintf('Change R by %d\n', trial.Delta);
                         tex1b = tex1a;
-                        tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imadd(x, trial.StimChangeDirection * p.Results.StimChangeMagnitude));
+                        tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imadd(x, trial.Delta));
                     case 0
                         fprintf('Change none\n');
                         tex1b = tex1a;
@@ -297,7 +296,7 @@ function [allResults] = etholog(varargin)
                     otherwise
                         error('Change can only be 0,1, or 2.');
                 end
-                fprintf('START trial %d images %s %s which %d %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeWhich, trial.StimChangeDirection);
+                fprintf('START trial %d images %s %s chgtype %d delta %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeType, trial.Delta);
                 stateMgr.transitionTo('DRAW_FIXPT');
                 
                 % results
@@ -431,7 +430,7 @@ function [allResults] = etholog(varargin)
                     
                     % beep maybe
                     if p.Results.Beep
-                        if allResults.iResp(itrial) == trial.StimChangeWhich
+                        if allResults.iResp(itrial) == trial.StimChangeType
                             fprintf('etholog: Correct response\n');
                             beeper.correct();
                         elseif allResults.iResp(itrial) < 0
