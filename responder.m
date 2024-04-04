@@ -31,7 +31,7 @@ classdef responder < handle
             %responder Construct a responder object for device with index.
             %   Detailed explanation goes here
             KbName('UnifyKeyNames');
-            obj.Responses = { KbName('1!'), 1; KbName('return'), 0; KbName('2@'), 2 };
+            obj.Responses = { KbName('1!'), 1; KbName('return'), 0; KbName('2@'), 2; KbName('3#'), 1; KbName('4$'), 2};
             obj.DevIndex = index;
             KbQueueCreate(obj.DevIndex);
         end
