@@ -60,6 +60,10 @@ classdef imageset
                 file_key = key;
             end
         end
+
+        function J = contrast(I, c)
+            J = im2uint8((im2double(I)-0.5)*c + 0.5);
+        end
             
     end
     
@@ -263,7 +267,16 @@ classdef imageset
             Screen('DrawTexture', w, obj.texture(varargin{:}));
             Screen('Flip', w);
         end
-        
+
+%         function mflip(obj, varargin)
+%             obj.TextureParser.parse(varargin{:});
+%             w = obj.TextureParser.Results.Window;
+%             Screen('FillRect', w, [.5 .5 .5]);
+%             Screen('DrawTexture', w, obj.texture(varargin{:}));
+%             Screen('Flip', w);
+%         end
+
+
         function fname = filename(obj, k)
             % keys expected folder,file
             key = obj.parse_key(k);
