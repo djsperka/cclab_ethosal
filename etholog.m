@@ -7,7 +7,7 @@ function [allResults] = etholog(varargin)
     p = inputParser;
     
     p.addRequired('Trials', @(x) istable(x));
-    
+    p.addRequired('BaseContrast', @(x) isscalar(x) && isnumeric(x) && x>=0 && x<=1);
     % pass images or specify root (and optional subfolders). 
     % You really should make sure that the root you pass matches the
     % imageset you used to generate your trials. I do not have a
@@ -275,20 +275,20 @@ function [allResults] = etholog(varargin)
                 trial = table2struct(p.Results.Trials(itrial, :));
 
                 % get textures ready for this trial
-                tex1a = images.texture(windowIndex, trial.Stim1Key);
-                tex2a = images.texture(windowIndex, trial.Stim2Key);
+                tex1a = images.texture(windowIndex, trial.Stim1Key, @(x) imageset.contrast(x, p.Results.BaseContrast));
+                tex2a = images.texture(windowIndex, trial.Stim2Key, @(x) imageset.contrast(x, p.Results.BaseContrast));
                 stim1Rect = CenterRectOnPoint(images.rect(trial.Stim1Key), stim1XYScr(1), stim1XYScr(2));
                 stim2Rect = CenterRectOnPoint(images.rect(trial.Stim2Key), stim2XYScr(1), stim2XYScr(2));
 
                 switch trial.StimChangeType
                     case 1
                         fprintf('Change L by %d\n', trial.Delta);
-                        tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imadd(x, trial.Delta));
+                        tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageset.contrast(x, p.Results.BaseContrast + trial.Delta));
                         tex2b = tex2a;
                     case 2
                         fprintf('Change R by %d\n', trial.Delta);
                         tex1b = tex1a;
-                        tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imadd(x, trial.Delta));
+                        tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageset.contrast(x, p.Results.BaseContrast + trial.Delta));
                     case 0
                         fprintf('Change none\n');
                         tex1b = tex1a;
