@@ -312,6 +312,11 @@ function [allResults] = etholog(varargin)
                 %Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
                 Screen('DrawLines', windowIndex, fixLines, 4, [0, 0, 0]');
                 Screen('Flip', windowIndex);
+
+                % draw fixpt and box
+                tracker.draw_cross(fixXYScr(1), fixXYScr(2), 15);
+                tracker.draw_box(fixWindowRect(1), fixWindowRect(2), fixWindowRect(3), fixWindowRect(4), 15);
+
                 stateMgr.transitionTo('WAIT_ACQ');
             case 'WAIT_ACQ'
                 % no maximum here, could go forever
@@ -340,6 +345,10 @@ function [allResults] = etholog(varargin)
                 % Note - convert fixpt from oval to cross. 
                 %Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
                 Screen('DrawLines', windowIndex, fixLines, 4, [0, 0, 0]');
+
+                % draw boxes for images on tracker
+                tracker.draw_box(stim1Rect(1), stim1Rect(2), stim1Rect(3), stim1Rect(4), 15);
+                tracker.draw_box(stim2Rect(1), stim2Rect(2), stim2Rect(3), stim2Rect(4), 15);
 
                 % flip and save the flip time
                 [ allResults.tAon(itrial) ] = Screen('Flip', windowIndex);
@@ -446,6 +455,10 @@ function [allResults] = etholog(varargin)
 
                 % stop tracker recording
                 tracker.offline();
+
+                % clear tracker screen
+                tracker.command('clear_screen 0');
+
 
                 % stop millikey queue
                 if strcmp(subjectResponseType, 'MilliKey')
