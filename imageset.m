@@ -149,7 +149,7 @@ classdef imageset
             addRequired(p, 'Root');
             addParameter(p, 'Subfolders', {'H', {'natT', 'naturalT'}; 'L', 'texture'}, @(x) iscellstr(x) && size(x, 2)==2);
             addParameter(p, 'Extensions', {'.bmp', '.jpg', '.png'});
-            addParameter(p, 'OnLoad', @onLoadImage, @(x) isa(x, 'function_handle'));  % check if isempty()
+            addParameter(p, 'OnLoad', @deal, @(x) isa(x, 'function_handle'));  % check if isempty()
             addParameter(p, 'Bkgd', [.5; .5; .5], @(x) isnumeric(x) && iscolumn(x) && length(x)==3);
             
             p.parse(varargin{:});
