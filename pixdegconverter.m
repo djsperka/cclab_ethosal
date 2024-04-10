@@ -15,6 +15,7 @@ classdef pixdegconverter
     
     properties (Access = private)
         PPD
+        PPMM
         W
         H
     end
@@ -27,11 +28,12 @@ classdef pixdegconverter
             obj.H = rect(4);
             if nargin == 2
                 obj.PPD = rect(3)/varargin{1};
+                obj.PPMM = nan;
             elseif nargin == 3
-                % args should be (rect, screenWidth, eyeDist), both in same
-                % dimensions.
+                % args should be (rect, screenWidth, eyeDist), both in mm
                 fovx = atan2(varargin{1}/2, varargin{2}) * 180 / pi;
                 obj.PPD = rect(3) / fovx;
+                obj.PPMM = rect(3) / varargin{1};
             else
                 error('One or two args to pixdeg converter');
             end
@@ -44,6 +46,18 @@ classdef pixdegconverter
             if ~isscalar(DEG)
                 warning('Using deg2pix on a non-scalar object. Use this method for lengths, use deg2scr to get screen coordinates.');
             end
+        end
+
+        function MM = deg2mm(obj, DEG)
+            %deg2mm Convert values from degrees to mm. Only works when this
+            %object created with w,h. When created with fovx, will warn bu
+            %take a guess. 
+            pix = obj.deg2pix(DEG);
+            ppmm = obj.PPMM;
+            if isnan(obj.PPMM)
+                ppmm = 3;
+            end
+            MM = arrayfun(@(p) p/ppmm, pix);
         end
         
         function SCRPAIRS = deg2scr(obj, DEGPAIRS)
