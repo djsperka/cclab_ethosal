@@ -56,6 +56,7 @@ classdef pixdegconverter
             ppmm = obj.PPMM;
             if isnan(obj.PPMM)
                 ppmm = 3;
+                warning('pixdegconverter is just guessing at the pixel size.')
             end
             MM = arrayfun(@(p) p/ppmm, pix);
         end
