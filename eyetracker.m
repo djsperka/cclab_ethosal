@@ -140,6 +140,24 @@ classdef eyetracker < handle
             end
         end
 
+        function clear_screen(obj, c)
+            if ~obj.DummyMode
+                obj.command('clear_screen %d', c);
+            end
+        end
+
+        function draw_box(obj, x1, y1, x2, y2, c)
+            if ~obj.DummyMode
+                obj.command('draw_box %ld %ld %ld %ld %ld', round(x1), round(y1), round(x2), round(y2), c);
+            end
+        end
+
+        function draw_cross(obj, x, y, c)
+            if ~obj.DummyMode
+                obj.command('draw_cross %ld %ld %ld', round(x), round(y), c);
+            end
+        end
+
     end
     
     methods (Access = private)
