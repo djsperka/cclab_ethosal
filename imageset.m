@@ -165,7 +165,7 @@ classdef imageset
             obj.TextureParser = inputParser;
             addRequired(obj.TextureParser, 'Window', @(x) isscalar(x));
             addRequired(obj.TextureParser, 'Key', @(x) ischar(x) && obj.Images.isKey(x));
-            addOptional(obj.TextureParser, 'PreProcessFunc', [], @(x) isa(x, 'function_handle'));
+            addOptional(obj.TextureParser, 'PreProcessFunc', [], @(x) isempty(x) || isa(x, 'function_handle'));
 
             % now process files. Each row of the cell array is two elements
             % - the key and the subfolder. The subfolder arg itself can be
@@ -268,13 +268,27 @@ classdef imageset
             Screen('Flip', w);
         end
 
-%         function mflip(obj, varargin)
-%             obj.TextureParser.parse(varargin{:});
-%             w = obj.TextureParser.Results.Window;
-%             Screen('FillRect', w, [.5 .5 .5]);
-%             Screen('DrawTexture', w, obj.texture(varargin{:}));
-%             Screen('Flip', w);
-%         end
+        function mflip(obj, w, keys, funcs)
+            screenRect=Screen('Rect', w);
+
+            % warn if not uniform
+            if ~obj.IsUniform
+                warning('Images in this imageset are not uniform size');
+            end
+
+            % divvy up into however many pieces are needed. Note - the
+            % returned rects are in rows!
+            divviedRects = ArrangeRects(length(keys), obj.UniformOrFirstRect, screenRect);
+
+            % Find the center of each rect, then center rect on that point
+            % for the image itself. Use columnar-rects for RectCenter
+            [ctrX, ctrY] = RectCenter(divviedRects');
+            textureRects = CenterRectOnPoint(obj.UniformOrFirstRect, ctrX', ctrY');
+            textures = cellfun(@(k,f) obj.texture(w,k,f), keys, funcs);
+            Screen('FillRect', w, obj.Bkgd);
+            Screen('DrawTextures', w, textures, [], textureRects');
+            Screen('Flip', w);
+         end
 
 
         function fname = filename(obj, k)
