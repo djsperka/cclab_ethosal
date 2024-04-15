@@ -51,7 +51,7 @@ classdef eyetracker < handle
             %mode. In dummy mode, nothing happens.
             %   Detailed explanation goes here
             if obj.DummyMode
-                warning('No Eyelink(Command) in dummy mode: %s', cmdString);
+                warning('No Eyelink(Command) in dummy mode: %s', sprintf(formatstring, varargin{:}));
             else
                 Eyelink('Command', formatstring, varargin{:});
             end
