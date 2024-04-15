@@ -25,6 +25,7 @@ classdef twotonebeeper < handle
                 p.addOptional('Incorrect', 350,  @(x) isscalar(x) && x>0 );
                 p.addOptional('Duration', 0.25, @(x) isscalar(x) && x>0 );
                 p.addOptional('Playback', 44100, @(x) isscalar(x) && x > 0);    % can preobably do better
+                p.addOptional('OpenSnd', true, @(x) islogical(x));
                 p.parse(varargin{:});
             catch ME
                 rethrow(ME);
@@ -40,8 +41,14 @@ classdef twotonebeeper < handle
             obj.FreqPlayback = p.Results.Playback;
             obj.Duration = p.Results.Duration;
             
-            % Open default audio device
+            % Open default audio device. 
+            % If OpenSnd is true (the default), then use the handle to open
+            % the Snd device. See "help Snd" notes section "Audio device 
+            % sharing for interop with PsychPortAudio"
             obj.PAHandle = PsychPortAudio('Open');
+            if (p.Results.OpenSnd)
+                Snd('Open', obj.PAHandle, 1);
+            end
             
             status = PsychPortAudio('GetStatus', obj.PAHandle);
             sampleRate = status.SampleRate;
