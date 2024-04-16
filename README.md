@@ -1,21 +1,33 @@
 # cclab_ethosal
 Ethological salience expt
 
+## imageset
+
+This is an imageset loaded for bw images using CONTRAST as the changing property. The 'OnLoad' function is @deal, which does nothing. 
+
+```
+>> imgbw=imageset('/home/dan/work/cclab/images/eth/Babies', 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @deal)
+```
+
+## Generate trials
+
+Generate trials for contrast change
+
+```
+>> baseContrast = .7;
+>> deltas = [0, .1, .2, .3];
+>> numberOfImages = 5; % number of trials = numberOfImages * length(deltas)
+>> trials=generateThreshBlock(imgbw.BalancedFileKeys, numberOfImages, 'HL', baseContrast, deltas, 1);
+```
+
+Generate trials for luminance change
+
+
 ## Run
 
-An image set root folder is set with the ImageRoot parameter. There should be a "textures" folder and a "natT' folder here containing images like the ones Jodi has put together.
 ```
->> etholog('Screen', 0, 'Rect', [0 0 800 600], 'Fovx', 45, 'ImageRoot', '/Users/dan/cclab/images/ethosal/Animals', 'NumTrials', 2, 'Responses', 'Saccade')
+results=etholog(trials, imgbw, [600, 1000], 'ImageChangeType', 'contrast', 'EyelinkDummyMode', 1, 'Response', 'MilliKey', 'MilliKeyIndex', mkind, 'KeyboardIndex', kbind, 'Screen', 0, 'Rect', [1520 400 1920 700])
 ```
-This will run the first two trials taken from cclab.trials. If the #NumTrials# arg is omitted, all trials are run. 
-
-During the reponse period, the script will await a response. If using Saccade, you can use the mouse to move over one of the stimuli - but not until after the stim and fixpts disappear. 
-
-The script also respects pause (space bar) and quit (keyboard "q").
-
-The expt is displayed in a window on your screen 0 with the rectangle shown. This runs on my laptop, and should be flexible enough to run on a rig when we have multiple screens.
-
-The expt now expects mouse action to initiate a trial - mouse simulates fixation so move mouse hear fixation dot to initiate trial. The tracking is minimal - after initial acquisiution there is no tracking in this version. Coming soon.
 
 ## Beeper
 
