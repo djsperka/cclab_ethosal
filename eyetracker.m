@@ -9,10 +9,11 @@ classdef eyetracker < handle
         ScreenWidthPix
         ScreenHeightPix
         Name
+        Verbose
     end
     
     methods
-        function obj = eyetracker(mode, name, window)
+        function obj = eyetracker(mode, name, window, varargin)
             %eyetracker Construct an instance of this class
             %   Detailed explanation goes here
             
@@ -21,8 +22,8 @@ classdef eyetracker < handle
                 p.addRequired('DummyMode', @(x) isscalar(x) && (x == 0 || x == 1));
                 p.addRequired('Name', @(x) ischar(x) && length(x) > 0 && length(x) < 9);
                 p.addRequired('Window', @(x) isscalar(x));
-                p.addOptional('DoSetup', false, @(x) islogical(x));
-                p.parse(mode, name, window);
+                p.addParameter('Verbose', 0, @(x) isscalar(x) && isnumeric(x) && x>=0);
+                p.parse(mode, name, window, varargin{:});
             catch ME
                 rethrow(ME);
             end
@@ -34,6 +35,7 @@ classdef eyetracker < handle
             rect = Screen('Rect', obj.Window);
             obj.ScreenWidthPix = rect(3);
             obj.ScreenHeightPix = rect(4);
+            obj.Verbose = p.Results.Verbose>0;
 
             if obj.DummyMode
                 fprintf('Using eyetracker in dummy mode.\n');
@@ -50,10 +52,10 @@ classdef eyetracker < handle
             %command Issues Eyelink('Command', cmdString) if not in dummy
             %mode. In dummy mode, nothing happens.
             %   Detailed explanation goes here
-            if obj.DummyMode
-                warning('No Eyelink(Command) in dummy mode: %s', sprintf(formatstring, varargin{:}));
-            else
+            if ~obj.DummyMode
                 Eyelink('Command', formatstring, varargin{:});
+            elseif obj.Verbose
+                fprintf(1, 'Eyelink Command: %s', sprintf(formatstring, varargin{:}));
             end
         end
         
@@ -61,10 +63,10 @@ classdef eyetracker < handle
             %command Issues Eyelink('Command', cmdString) if not in dummy
             %mode. In dummy mode, nothing happens.
             %   Detailed explanation goes here
-            if obj.DummyMode
-                warning('No Eyelink(Message) in dummy mode: %s', cmdString);
-            else
+            if ~obj.DummyMode
                 Eyelink('Message', formatstring, varargin{:});
+            elseif obj.Verbose
+                fprintf(1, 'No Eyelink(Message) in dummy mode: %s', cmdString);
             end
         end
 
@@ -72,7 +74,7 @@ classdef eyetracker < handle
             if ~obj.DummyMode
                 Eyelink('SetOfflineMode');
                 Eyelink('StartRecording');
-            else
+            elseif obj.Verbose
                 fprintf('eyetracker.start_recording: dummy mode.\n');
             end
         end
@@ -80,7 +82,7 @@ classdef eyetracker < handle
         function offline(obj)
             if ~obj.DummyMode
                 Eyelink('SetOfflineMode');
-            else
+            elseif obj.Verbose
                 fprintf('eyetracker.offline: dummy mode.\n');
             end
         end            

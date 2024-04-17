@@ -31,7 +31,7 @@ function [allResults] = etholog(varargin)
     p.addParameter('Name', 'demo', @(x) ischar(x) && length(x)<9 && ~isempty(x));
     p.addParameter('Out', 'out', @(x) isdir(x));    
     p.addParameter('EyelinkDummyMode', 1,  @(x) isscalar(x) && (x == 0 || x == 1));
-
+    p.addParameter('Verbose', 0, @(x) isscalar(x) && isnumeric(x) && x>=0);
     
     % Where to look for responses. The 'Saccade' is intended for usage with
     % eyelink dummy mode ('EyelinkDummyMode', 1) - which is the default.
@@ -154,11 +154,11 @@ function [allResults] = etholog(varargin)
     if ~p.Results.EyelinkDummyMode
         warning('Initializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup');
     end
-    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.Name, windowIndex);
+    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.Name, windowIndex, 'Verbose', p.Results.Verbose);
     
     %% Now start the experiment. 
     
-    stateMgr = statemgr('START', true);
+    stateMgr = statemgr('START', p.Results.Verbose>0);
     bQuit = false;
     itrial = 1;
     bkgdColor = [.5 .5 .5];
@@ -208,7 +208,7 @@ function [allResults] = etholog(varargin)
                         % to the START state. Current trial is NOT
                         % repeated.
                         stateMgr.transitionTo('TRIAL_COMPLETE');
-                        fprintf('Resume after pause.\n');
+                        if (p.Results.Verbose > -1); fprintf('Resume after pause.\n'); end
                     else
                         % not paused, so we now stop current trial, clear
                         % screen. If there is output, the output from this
@@ -216,16 +216,16 @@ function [allResults] = etholog(varargin)
                         Screen('FillRect', windowIndex, bkgdColor);
                         Screen('Flip', windowIndex);
                         stateMgr.transitionTo('WAIT_PAUSE');
-                        fprintf('Paused.\n');
+                        if (p.Results.Verbose > -1); fprintf('Paused.\n'); end
                     end
                 case KbName('q')
                         % trial will have to be flushed. TODO. 
                         Screen('FillRect', windowIndex, bkgdColor);
                         Screen('Flip', windowIndex);
                         stateMgr.transitionTo('DONE');
-                        fprintf('Quit from kbd.\n');
+                        if (p.Results.Verbose > -1); fprintf('Quit from kbd.\n'); end
                 otherwise
-                    fprintf('Keys:\n<space> - toggle pause\n\n');
+                    if (p.Results.Verbose > -1); fprintf('Keys:\n<space> - toggle pause\n\n');end
             end
         end
 
@@ -234,6 +234,9 @@ function [allResults] = etholog(varargin)
             case 'START'
                 % get trial structure
                 trial = table2struct(p.Results.Trials(itrial, :));
+                if (p.Results.Verbose > -1)
+                    fprintf('etholog: START trial %d images %s %s chgtype %d delta %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeType, trial.Delta);
+                end
 
                 % get textures ready for this trial
                 tex1a = images.texture(windowIndex, trial.Stim1Key, @(x) imageBaseFunc(x, trial.Base));
@@ -243,23 +246,22 @@ function [allResults] = etholog(varargin)
 
                 switch trial.StimChangeType
                     case 1
-                        fprintf('Change L by %d\n', trial.Delta);
+                        if (p.Results.Verbose > -1); fprintf('etholog: Change L by %d\n', trial.Delta); end
                         %tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageset.contrast(x, p.Results.BaseContrast + trial.Delta));
                         tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageChangeFunc(x, trial.Base + trial.Delta));
                         tex2b = tex2a;
                     case 2
-                        fprintf('Change R by %d\n', trial.Delta);
+                        if (p.Results.Verbose > -1); fprintf('etholog: Change R by %d\n', trial.Delta); end
                         tex1b = tex1a;
                         %tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageset.contrast(x, p.Results.BaseContrast + trial.Delta));
                         tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageChangeFunc(x, trial.Base + trial.Delta));
                     case 0
-                        fprintf('Change none\n');
+                        if (p.Results.Verbose > -1); fprintf('etholog: Change none\n'); end
                         tex1b = tex1a;
                         tex2b = tex2a;
                     otherwise
                         error('Change can only be 0,1, or 2.');
                 end
-                fprintf('START trial %d images %s %s chgtype %d delta %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeType, trial.Delta);
                 stateMgr.transitionTo('DRAW_FIXPT');
                 
                 % results
@@ -323,7 +325,7 @@ function [allResults] = etholog(varargin)
                         stateMgr.transitionTo('DRAW_B');
                     end
                 elseif ~tracker.is_in_rect(fixWindowRect)
-                    stateMgr.transitionTo('FIXATION_BREAK_LATE')
+                    stateMgr.transitionTo('FIXATION_BREAK_LATE');
                 end
             case 'FIXATION_BREAK_LATE'
                 Screen('FillRect', windowIndex, bkgdColor);
@@ -387,10 +389,11 @@ function [allResults] = etholog(varargin)
                 end
                 if isResponse || stateMgr.timeInState() >= trial.RespTime
                     stateMgr.transitionTo('TRIAL_COMPLETE');
-                    fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt);
+                    if (p.Results.Verbose > -1); fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt); end
                     if strcmp(subjectResponseType, 'MilliKey')
                         millikey.stop(true);
                     end
+
                     % record response
                     allResults.iResp(itrial) = response;
                     allResults.tResp(itrial) = tResp;
@@ -398,13 +401,10 @@ function [allResults] = etholog(varargin)
                     % beep maybe
                     if p.Results.Beep
                         if allResults.iResp(itrial) == trial.StimChangeType
-                            fprintf('etholog: Correct response\n');
                             beeper.correct();
                         elseif allResults.iResp(itrial) < 0
-                            fprintf('etholog: No response\n');
                             beeper.incorrect();
                         else
-                            fprintf('etholog: Incorrect response\n');
                             beeper.incorrect();
                         end
                     end
