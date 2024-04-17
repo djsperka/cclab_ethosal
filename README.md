@@ -9,6 +9,12 @@ This is an imageset loaded for bw images using CONTRAST as the changing property
 >> imgbw=imageset('/home/dan/work/cclab/images/eth/Babies', 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @deal)
 ```
 
+Alternative, using simple clamp method.
+
+```
+>> lumbw=imageset('/Users/dan/cclab/images/ethosal/Babies', 'Subfolders', {'H', 'bw'; 'L', 'bwtexture'}, 'OnLoad', @(I) squeezeclampimage(I, [0,225]));
+```
+
 ## Generate trials
 
 Generate trials for contrast change
@@ -21,6 +27,12 @@ Generate trials for contrast change
 ```
 
 Generate trials for luminance change
+
+```
+baseLumArg = 0;
+lumDeltas = [0 10 20];
+trials=generateThreshBlock(lumbw.BalancedFileKeys, numberOfImages, 'HL', baseLumArg, lumDeltas, 1);
+```
 
 
 ## Run
