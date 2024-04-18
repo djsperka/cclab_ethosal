@@ -8,6 +8,10 @@ function [allResults] = etholog(varargin)
     
     p.addRequired('Trials', @(x) istable(x));
     p.addRequired('Images', @(x) isa(x, 'imageset'));
+
+    % Dimensions is the geometry relative to viewing. Two-element vector 
+    % [screenWidth, screenDistance] in real situations, for testing a
+    % single value is the Fovx. 
     p.addRequired('Dimensions', @(x) isnumeric(x) && isvector(x) && length(x)<3);
 
     imageChangeTypes={'luminance', 'contrast'};
@@ -154,7 +158,7 @@ function [allResults] = etholog(varargin)
     if ~p.Results.EyelinkDummyMode
         warning('Initializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup');
     end
-    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.Name, windowIndex, 'Verbose', p.Results.Verbose);
+    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.Dimensions, p.Results.Name, windowIndex, 'Verbose', p.Results.Verbose);
     
     %% Now start the experiment. 
     
