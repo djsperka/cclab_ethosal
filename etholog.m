@@ -7,30 +7,35 @@ function [allResults] = etholog(varargin)
     p = inputParser;
     
     p.addRequired('Trials', @(x) istable(x));
-    p.addRequired('BaseContrast', @(x) isscalar(x) && isnumeric(x) && x>=0 && x<=1);
-    % pass images or specify root (and optional subfolders). 
-    % You really should make sure that the root you pass matches the
-    % imageset you used to generate your trials. I do not have a
-    % onLoad option here yet - TODO. 
-    p.addParameter('Images', [], @(x) isa(x, 'imageset'));
+    p.addRequired('Images', @(x) isa(x, 'imageset'));
+
+    % Dimensions is the geometry relative to viewing. Two-element vector 
+    % [screenWidth, screenDistance] in real situations, for testing a
+    % single value is the Fovx. 
+    p.addRequired('Dimensions', @(x) isnumeric(x) && isvector(x) && length(x)<3);
+
+    imageChangeTypes={'luminance', 'contrast'};
+    p.addParameter('ImageChangeType', 'luminance', @(x) any(validatestring(x, imageChangeTypes)));
+
     p.addParameter('NumTrials', inf, @(x) isscalar(x));
-    p.addParameter('ImageRoot', '', @(x) ischar(x) && isdir(x));
-    p.addParameter('ImageSubFolders', {'H', 'naturalT'; 'L', 'texture'},  @(x) iscellstr(x) && size(x,2)==2);
-    % This func is applied to each image after it is read by imread. The
-    % result is saved as the image. 
-    p.addParameter('OnLoad', @onLoadImage, @(x) isa(x, 'function_handle'));
-    
     p.addParameter('ITI', 0.5, @(x) isscalar(x));   % inter-trial interval.
     p.addParameter('Screen', 0, @(x) isscalar(x));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Bkgd', [.5 .5 .5], @(x) isrow(x) && length(x) == 3);
+    p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
+    p.addParameter('CueWidth', 2, @(x) isscalar(x));
+    p.addParameter('FixptDiam', 1, @(x) isscalar(x) && isnumeric(x));
+    p.addParameter('FixptXY', [0,0], @(x) isvector(x) && length(x)==2);
+    p.addParameter('FixptColor', [0,0,0], @(x) all(size(x) == [1 3]));  % color should be row vector on cmd line
+    p.addParameter('FixptWindowDiam', 3, @(x) isscalar(x) && isnumeric(x));
+    p.addParameter('Stim1XY', [-6,0], @(x) isvector(x) && length(x)==2);
+    p.addParameter('Stim2XY', [6,0], @(x) isvector(x) && length(x)==2);
+
     p.addParameter('SkipSyncTests', 0, @(x) isscalar(x) && (x==0 || x==1));
     p.addParameter('Name', 'demo', @(x) ischar(x) && length(x)<9 && ~isempty(x));
-    p.addParameter('Out', 'out', @(x) isdir(x));
-    p.addParameter('Fovx', nan, @(x) isscalar(x) && isnumeric(x));
-    
+    p.addParameter('Out', 'out', @(x) isdir(x));    
     p.addParameter('EyelinkDummyMode', 1,  @(x) isscalar(x) && (x == 0 || x == 1));
-
+    p.addParameter('Verbose', 0, @(x) isscalar(x) && isnumeric(x) && x>=0);
     
     % Where to look for responses. The 'Saccade' is intended for usage with
     % eyelink dummy mode ('EyelinkDummyMode', 1) - which is the default.
@@ -93,49 +98,30 @@ function [allResults] = etholog(varargin)
 
     p.addParameter('KeyboardIndex', 0, @(x) isscalar(x));
 
-    p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
-    p.addParameter('CueWidth', 2, @(x) isscalar(x));
-
     p.parse(varargin{:});
+
+    % fetch some stuff from the results
+    images = p.Results.Images;
     subjectResponseType = validatestring(p.Results.Response, responseTypes);
-
-    % Now load the expt config, then do a couple of checks
-    %cclab = load_local_config();
-
-    % HACK - this should come on cmd line? 
-%     cclab.FixationTime = 0.5;
-%     cclab.MaxAcquisitionTime = 2.0;
-%     cclab.FixationBreakEarlyTime = 0.5;
-%     cclab.FixationBreakLateTime = 2.0;
-%     cclab.SampTimeRange = [1.0, 2.0];
-    % The screen width (the width of all visible pixels) and the eye
-    % distance are used for visual angle calculations. The definitions here
-    % are overridden by the 'Fovx' arg on the command line. That arg is
-    % meant for testing - where you are using a window on a screen, not
-    % full screen. TODO - fix PsychImaging pipeline to correctly scale
-    % stuff in that case. 
-    %cclab.ScreenWidthMM = 1000;
-    %cclab.EyeDistMM = 500;
-    %END HACK
-
-    if isnan(p.Results.Fovx)
-       if any(~isfield(cclab, {'ScreenWidthMM', 'EyeDistMM'}))
-           error('local config must have dimensions unless Fovx is in args');
-       end
-    end
-    
+    imageChangeType = validatestring(p.Results.ImageChangeType, imageChangeTypes);
+    imageChangeFunc = @deal;
+    switch imageChangeType
+        case 'luminance'
+            imageBaseFunc = @imadd;
+            imageChangeFunc = @imadd;
+        case 'contrast'
+            imageBaseFunc = @imageset.contrast;
+            imageChangeFunc = @imageset.contrast;
+        otherwise
+            error('imageChangeType %s not recognized.', imageChangeType);
+    end    
     % Create a cleanup object, that will execute whenever this script ends
     % (even if it crashes). Use it to restore matlab to a usable state -
     % see cleanup() below.
     myCleanupObj = onCleanup(@cleanup);
     
     % Init ptb, set preferences. 
-    % arg == 0 : AssertOpenGL
-    % arg == 1 : also KbName('UnifyKeyNames')
-    % arg == 2 : also setcolor range 0-1, must use PsychImaging('OpenWindow') 
     PsychDefaultSetup(2);
-    %Screen('Preference', 'Verbosity', cclab.Verbosity);
-    %Screen('Preference', 'VisualDebugLevel', cclab.VisualDebugLevel);
     Screen('Preference', 'SkipSyncTests', p.Results.SkipSyncTests);
     
     % Open window for visual stim
@@ -143,11 +129,12 @@ function [allResults] = etholog(varargin)
     [windowCenterPixX windowCenterPixY] = RectCenter(windowRect);
     
     % create converter for dealing with pixels&degrees 
-    if isnan(p.Results.Fovx)
-        error('Need to implement this!');
-        converter = pixdegconverter(windowRect, cclab.ScreenWidthMM, cclab.EyeDistMM);
+    % If 2 elements, [screenWidthMM, screenDistanceMM]
+    % if single element, [fovX] - testing only
+    if length(p.Results.Dimensions) == 2
+        converter = pixdegconverter(windowRect, p.Results.Dimensions(1), p.Results.Dimensions(2));
     else
-        converter = pixdegconverter(windowRect, p.Results.Fovx);
+        converter = pixdegconverter(windowRect, p.Results.Dimensions(1));
     end
 
     % Kb queue - need to know correct index!
@@ -164,49 +151,27 @@ function [allResults] = etholog(varargin)
         millikey = responder(p.Results.MilliKeyIndex);
     end
 
-    % init eye tracker. 
-    
+    % Init audio - BEFORE the tracker is initialized ()
+    beeper = twotonebeeper('OpenSnd', true);
+
+    % init eye tracker.     
     if ~p.Results.EyelinkDummyMode
         warning('Initializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup');
     end
-    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.Name, windowIndex);
-
-    % Init audio - AFTER the tracker is initialized (avoid PortAudio msgs)
-    beeper = twotonebeeper();
-
-
-    % load images.
-    if isempty(p.Results.Images)
-        images = imageset(p.Results.ImageRoot, 'SubFolders', p.Results.ImageSubFolders, 'OnLoad', p.Results.OnLoad);
-    else
-        images = p.Results.Images;
-    end
+    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.Dimensions, p.Results.Name, windowIndex, 'Verbose', p.Results.Verbose);
     
     %% Now start the experiment. 
     
-    stateMgr = statemgr('START', true);
+    stateMgr = statemgr('START', p.Results.Verbose>0);
     bQuit = false;
     itrial = 1;
     bkgdColor = [.5 .5 .5];
-    
-    % Fixation point and stim parameters. TODO: These are either from config or command line
-    % Derive other stuff from this below. 
-    fixDiamDeg = 1;
-    fixXYDeg = [0 0];
-    fixColor = [0 0 0];
-    stim1XYDeg = [-10 0];
-    stim2XYDeg = [10 0];
-    fixWindowDiamDeg = 3;
-    cueColor1 = [1, 0, 0];
-    cueColor2 = [0, 0, 1];
-    cuePenWidth = 2;
 
-
-    % aforementioned conversions, to be used below. Note that stim rect is
+    % Convert values for display. Note that stim rect is
     % generated on the fly, in case of different sizes. 
-    fixDiamPix = converter.deg2pix(fixDiamDeg);
+    fixDiamPix = converter.deg2pix(p.Results.FixptDiam);
     fixRect = [0 0 fixDiamPix fixDiamPix]; 
-    fixXYScr = converter.deg2scr(fixXYDeg);
+    fixXYScr = converter.deg2scr(p.Results.FixptXY);
     % row 1 = x values, row2 = y values
     % first (second) column: start(end) of first segment
     % and so on
@@ -216,9 +181,9 @@ function [allResults] = etholog(varargin)
         fixXYScr(1), fixXYScr(2) + fixDiamPix/2; ...
         fixXYScr(1), fixXYScr(2) - fixDiamPix/2
         ]';
-    stim1XYScr = converter.deg2scr(stim1XYDeg);
-    stim2XYScr = converter.deg2scr(stim2XYDeg);
-    fixWindowDiamPix = converter.deg2pix(fixWindowDiamDeg);
+    stim1XYScr = converter.deg2scr(p.Results.Stim1XY);
+    stim2XYScr = converter.deg2scr(p.Results.Stim2XY);
+    fixWindowDiamPix = converter.deg2pix(p.Results.FixptWindowDiam);
     fixWindowRect = CenterRectOnPoint([0 0 fixWindowDiamPix fixWindowDiamPix], fixXYScr(1), fixXYScr(2));
     
     
@@ -247,7 +212,7 @@ function [allResults] = etholog(varargin)
                         % to the START state. Current trial is NOT
                         % repeated.
                         stateMgr.transitionTo('TRIAL_COMPLETE');
-                        fprintf('Resume after pause.\n');
+                        if (p.Results.Verbose > -1); fprintf('Resume after pause.\n'); end
                     else
                         % not paused, so we now stop current trial, clear
                         % screen. If there is output, the output from this
@@ -255,16 +220,16 @@ function [allResults] = etholog(varargin)
                         Screen('FillRect', windowIndex, bkgdColor);
                         Screen('Flip', windowIndex);
                         stateMgr.transitionTo('WAIT_PAUSE');
-                        fprintf('Paused.\n');
+                        if (p.Results.Verbose > -1); fprintf('Paused.\n'); end
                     end
                 case KbName('q')
                         % trial will have to be flushed. TODO. 
                         Screen('FillRect', windowIndex, bkgdColor);
                         Screen('Flip', windowIndex);
                         stateMgr.transitionTo('DONE');
-                        fprintf('Quit from kbd.\n');
+                        if (p.Results.Verbose > -1); fprintf('Quit from kbd.\n'); end
                 otherwise
-                    fprintf('Keys:\n<space> - toggle pause\n\n');
+                    if (p.Results.Verbose > -1); fprintf('Keys:\n<space> - toggle pause\n\n');end
             end
         end
 
@@ -273,30 +238,34 @@ function [allResults] = etholog(varargin)
             case 'START'
                 % get trial structure
                 trial = table2struct(p.Results.Trials(itrial, :));
+                if (p.Results.Verbose > -1)
+                    fprintf('etholog: START trial %d images %s %s chgtype %d delta %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeType, trial.Delta);
+                end
 
                 % get textures ready for this trial
-                tex1a = images.texture(windowIndex, trial.Stim1Key, @(x) imageset.contrast(x, p.Results.BaseContrast));
-                tex2a = images.texture(windowIndex, trial.Stim2Key, @(x) imageset.contrast(x, p.Results.BaseContrast));
+                tex1a = images.texture(windowIndex, trial.Stim1Key, @(x) imageBaseFunc(x, trial.Base));
+                tex2a = images.texture(windowIndex, trial.Stim2Key, @(x) imageBaseFunc(x, trial.Base));
                 stim1Rect = CenterRectOnPoint(images.rect(trial.Stim1Key), stim1XYScr(1), stim1XYScr(2));
                 stim2Rect = CenterRectOnPoint(images.rect(trial.Stim2Key), stim2XYScr(1), stim2XYScr(2));
 
                 switch trial.StimChangeType
                     case 1
-                        fprintf('Change L by %d\n', trial.Delta);
-                        tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageset.contrast(x, p.Results.BaseContrast + trial.Delta));
+                        if (p.Results.Verbose > -1); fprintf('etholog: Change L by %d\n', trial.Delta); end
+                        %tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageset.contrast(x, p.Results.BaseContrast + trial.Delta));
+                        tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageChangeFunc(x, trial.Base + trial.Delta));
                         tex2b = tex2a;
                     case 2
-                        fprintf('Change R by %d\n', trial.Delta);
+                        if (p.Results.Verbose > -1); fprintf('etholog: Change R by %d\n', trial.Delta); end
                         tex1b = tex1a;
-                        tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageset.contrast(x, p.Results.BaseContrast + trial.Delta));
+                        %tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageset.contrast(x, p.Results.BaseContrast + trial.Delta));
+                        tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageChangeFunc(x, trial.Base + trial.Delta));
                     case 0
-                        fprintf('Change none\n');
+                        if (p.Results.Verbose > -1); fprintf('etholog: Change none\n'); end
                         tex1b = tex1a;
                         tex2b = tex2a;
                     otherwise
                         error('Change can only be 0,1, or 2.');
                 end
-                fprintf('START trial %d images %s %s chgtype %d delta %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeType, trial.Delta);
                 stateMgr.transitionTo('DRAW_FIXPT');
                 
                 % results
@@ -309,8 +278,7 @@ function [allResults] = etholog(varargin)
             case 'DRAW_FIXPT'
                 % fixpt only
                 Screen('FillRect', windowIndex, bkgdColor);
-                %Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
-                Screen('DrawLines', windowIndex, fixLines, 4, [0, 0, 0]');
+                Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
                 Screen('Flip', windowIndex);
 
                 % draw fixpt and box
@@ -343,8 +311,7 @@ function [allResults] = etholog(varargin)
                 Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
 
                 % Note - convert fixpt from oval to cross. 
-                %Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
-                Screen('DrawLines', windowIndex, fixLines, 4, [0, 0, 0]');
+                Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
 
                 % draw boxes for images on tracker
                 tracker.draw_box(stim1Rect(1), stim1Rect(2), stim1Rect(3), stim1Rect(4), 15);
@@ -362,7 +329,7 @@ function [allResults] = etholog(varargin)
                         stateMgr.transitionTo('DRAW_B');
                     end
                 elseif ~tracker.is_in_rect(fixWindowRect)
-                    stateMgr.transitionTo('FIXATION_BREAK_LATE')
+                    stateMgr.transitionTo('FIXATION_BREAK_LATE');
                 end
             case 'FIXATION_BREAK_LATE'
                 Screen('FillRect', windowIndex, bkgdColor);
@@ -374,8 +341,7 @@ function [allResults] = etholog(varargin)
                 end                
             case 'DRAW_AB'
                 Screen('FillRect', windowIndex, bkgdColor);
-                %Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
-                Screen('DrawLines', windowIndex, fixLines, 4, [0, 0, 0]');
+                Screen('DrawLines', windowIndex, fixLines, 4,p.Results.FixptColor');
                 [ allResults.tAoff(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_AB');
             case 'WAIT_AB'
@@ -386,9 +352,7 @@ function [allResults] = etholog(varargin)
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
                 Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
-                % Note - convert fixpt to cross
-                %Screen('FillOval', windowIndex, fixColor, CenterRectOnPoint(fixRect, fixXYScr(1), fixXYScr(2)));
-                Screen('DrawLines', windowIndex, fixLines, 4, [0, 0, 0]');
+                Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
                 [ allResults.tBon(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('START_RESPONSE');
             % case 'WAIT_B'
@@ -429,10 +393,11 @@ function [allResults] = etholog(varargin)
                 end
                 if isResponse || stateMgr.timeInState() >= trial.RespTime
                     stateMgr.transitionTo('TRIAL_COMPLETE');
-                    fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt);
+                    if (p.Results.Verbose > -1); fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt); end
                     if strcmp(subjectResponseType, 'MilliKey')
                         millikey.stop(true);
                     end
+
                     % record response
                     allResults.iResp(itrial) = response;
                     allResults.tResp(itrial) = tResp;
@@ -440,13 +405,10 @@ function [allResults] = etholog(varargin)
                     % beep maybe
                     if p.Results.Beep
                         if allResults.iResp(itrial) == trial.StimChangeType
-                            fprintf('etholog: Correct response\n');
                             beeper.correct();
                         elseif allResults.iResp(itrial) < 0
-                            fprintf('etholog: No response\n');
                             beeper.incorrect();
                         else
-                            fprintf('etholog: Incorrect response\n');
                             beeper.incorrect();
                         end
                     end

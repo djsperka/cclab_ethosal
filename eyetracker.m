@@ -8,32 +8,40 @@ classdef eyetracker < handle
         Window
         ScreenWidthPix
         ScreenHeightPix
+        ScreenWHMM
+        ScreenDistanceMM
         Name
+        Verbose
     end
     
     methods
-        function obj = eyetracker(mode, name, window)
+        function obj = eyetracker(mode, screen_dimensions, screen_distance, name, window, varargin)
             %eyetracker Construct an instance of this class
             %   Detailed explanation goes here
             
             try
                 p = inputParser;
                 p.addRequired('DummyMode', @(x) isscalar(x) && (x == 0 || x == 1));
-                p.addRequired('Name', @(x) ischar(x) && length(x) > 0 && length(x) < 9);
+                p.addRequired('ScreenWH', @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
+                p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
+                p.addRequired('Name', @(x) ischar(x) && ~isempty(x) && length(x) < 9);
                 p.addRequired('Window', @(x) isscalar(x));
-                p.addOptional('DoSetup', false, @(x) islogical(x));
-                p.parse(mode, name, window);
+                p.addParameter('Verbose', 0, @(x) isscalar(x) && isnumeric(x) && x>=0);
+                p.parse(mode, screen_dimensions, screen_distance, name, window, varargin{:});
             catch ME
                 rethrow(ME);
             end
             
             obj.DummyMode = true;
-            if ~p.Results.DummyMode obj.DummyMode = false; end
+            if ~p.Results.DummyMode; obj.DummyMode = false; end
             obj.Name = p.Results.Name;
             obj.Window = p.Results.Window;
             rect = Screen('Rect', obj.Window);
             obj.ScreenWidthPix = rect(3);
             obj.ScreenHeightPix = rect(4);
+            obj.Verbose = p.Results.Verbose>0;
+            obj.ScreenWHMM = p.Results.ScreenWH;
+            obj.ScreenDistanceMM = p.Results.ScreenDistance;
 
             if obj.DummyMode
                 fprintf('Using eyetracker in dummy mode.\n');
@@ -42,7 +50,7 @@ classdef eyetracker < handle
             end
         end
         
-        function delete(obj)
+        function delete(~)
             Eyelink('Shutdown');
         end
         
@@ -50,10 +58,10 @@ classdef eyetracker < handle
             %command Issues Eyelink('Command', cmdString) if not in dummy
             %mode. In dummy mode, nothing happens.
             %   Detailed explanation goes here
-            if obj.DummyMode
-                warning('No Eyelink(Command) in dummy mode: %s', cmdString);
-            else
+            if ~obj.DummyMode
                 Eyelink('Command', formatstring, varargin{:});
+            elseif obj.Verbose
+                fprintf(1, 'Eyelink Command: %s', sprintf(formatstring, varargin{:}));
             end
         end
         
@@ -61,10 +69,10 @@ classdef eyetracker < handle
             %command Issues Eyelink('Command', cmdString) if not in dummy
             %mode. In dummy mode, nothing happens.
             %   Detailed explanation goes here
-            if obj.DummyMode
-                warning('No Eyelink(Message) in dummy mode: %s', cmdString);
-            else
+            if ~obj.DummyMode
                 Eyelink('Message', formatstring, varargin{:});
+            elseif obj.Verbose
+                fprintf(1, 'No Eyelink(Message) in dummy mode: %s', cmdString);
             end
         end
 
@@ -72,7 +80,7 @@ classdef eyetracker < handle
             if ~obj.DummyMode
                 Eyelink('SetOfflineMode');
                 Eyelink('StartRecording');
-            else
+            elseif obj.Verbose
                 fprintf('eyetracker.start_recording: dummy mode.\n');
             end
         end
@@ -80,7 +88,7 @@ classdef eyetracker < handle
         function offline(obj)
             if ~obj.DummyMode
                 Eyelink('SetOfflineMode');
-            else
+            elseif obj.Verbose
                 fprintf('eyetracker.offline: dummy mode.\n');
             end
         end            
@@ -91,7 +99,7 @@ classdef eyetracker < handle
             tf = IsInRect(x, y, rect);
         end
 
-        function [x y] = eyepos(obj)
+        function [x, y] = eyepos(obj)
             persistent eyeUsedIndex;
 
             if ~obj.DummyMode
@@ -119,7 +127,7 @@ classdef eyetracker < handle
 
             % now get the actual eye position
             if obj.DummyMode
-                [x y] = GetMouse(obj.Window);
+                [x, y] = GetMouse(obj.Window);
             else
                 evt = Eyelink('NewestFloatSample');
                 x = evt.gx(eyeUsedIndex);
@@ -162,7 +170,7 @@ classdef eyetracker < handle
     
     methods (Access = private)
         function eyelink_setup(obj)
-            [result, ~] = EyelinkInit(obj.DummyMode)
+            [result, ~] = EyelinkInit(obj.DummyMode);
             if ~result
                 errID = 'eyetracker:eyelink_setup';
                 msg = sprintf('EyelinkInit failed to connect (mode %d).', obj.DummyMode);
@@ -201,6 +209,22 @@ classdef eyetracker < handle
                 obj.command('link_event_filter = LEFT,RIGHT,FIXATION,SACCADE,BLINK,BUTTON,FIXUPDATE,INPUT');
                 obj.command('file_sample_data  = LEFT,RIGHT,GAZE,HREF,RAW,AREA,HTARGET,GAZERES,BUTTON,STATUS,INPUT');
                 obj.command('link_sample_data  = LEFT,RIGHT,GAZE,GAZERES,AREA,HTARGET,STATUS,INPUT');
+
+                % Set screen physical dimensions, or else warn
+                if ~isempty(obj.ScreenWHMM)
+                    halfW = obj.ScreenWHMM(1)/2;
+                    halfH = obj.ScreenWHMM(2)/2;
+                    obj.command('screen_phys_coords = %.1lf %.1lf %.1.f %.1lf ', -halfW, halfH, halfW, -halfH);
+                else
+                    warning('SCREEN DIMENSIONS NOT PROVIDED. TRACKER IS GUESSING HERE!!!');
+                end
+
+                if ~isempty(obj.ScreenDistanceMM)
+                    obj.command('screen_distance = %lf', obj.ScreenDistanceMM);
+                else
+                    warning('SCREEN DISTANCE NOT PROVIDED. TRACKER IS GUESSING HERE!!!');
+                end
+                    
 
                 % Provide EyeLink with some defaults, which are returned in the structure "el".
                 obj.EyelinkDefaults = EyelinkInitDefaults(obj.Window);

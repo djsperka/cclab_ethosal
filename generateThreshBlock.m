@@ -9,6 +9,7 @@ function t = generateThreshBlock(varargin)
     
     p.addRequired('NumImages', @(x) isnumeric(x) && isscalar(x));
     p.addRequired('FolderKeys', @(x) ischar(x) && ~isempty(x));
+    p.addRequired('Base', @(x) isnumeric(x) && isscalar(x));
     p.addRequired('Deltas', @(x) isnumeric(x) && isvector(x)); % TODO || (iscell(x) && all(cellfun(@(y) isnumeric(y) && isvector(y), x))));
     p.addRequired('ChangeType', @(x) isnumeric(x) && isscalar(x) && ismember(x,[1,2]));
     p.addOptional('FixationTime', 0.5, @(x) isnumeric(x) && length(x)<3);
@@ -54,7 +55,14 @@ function t = generateThreshBlock(varargin)
     t.Stim1Key=imageset.make_keys(t.LType, t.ImageKey);
     t.Stim2Key=imageset.make_keys(t.RType, t.ImageKey);
     nTrials = height(t);
+
+    % base value
+    t.Base = generateColumn(nTrials, p.Results.Base);
+
+    % Fix change types when delta is zero.
     t.StimChangeType = generateColumn(nTrials, p.Results.ChangeType);
+    t.StimChangeType(t.Delta == 0) = 0;
+
     t.FixationTime = generateColumn(nTrials, p.Results.FixationTime);
     t.MaxAcquisitionTime = generateColumn(nTrials, p.Results.MaxAcquisitionTime);
     t.FixationBreakEarlyTime = generateColumn(nTrials, p.Results.FixationBreakEarlyTime);
