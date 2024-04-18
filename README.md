@@ -1,6 +1,20 @@
 # cclab_ethosal
 Ethological salience expt
 
+## window
+
+Its useful to be able to quickly create a window on screen. This function lets you specify the dimensions of the window, and where on your desktop you want it. 
+Below, it creates an 800x600 window at the center of the right-hand side of screen 0. (See docs for AlignRect for last two args).
+
+```
+>> [w, wrect] = makeWindow([800, 600], 0, 'center', 'right');
+```
+
+Close the window with **sca** or **Screen('CloseAll')**. 
+
+If the window is open, the value of w can be used for testing imagesets (see below). 
+
+
 ## imageset
 
 This is an imageset loaded for bw images using CONTRAST as the changing property. The 'OnLoad' function is @deal, which does nothing. 
@@ -14,6 +28,13 @@ Alternative, using simple clamp method.
 ```
 >> lumbw=imageset('/Users/dan/cclab/images/ethosal/Babies', 'Subfolders', {'H', 'bw'; 'L', 'bwtexture'}, 'OnLoad', @(I) squeezeclampimage(I, [0,225]));
 ```
+
+To display a stimulus in the center of a window (with window pointer *w*), call the *flip()* method:
+
+```
+>> imgbw.flip(w, 'H/N71');
+
+
 
 ## Generate trials
 
