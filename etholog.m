@@ -12,7 +12,8 @@ function [allResults] = etholog(varargin)
     % Dimensions is the geometry relative to viewing. Two-element vector 
     % [screenWidth, screenDistance] in real situations, for testing a
     % single value is the Fovx. 
-    p.addRequired('Dimensions', @(x) isnumeric(x) && isvector(x) && length(x)<3);
+    p.addRequired('ScreenWH', @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
+    p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
 
     imageChangeTypes={'luminance', 'contrast'};
     p.addParameter('ImageChangeType', 'luminance', @(x) any(validatestring(x, imageChangeTypes)));
@@ -36,7 +37,8 @@ function [allResults] = etholog(varargin)
     p.addParameter('Out', 'out', @(x) isdir(x));    
     p.addParameter('EyelinkDummyMode', 1,  @(x) isscalar(x) && (x == 0 || x == 1));
     p.addParameter('Verbose', 0, @(x) isscalar(x) && isnumeric(x) && x>=0);
-    
+    p.addParameter('Fovx', 30, @(x) isscalar(x));
+
     % Where to look for responses. The 'Saccade' is intended for usage with
     % eyelink dummy mode ('EyelinkDummyMode', 1) - which is the default.
     responseTypes = {'Saccade', 'MilliKey'};
@@ -104,7 +106,6 @@ function [allResults] = etholog(varargin)
     images = p.Results.Images;
     subjectResponseType = validatestring(p.Results.Response, responseTypes);
     imageChangeType = validatestring(p.Results.ImageChangeType, imageChangeTypes);
-    imageChangeFunc = @deal;
     switch imageChangeType
         case 'luminance'
             imageBaseFunc = @imadd;
@@ -126,15 +127,14 @@ function [allResults] = etholog(varargin)
     
     % Open window for visual stim
     [windowIndex, windowRect] = PsychImaging('OpenWindow', p.Results.Screen, p.Results.Bkgd, p.Results.Rect);
-    [windowCenterPixX windowCenterPixY] = RectCenter(windowRect);
     
     % create converter for dealing with pixels&degrees 
     % If 2 elements, [screenWidthMM, screenDistanceMM]
     % if single element, [fovX] - testing only
-    if length(p.Results.Dimensions) == 2
-        converter = pixdegconverter(windowRect, p.Results.Dimensions(1), p.Results.Dimensions(2));
+    if ~isempty(p.Results.ScreenWH)
+        converter = pixdegconverter(windowRect, p.Results.ScreenWH, p.Results.ScreenDistance);
     else
-        converter = pixdegconverter(windowRect, p.Results.Dimensions(1));
+        converter = pixdegconverter(windowRect, p.Results.Fovx);
     end
 
     % Kb queue - need to know correct index!
@@ -158,7 +158,7 @@ function [allResults] = etholog(varargin)
     if ~p.Results.EyelinkDummyMode
         warning('Initializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup');
     end
-    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.Dimensions, p.Results.Name, windowIndex, 'Verbose', p.Results.Verbose);
+    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.ScreenWH, p.Results.ScreenDistance, p.Results.Name, windowIndex, 'Verbose', p.Results.Verbose);
     
     %% Now start the experiment. 
     
@@ -170,7 +170,6 @@ function [allResults] = etholog(varargin)
     % Convert values for display. Note that stim rect is
     % generated on the fly, in case of different sizes. 
     fixDiamPix = converter.deg2pix(p.Results.FixptDiam);
-    fixRect = [0 0 fixDiamPix fixDiamPix]; 
     fixXYScr = converter.deg2scr(p.Results.FixptXY);
     % row 1 = x values, row2 = y values
     % first (second) column: start(end) of first segment
@@ -435,6 +434,10 @@ function [allResults] = etholog(varargin)
                 else
                     stateMgr.transitionTo('WAIT_ITI');
                 end
+
+                % free textures
+                Screen('Close', unique([tex1a, tex2a, tex1b, tex2b]));
+                
             case 'WAIT_ITI'
                 if stateMgr.timeInState() >= p.Results.ITI
                     stateMgr.transitionTo('START');

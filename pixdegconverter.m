@@ -26,17 +26,24 @@ classdef pixdegconverter
             %   Detailed explanation goes here
             obj.W = rect(3);
             obj.H = rect(4);
+            nargin
+            varargin{:}
             if nargin == 2
                 obj.PPD = rect(3)/varargin{1};
                 obj.PPMM = nan;
             elseif nargin == 3
-                % args should be (rect, screenWidth, eyeDist), both in mm
-                fovx = atan2(varargin{1}/2, varargin{2}) * 180 / pi;
+                % args should be (rect, [screenWidthMM, screenHeightMM], eyeDistMM), both in mm
+                scrdims = varargin{1};
+                scrdist = varargin{2};
+                fovx = 2*atan2(scrdims(1)/2, scrdist) * 180 / pi;
                 obj.PPD = rect(3) / fovx;
-                obj.PPMM = rect(3) / varargin{1};
+                obj.PPMM = rect(3) / scrdims(1);
             else
                 error('One or two args to pixdeg converter');
             end
+
+            fprintf(1, 'cvt.PPD = %f\ncvt.PPMM = %f\n', obj.PPD, obj.PPMM);
+
         end
         
         function PIX = deg2pix(obj, DEG)
