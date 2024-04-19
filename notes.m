@@ -1,22 +1,50 @@
-% make a window, get useful variables
-% This makes an 800x600 window on the center of the right-hand-size of
-% screen. Last two args place the window - see AlignRect()
-[w, wrect] = makeWindow([800, 600], 0, 'center', 'right');
+% load imageset of babies for contrast 
+imgContrast=imageset('/data/cclab/images/Babies', 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @deal);
+
+% load imageset for lum changes. These are squeezed&clamped on load.
+clampRegion = [0, 225];
+imgClamp = imageset('/data/cclab/images/Babies', 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @(I) squeezeclampimage(I,clampRegion));
+
+% Use the imageset to generate a set of threshold trials using contrast
+thrConTrials = generateThreshBlock(imgContrast.BalancedFileKeys, 10, 'HL', .7, [0 .1 .2 .3], 1);
+thrConTrials.StimChangeType(thrConTrials.Delta==0) = 0;
+
+% Dimensions, all in mm
+screen_dimensions = [598, 336];
+screen_distance = 1000;
+mkind = cclabGetMilliKeyIndices;
+kbind = 10;
+
+% run on rig (screen 1) testing only. Using mkey
+results=etholog(thrConTrials, imgContrast, screen_dimensions, screen_distance, ...
+    'ImageChangeType', 'contrast', ...
+    'Screen', 1, ...
+    'Response', 'MilliKey', ...
+    'MilliKeyIndex', mkind, ...
+    'KeyboardIndex', kbind, ...
+    'Beep', true, ...
+    'EyelinkDummyMode', 1, ...
+    'SkipSyncTests', 1);
+results=etholog(thrConTrials, imgContrast, screen_dimensions, screen_distance, 'ImageChangeType', 'contrast', 'Screen', 1, 'Response', 'MilliKey', 'MilliKeyIndex', mkind, 'KeyboardIndex', kbind, 'Beep', true, 'EyelinkDummyMode', 1, 'SkipSyncTests', 1);
 
 
 
 
 
-% block for contrast, change on left. 
-baseContrast = .7;
-deltas = [0, .1, .2, .3];
-numberOfImages = 5; % number of trials = numberOfImages * length(deltas)
-trialsContrast=generateThreshBlock(imgbw.BalancedFileKeys, numberOfImages, 'HL', baseContrast, deltas, 1);
 
-% TEST, dummy mode, saccade response
-results=etholog(trialsContrast, imgbw, [600, 1000], 'ImageChangeType', 'contrast', 'EyelinkDummyMode', 1, 'Response', 'Saccade', 'KeyboardIndex', 11);
+ethBlocks = generateEthBlocks(imgContrast.BalancedFileKeys, [30, 10, 20;10, 30, 20; 20, 20, 20]', 20);
 
-% TEST, dummy mode, mkey response
-kbind = 11;
-mkind = 7;
-results=etholog(trialsContrast, imgbw, [600, 1000], 'ImageChangeType', 'contrast', 'EyelinkDummyMode', 1, 'Response', 'MilliKey', 'MilliKeyIndex', mkind, 'KeyboardIndex', kbind, 'Screen', 0, 'Rect', [1520 400 1920 700])
+
+mkind = cclabGetMilliKeyIndices();
+
+% xinput -list
+% [ind, names, allinf] = GetKeyboardIndices();
+
+kbind = 10;
+screen_dimensions=[598, 336];
+screen_distance=1000;
+
+results=etholog(thrConTrials, imgContrast, [], [], 'ImageChangeType', 'contrast', 'Screen', 1, 'Response', 'MilliKey', 'MilliKeyIndex', mkind, 'KeyboardIndex', kbind, 'Beep', true, 'EyelinkDummyMode', 1, 'SkipSyncTests', 1);
+results=etholog(thrConTrials, imgContrast, screen_dimensions, screen_distance, 'ImageChangeType', 'contrast', 'Screen', 1, 'Response', 'MilliKey', 'MilliKeyIndex', mkind, 'KeyboardIndex', kbind, 'Beep', true, 'EyelinkDummyMode', 1, 'SkipSyncTests', 1);
+
+results=etholog(thrConTrials, 'Images', imgContrast75, 'Screen', 1, 'Name', 'est002', 'Fovx', 45, 'Response', 'MilliKey', 'MilliKeyIndex', mkind, 'KeyboardIndex', kbind, 'Beep', true, 'EyelinkDummyMode', 1, 'SkipSyncTests', 1);
