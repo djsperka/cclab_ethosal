@@ -10,6 +10,7 @@ function [blocks] = generateEthBlocks(varargin)
     % LRNCounts is a 3xN matrix. First, second, third rows are change-left, -right,
     % -none.
     p.addRequired('LRNCounts', @(x) isnumeric(x) && size(x, 1)==3);
+    p.addRequired('BaseContrast', @(x) isnumeric(x) && isscalar(x));
     p.addRequired('Delta', @(x) isnumeric(x) && isscalar(x));
     p.addOptional('FolderKeys', {'H'; 'L'},  @(x) iscellstr(x));
     p.addOptional('FixationTime', 0.5, @(x) isnumeric(x) && length(x)<3);
@@ -58,9 +59,9 @@ function [blocks] = generateEthBlocks(varargin)
         % for the stim that change, randomize the direction of the change.
         lrnCounts = p.Results.LRNCounts(:,iblock);
         LChanges = ones(lrnCounts(1) * nStimTypes, 1);
-        LChanges(randperm(lrnCounts(1) * nStimTypes, lrnCounts(1) * nStimTypes/2)) = -1;
+        %LChanges(randperm(lrnCounts(1) * nStimTypes, lrnCounts(1) * nStimTypes/2)) = -1;
         RChanges = ones(lrnCounts(2) * nStimTypes, 1);
-        RChanges(randperm(lrnCounts(2) * nStimTypes, lrnCounts(2) * nStimTypes/2)) = -1;
+        %RChanges(randperm(lrnCounts(2) * nStimTypes, lrnCounts(2) * nStimTypes/2)) = -1;
         lCount = 0;
         rCount = 0;
     
@@ -125,6 +126,7 @@ function [blocks] = generateEthBlocks(varargin)
 
 
         % generate timing columns
+        Base = generateColumn(nTrials, p.Results.BaseContrast);
         FixationTime = generateColumn(nTrials, p.Results.FixationTime);
         MaxAcquisitionTime = generateColumn(nTrials, p.Results.MaxAcquisitionTime);
         FixationBreakEarlyTime = generateColumn(nTrials, p.Results.FixationBreakEarlyTime);
@@ -134,7 +136,7 @@ function [blocks] = generateEthBlocks(varargin)
         RespTime = generateColumn(nTrials, p.Results.RespTime);
 
         % now create
-        blocks{iblock} = table(Stim1Key, Stim2Key, StimChangeType, Delta, ...
+        blocks{iblock} = table(Stim1Key, Stim2Key, StimChangeType, Base, Delta, ...
             FixationTime, MaxAcquisitionTime, FixationBreakEarlyTime, FixationBreakLateTime, SampTime, GapTime, RespTime);
     end    
 end
