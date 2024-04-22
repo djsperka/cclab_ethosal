@@ -33,7 +33,7 @@ To display a stimulus in the center of a window (with window pointer *w*), call 
 
 ```
 >> imgbw.flip(w, 'H/N71');
-
+```
 
 
 ## Generate trials
@@ -79,26 +79,3 @@ I made a helper class to encapsulate the sound(s) used for correct and incorrect
 >> beeper.incorrect() % plays 400Hz tone for 0.5s.
 ```
 
-## Images
-
-The images are loaded to a matlab class that I use for display later in the script. This class will change once we start using the real image set. The usage of the columns 'Img1' and 'Img2' in the trials struct may change as well, depending on the real image set.
-
-Use it to look at the individual images (no scaling - drawn at center) in an open window like this:
-
-```
-% Open a window
-PsychDefaultSetup(2);
-[w, wRect] = PsychImaging('OpenWindow', 0, [.5 .5 .5], [0 0 800 600]);
-
-% load config
-cclab = load_local_config();
-
-% image set using file list - change filenames if needed
-images = imageset(cclab.ImageFiles);
-
-% display the first image in the set
-images.flip(w, 1);
-
-% display the third image in the set at 50% contrast
-images.flip(w, 3, .5);
-```
