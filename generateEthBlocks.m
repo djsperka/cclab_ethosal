@@ -1,8 +1,10 @@
-function [blocks] = generateEthBlocks(varargin)
+function [blocks, inputArgs, parsedResults] = generateEthBlocks(varargin)
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
 
     blocks = [];
+    inputArgs = varargin;
+    parsedResults = [];
     
     p=inputParser;  
     p.addRequired('FileKeys', @(x) iscellstr(x));
@@ -22,6 +24,7 @@ function [blocks] = generateEthBlocks(varargin)
     p.addOptional('GapTime', 0.25, @(x) isnumeric(x) && length(x)<3);
 
     p.parse(varargin{:});
+    parsedResults = p.Results;
     
     % for each image selected, there are 4 stim types. 
     % Type 1: HH
