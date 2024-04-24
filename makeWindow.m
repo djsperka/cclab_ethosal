@@ -1,4 +1,4 @@
-function [windowPtr,windowRect] = makeWindow(wh,screen,a1,a2)
+function [windowPtr,windowRect, mywr] = makeWindow(wh,screen,a1,a2)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
     PsychDefaultSetup(2);
