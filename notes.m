@@ -13,7 +13,9 @@ thrConTrials.StimChangeType(thrConTrials.Delta==0) = 0;
 screen_dimensions = [598, 336];
 screen_distance = 1000;
 mkind = cclabGetMilliKeyIndices;
-kbind = 10;
+kbind = 11;
+mywr = [1120, 300, 1920, 900];
+
 
 % run on rig (screen 1) testing only. Using mkey
 results=etholog(thrConTrials, imgContrast, screen_dimensions, screen_distance, ...
@@ -28,7 +30,9 @@ results=etholog(thrConTrials, imgContrast, screen_dimensions, screen_distance, .
 results=etholog(thrConTrials, imgContrast, screen_dimensions, screen_distance, 'ImageChangeType', 'contrast', 'Screen', 1, 'Response', 'MilliKey', 'MilliKeyIndex', mkind, 'KeyboardIndex', kbind, 'Beep', true, 'EyelinkDummyMode', 1, 'SkipSyncTests', 1);
 
 
+results=etholog(blocks{1}, imgbw, screen_dimensions, screen_distance, 'ImageChangeType', 'contrast', 'Screen', 0, 'Rect', mywr, 'Response', 'MilliKey', 'MilliKeyIndex', mkind, 'KeyboardIndex', kbind, 'Beep', true, 'EyelinkDummyMode', 1, 'SkipSyncTests', 1);
 
+results=etholog(ethBlocks{1}, imgbw, screen_dimensions, screen_distance, 'ImageChangeType', 'contrast', 'Screen', 0, 'Rect', mywr, 'Response', 'MilliKey', 'MilliKeyIndex', mkind, 'KeyboardIndex', kbind, 'Beep', true, 'EyelinkDummyMode', 1, 'SkipSyncTests', 1);
 
 
 
