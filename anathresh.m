@@ -14,7 +14,7 @@ function [outputArg1,outputArg2] = anaresults(trials, results, deltas)
     rtCompleted.Correct = rtCompleted.StimChangeType==rtCompleted.iResp;
     fprintf('%d trials completed\n', height(rtCompleted));
 
-    % from that table, get logical indices for each Delta value
+    % from that table, get logical indices for each trial type
     logByDelta = (rtCompleted.Delta == deltas);
     pctByDelta = zeros(1, length(deltas));
     sumByDelta = sum(logByDelta);
