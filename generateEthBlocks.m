@@ -72,6 +72,7 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocks(varargin)
         % value for that trial.
         Stim1Key=cell(nTrials, 1);
         Stim2Key=cell(nTrials, 1);
+        StimPairType=cell(nTrials, 1);
         StimChangeType = zeros(nTrials, 1);
         Delta = zeros(nTrials, 1);
     
@@ -88,18 +89,22 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocks(varargin)
                     % treat as type 1: HH
                     key1 = imageset.make_key(p.Results.FolderKeys{1}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
                     key2 = key1;
+                    StimPairType{itrial,1} = 'HH';
                 case 2
                     % treat as type 2: HL
                     key1 = imageset.make_key(p.Results.FolderKeys{1}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
                     key2 = imageset.make_key(p.Results.FolderKeys{2}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
+                    StimPairType{itrial,1} = 'HL';
                 case 3
                     % treat as type 3: LH
                     key1 = imageset.make_key(p.Results.FolderKeys{2}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
                     key2 = imageset.make_key(p.Results.FolderKeys{1}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
+                    StimPairType{itrial,1} = 'LH';
                 case 4
                     % treat as type 4: LL
                     key1 = imageset.make_key(p.Results.FolderKeys{2}, p.Results.FileKeys{fileKeyIndices(imageIndex)});
                     key2 = key1;
+                    StimPairType{itrial,1} = 'LL';
                 otherwise
                     error('invalid stim type'); % there should only be 4
             end   
@@ -139,7 +144,7 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocks(varargin)
         RespTime = generateColumn(nTrials, p.Results.RespTime);
 
         % now create
-        blocks{iblock} = table(Stim1Key, Stim2Key, StimChangeType, Base, Delta, ...
+        blocks{iblock} = table(StimPairType, Stim1Key, Stim2Key, StimChangeType, Base, Delta, ...
             FixationTime, MaxAcquisitionTime, FixationBreakEarlyTime, FixationBreakLateTime, SampTime, GapTime, RespTime);
     end    
 end
