@@ -22,7 +22,7 @@ cc=load('/home/cclab/Desktop/ethosal/input/contrast_30images_a.mat');
 
 % parameters needed
 mkind = cclabGetMilliKeyIndices();
-kbind = 11;
+kbind = 17;
 screen_dimensions=[598, 336];
 screen_distance=1000;
 dummy_mode=1;   % 0 for participant
