@@ -29,8 +29,8 @@ function [allResults] = etholog(varargin)
     p.addParameter('FixptXY', [0,0], @(x) isvector(x) && length(x)==2);
     p.addParameter('FixptColor', [0,0,0], @(x) all(size(x) == [1 3]));  % color should be row vector on cmd line
     p.addParameter('FixptWindowDiam', 3, @(x) isscalar(x) && isnumeric(x));
-    p.addParameter('Stim1XY', [-6,0], @(x) isvector(x) && length(x)==2);
-    p.addParameter('Stim2XY', [6,0], @(x) isvector(x) && length(x)==2);
+    p.addParameter('Stim1XY', [-10,0], @(x) isvector(x) && length(x)==2);
+    p.addParameter('Stim2XY', [10,0], @(x) isvector(x) && length(x)==2);
 
     p.addParameter('SkipSyncTests', 0, @(x) isscalar(x) && (x==0 || x==1));
     p.addParameter('Name', 'demo', @(x) ischar(x) && length(x)<9 && ~isempty(x));
