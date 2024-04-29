@@ -82,6 +82,12 @@ classdef statemgr < handle
             end
             deltaT = gsecs - obj.StartedAt;
         end
+
+        function [s] = current(obj)
+            %current Returns the current state name.
+            s=obj.Current;
+        end
+        
     end
 end
 
