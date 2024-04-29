@@ -166,6 +166,17 @@ classdef eyetracker < handle
             end
         end
 
+        function drift_correct(obj, x, y)
+            %drift_correct(obj, x, y) Do drift correct for (already drawn)
+            %item at x,y
+            if ~obj.DummyMode
+                obj.command('driftcorrect_cr_disable = OFF');
+                %obj.command('online_dcorr_refposn 960, 540');
+                obj.command('online_dcorr_button = OFF');
+                obj.command('normal_click_dcorr = OFF');
+                EyelinkDoDriftCorrect(obj.EyelinkDefaults, x, y, 0, 0);
+            end
+        end
     end
     
     methods (Access = private)

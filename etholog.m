@@ -227,6 +227,17 @@ function [allResults] = etholog(varargin)
                         Screen('Flip', windowIndex);
                         stateMgr.transitionTo('DONE');
                         if (p.Results.Verbose > -1); fprintf('Quit from kbd.\n'); end
+                case KbName('d')
+                    % this is for doing drift correct, but only if we are
+                    % paused.
+                    if strcmp(stateMgr.Current, 'WAIT_PAUSE')
+                        % draw fixpt, kick off drift correction
+                        Screen('FillRect', windowIndex, bkgdColor);
+                        Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
+                        Screen('Flip', windowIndex);
+                        tracker.drift_correct(fixXYScr(1), fixXYScr(2));
+                        stateMgr.transitionTo('TRIAL_COMPLETE');
+                    end
                 otherwise
                     if (p.Results.Verbose > -1); fprintf('Keys:\n<space> - toggle pause\n\n');end
             end
