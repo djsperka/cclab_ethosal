@@ -24,7 +24,7 @@ classdef eyetracker < handle
                 p.addRequired('DummyMode', @(x) isscalar(x) && (x == 0 || x == 1));
                 p.addRequired('ScreenWH', @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
                 p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
-                p.addRequired('Name', @(x) ischar(x) && ~isempty(x) && length(x) < 9);
+                p.addRequired('EDFName', @(x) ischar(x) && ~isempty(x) && length(x) < 9);
                 p.addRequired('Window', @(x) isscalar(x));
                 p.addParameter('Verbose', 0, @(x) isscalar(x) && isnumeric(x) && x>=0);
                 p.parse(mode, screen_dimensions, screen_distance, name, window, varargin{:});
@@ -34,7 +34,7 @@ classdef eyetracker < handle
             
             obj.DummyMode = true;
             if ~p.Results.DummyMode; obj.DummyMode = false; end
-            obj.Name = p.Results.Name;
+            obj.Name = p.Results.EDFName;
             obj.Window = p.Results.Window;
             rect = Screen('Rect', obj.Window);
             obj.ScreenWidthPix = rect(3);
@@ -166,6 +166,17 @@ classdef eyetracker < handle
             end
         end
 
+        function drift_correct(obj, x, y)
+            %drift_correct(obj, x, y) Do drift correct for (already drawn)
+            %item at x,y
+            if ~obj.DummyMode
+                obj.command('driftcorrect_cr_disable = OFF');
+                %obj.command('online_dcorr_refposn 960, 540');
+                obj.command('online_dcorr_button = OFF');
+                obj.command('normal_click_dcorr = OFF');
+                EyelinkDoDriftCorrect(obj.EyelinkDefaults, x, y, 0, 0);
+            end
+        end
     end
     
     methods (Access = private)
@@ -214,13 +225,13 @@ classdef eyetracker < handle
                 if ~isempty(obj.ScreenWHMM)
                     halfW = obj.ScreenWHMM(1)/2;
                     halfH = obj.ScreenWHMM(2)/2;
-                    obj.command('screen_phys_coords = %.1lf %.1lf %.1.f %.1lf ', -halfW, halfH, halfW, -halfH);
+                    obj.command(sprintf('screen_phys_coords = %0.1f %0.1f %0.1f %0.1f ', -halfW, halfH, halfW, -halfH));
                 else
                     warning('SCREEN DIMENSIONS NOT PROVIDED. TRACKER IS GUESSING HERE!!!');
                 end
 
                 if ~isempty(obj.ScreenDistanceMM)
-                    obj.command('screen_distance = %lf', obj.ScreenDistanceMM);
+                    obj.command(sprintf('screen_distance = %0.1f', obj.ScreenDistanceMM));
                 else
                     warning('SCREEN DISTANCE NOT PROVIDED. TRACKER IS GUESSING HERE!!!');
                 end
