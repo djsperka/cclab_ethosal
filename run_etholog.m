@@ -13,26 +13,32 @@ output_folder = '/home/cclab/Desktop/ethosal/output';
 
 % Screen
 PsychDefaultSetup(2);
-[w,wr]=PsychImaging('OpenWindow', 1, [.5 .5 .5]');
+%[w,wr]=PsychImaging('OpenWindow', 1, [.5 .5 .5]');
+
+
 
 % load imageset
 img=imageset('/data/cclab/images/Babies', 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @deal);
-cc=load('/home/cclab/Desktop/ethosal/input/contrast_30images_a.mat');
+cc=load('/home/cclab/Desktop/ethosal/input/contrast_60images_a.mat');
 
 
 % parameters needed
 mkind = cclabGetMilliKeyIndices();
-kbind = 17;
+kbind = getKeyboardIndex("Dell KB216 Wired Keyboard");
+kbind = getKeyboardIndex("Dell Dell USB Keyboard");
 screen_dimensions=[598, 336];
 screen_distance=1000;
-dummy_mode=1;   % 0 for participant
+dummy_mode=0;   % 0 for participant
 
 results=etholog(cc.blocks{1}, img, screen_dimensions, screen_distance, ...
     'ImageChangeType', 'contrast', ...
     'Screen', 1, ...
+    'Out', output_folder, ...
     'Response', 'MilliKey', ...
     'MilliKeyIndex', mkind, ...
     'KeyboardIndex', kbind, ...
     'Beep', true, ...
     'EyelinkDummyMode', dummy_mode, ...
     'SkipSyncTests', 1);
+
+%save('/home/cclab/Desktop/ethosal/output/jodi-240-a.mat', 'results');

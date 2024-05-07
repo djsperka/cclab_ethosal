@@ -15,6 +15,8 @@ function [allResults] = etholog(varargin)
     p.addRequired('ScreenWH', @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
     p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
 
+    p.addParameter('StartAt', 1, @(x) isnumeric(x) && isscalar(x))
+
     imageChangeTypes={'luminance', 'contrast'};
     p.addParameter('ImageChangeType', 'luminance', @(x) any(validatestring(x, imageChangeTypes)));
 
@@ -116,11 +118,7 @@ function [allResults] = etholog(varargin)
         otherwise
             error('imageChangeType %s not recognized.', imageChangeType);
     end    
-    % Create a cleanup object, that will execute whenever this script ends
-    % (even if it crashes). Use it to restore matlab to a usable state -
-    % see cleanup() below.
-    myCleanupObj = onCleanup(@cleanup);
-    
+
     % Init ptb, set preferences. 
     PsychDefaultSetup(2);
     Screen('Preference', 'SkipSyncTests', p.Results.SkipSyncTests);
@@ -164,7 +162,7 @@ function [allResults] = etholog(varargin)
     
     stateMgr = statemgr('START', p.Results.Verbose>0);
     bQuit = false;
-    itrial = 1;
+    itrial = p.Results.StartAt;
     bkgdColor = [.5 .5 .5];
 
     % Convert values for display. Note that stim rect is
@@ -196,7 +194,14 @@ function [allResults] = etholog(varargin)
     % start kbd queue now
     KbQueueStart(p.Results.KeyboardIndex);
     ListenChar(-1);
-    
+
+    % Create a cleanup object, that will execute whenever this script ends
+    % (even if it crashes). Use it to restore matlab to a usable state -
+    % see cleanup() below.
+    myCleanupObj = onCleanup(@() saveResultsAndCleanup(p.Results.Out, p.Results.Name, p.Results.Trials, allResults));
+
+
+
     while ~bQuit && ~strcmp(stateMgr.Current, 'DONE')
         
         
@@ -487,6 +492,14 @@ function [keyPressed, keyCode,  tDown, tUp] = checkKbdQueue(kbindex)
             keyPressed = true;
         end
      end
+end
+
+function saveResultsAndCleanup(folder, base, trials, results)
+    % horzcat, but for tables
+    combined_results=[trials, results];
+    filename=fullfile(folder, [base, char(datetime('now', 'Format', '-yyyyMMdd-HHmm')), '.mat']);
+    save(filename, 'combined_results');
+    cleanup;
 end
 
 
