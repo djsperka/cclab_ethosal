@@ -1,6 +1,31 @@
 classdef preamble < handle
     %preamble Instructions, directions, displayed in a pleasing way.
-    %   Detailed explanation goes here
+    %   p=preamble(cmds, textSize, bbox, imgset)
+    %   cmds is a cell array with two columns. Each row is a command
+    %   followed by args for that command. See below for commands. 
+    %   textSize is the font size to be used (*** see pixdegconverter)
+    %   bbox is a responder object
+    %   imgset is an imageset for displaying images as needed
+    %   
+    %   Commands and their args:
+    %   'split_screen' The screen is divided (vertically) into a drawing
+    %   area (above) and a text area (below). The only arg should be a two
+    %   element vector representing the relative proportions of the two
+    %   areas. An empty [] is taken to mean [1,1] (evenly divided). 
+    %   'mkey' Draw millikey. Args are {frac, button_colors}. 'frac' is
+    %   fraction of the largest square that fits in current draw rectangle,
+    %   which the drawn mkey fills. 'button_colors' is a 3x5 array, where
+    %   each column is the color of the corresponding button. Default is
+    %   ones(3,5) - all white buttons. 
+    %   'image' An image from the imageset is displayed. Args are the
+    %   arguments to imageset.texture (minus the window arg). 
+    %   'text' Text is displayed in the Text rectangle.
+    %   'flip' After drawing commands (mkey, image, text), this displays.
+    %   Optional arg is delay in seconds after the flip. 
+    %   'wait_button' Waits until user hits a button on the bbox. First arg
+    %   is a vector of buttons you want, e.g. [1,2,3] for top row, [4,5]
+    %   for bottom, [1,2,3,4,5] for any button.
+    %   'clear_screen' Clears screen to background, no waiting, no args. 
 
     properties
         Script
@@ -93,7 +118,12 @@ classdef preamble < handle
                 case 'image'
                     obj.image(w, obj.DrawRect, args{:});
                 case 'text'
-                    DrawFormattedText(w, args, 'center', obj.TextRect(2) + obj.CharHeight, [0,0,0]);
+                    if length(args) > 0
+                        [~, ny, ~, ~] = DrawFormattedText(w, args{1}, 'center', obj.TextRect(2) + obj.CharHeight, [0,0,0]);
+                        if length(args)>1
+                            DrawFormattedText(w, args{2}, 'center', ny+2*obj.CharHeight, [0,0,0]);
+                        end
+                    end
                 case 'flip'
                     Screen('Flip', w);
                     WaitSecs(args);
