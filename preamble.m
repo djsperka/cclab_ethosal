@@ -124,6 +124,18 @@ classdef preamble < handle
                             DrawFormattedText(w, args{2}, 'center', ny+2*obj.CharHeight, [0,0,0]);
                         end
                     end
+%                 case 'callback'
+%                     args{:}
+%                     if isa(args{1}, 'function_handle')
+%                         if length(args)==1
+%                             args{1}(w, obj.DrawRect);
+%                         else
+%                             length(args(2:end))
+%                             args{1}(w, obj.DrawRect, args{2:end});
+%                         end
+%                     else
+%                         error('callback command first arg should be a function handle');
+%                     end
                 case 'flip'
                     Screen('Flip', w);
                     WaitSecs(args);
@@ -176,8 +188,14 @@ classdef preamble < handle
 
         function image(obj, w, rect, varargin)
             t=obj.Imageset.texture(w, varargin{:});
-            [x, y] = RectCenter(obj.DrawRect);
-            Screen('DrawTexture', w, t, [], CenterRectOnPoint(obj.Imageset.UniformOrFirstRect, x, y));
+            if isscalar(t)
+                [x, y] = RectCenter(rect);
+                Screen('DrawTexture', w, t, [], CenterRectOnPoint(obj.Imageset.UniformOrFirstRect, x, y));
+            else
+                [nrows,ncols]=size(t);
+                [rects, x, y] = divvyRect(rect, nrows, ncols);
+                Screen('DrawTextures', w, t(:), [], CenterRectOnPoint(obj.Imageset.UniformOrFirstRect', x', y'))
+            end
         end
 
     end
