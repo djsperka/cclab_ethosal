@@ -164,8 +164,8 @@ classdef imageset
             % create parser for texture() function
             obj.TextureParser = inputParser;
             addRequired(obj.TextureParser, 'Window', @(x) isscalar(x));
-            addRequired(obj.TextureParser, 'Key', @(x) ischar(x) && obj.Images.isKey(x));
-            addOptional(obj.TextureParser, 'PreProcessFunc', [], @(x) isempty(x) || isa(x, 'function_handle'));
+            addRequired(obj.TextureParser, 'Key', @(x) (ischar(x) && obj.Images.isKey(x)) || (iscellstr(x) && all(obj.Images.isKey(x))));
+            addOptional(obj.TextureParser, 'PreProcessFunc', [], @(x) isempty(x) || isa(x, 'function_handle') || (iscell(x) && all(cellfun(@(x)isa(x,'function_handle'), x))));
 
             % now process files. Each row of the cell array is two elements
             % - the key and the subfolder. The subfolder arg itself can be
@@ -248,10 +248,26 @@ classdef imageset
             obj.TextureParser.parse(varargin{:});
             w = obj.TextureParser.Results.Window;
             key = obj.TextureParser.Results.Key;
-            if isempty(obj.TextureParser.Results.PreProcessFunc)
-                textureID = Screen('MakeTexture', w, obj.Images(key).image);
+            if ~iscell(key)
+                if isempty(obj.TextureParser.Results.PreProcessFunc)
+                    textureID = Screen('MakeTexture', w, obj.Images(key).image);
+                else
+                    textureID = Screen('MakeTexture', w, obj.TextureParser.Results.PreProcessFunc(obj.Images(key).image));
+                end
             else
-                textureID = Screen('MakeTexture', w, obj.TextureParser.Results.PreProcessFunc(obj.Images(key).image));
+                % if preprocessfunc is empty, use @deal
+                % if its a single function, apply it to all images. 
+                % if its a cell array of same size() as the keys, then use
+                % cellfun 
+                ppfunc = obj.TextureParser.Results.PreProcessFunc;
+                if isempty(ppfunc)
+                    ppfunc = @deal;
+                end
+                if isa(ppfunc, 'function_handle')
+                    textureID = cellfun(@(k) Screen('MakeTexture', w, ppfunc(obj.Images(k).image)), key);
+                else
+                    textureID = cellfun(@(k,f) Screen('MakeTexture', w, f(obj.Images(k).image)), key, ppfunc);
+                end              
             end
         end
         
