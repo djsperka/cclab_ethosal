@@ -25,8 +25,12 @@ function [allResults] = etholog(varargin)
     p.addParameter('Screen', 0, @(x) isscalar(x));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Bkgd', [.5 .5 .5], @(x) isrow(x) && length(x) == 3);
+
+    % djs by default no cues are used. 
     p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
     p.addParameter('CueWidth', 2, @(x) isscalar(x));
+    p.addParameter('UseCues', false, @(x) islogical(x));
+
     p.addParameter('FixptDiam', 1, @(x) isscalar(x) && isnumeric(x));
     p.addParameter('FixptXY', [0,0], @(x) isvector(x) && length(x)==2);
     p.addParameter('FixptColor', [0,0,0], @(x) all(size(x) == [1 3]));  % color should be row vector on cmd line
@@ -323,7 +327,9 @@ function [allResults] = etholog(varargin)
             case 'DRAW_A'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
-                Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                if p.Results.UseCues
+                    Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                end
 
                 % Note - convert fixpt from oval to cross. 
                 Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
@@ -366,7 +372,9 @@ function [allResults] = etholog(varargin)
             case 'DRAW_B'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
-                Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                if p.Results.UseCues
+                    Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                end
                 Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
                 [ allResults.tBon(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('START_RESPONSE');
@@ -429,6 +437,9 @@ function [allResults] = etholog(varargin)
                     end
                 end
             case 'TRIAL_COMPLETE'
+
+                % clear stimulus screen
+                Screen('Flip', windowIndex);
 
                 % stop tracker recording
                 tracker.offline();
