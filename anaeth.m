@@ -1,43 +1,25 @@
-% zLeft = load('/home/dan/git/cclab_ethosal/output/jodi-240-b.mat');
-% zRight = load('/home/dan/git/cclab_ethosal/output/jodi-240-c.mat');
-% zNeutral=load('/home/dan/git/cclab_ethosal/output/jodi-240-d.mat');
-zLeft = load('/home/dan/git/cclab_ethosal/output/dan-240-L.mat');
-zRight = load('/home/dan/git/cclab_ethosal/output/dan-240-R.mat');
-zNeutral=load('/home/dan/git/cclab_ethosal/output/dan-240-N.mat');
-inputs=load('/home/dan/git/cclab_ethosal/input/contrast_60images_a.mat');
+function [ratesNone, ratesIn, ratesOut] = anaeth(matfile)
 
-
-
-% Neutral condition trials
-A=horzcat(inputs.blocks{3},zNeutral.results);
-Nlogs = ethlogs(A);
-Nrates = ethrates(A, Nlogs);
-printRates(Nrates, 'NEUTRAL');
-
-
-% Attend-left condition trials
-L=horzcat(inputs.blocks{1},zLeft.results);
-Llogs = ethlogs(L);
-
-% Attend-right condition trials
-R=horzcat(inputs.blocks{2},zRight.results);
-Rlogs = ethlogs(R);
-
-% LratesIN = ethrates(L, Llogs, Llogs.changeLeft);
-% printRates(LratesIN, 'Left-IN');
-% LratesOUT = ethrates(L, Llogs, Llogs.changeRight);
-% printRates(LratesOUT, 'Left-OUT');
-
-LR = [L;R];
-Lmask = vertcat(true(height(L), 1), false(height(R), 1));
-Rmask = vertcat(false(height(L), 1), true(height(R), 1));
-
-LRlogs = ethlogs(LR);
-LRratesIN = ethrates(LR, LRlogs, (Lmask&LRlogs.changeLeft | Rmask&LRlogs.changeRight));
-printRates(LRratesIN, 'ATTEND-IN');
-LRratesOUT = ethrates(LR, LRlogs, (Lmask&LRlogs.changeRight | Rmask&LRlogs.changeLeft));
-printRates(LRratesOUT, 'ATTEND-OUT');
-
+    z=load(matfile);
+    
+    
+    % Neutral condition trials
+    logsNone = ethlogs(z.attendNone);
+    ratesNone = ethrates(z.attendNone, logsNone);
+    printRates(ratesNone, 'NEUTRAL');
+    
+    
+    % Stack Attend-left condition trials on top of attend-right trials
+    LR = [z.attendLeft;z.attendRight];
+    maskLeft = vertcat(true(height(z.attendLeft), 1), false(height(z.attendRight), 1));
+    maskRight = vertcat(false(height(z.attendLeft), 1), true(height(z.attendRight), 1));
+    
+    logsLR = ethlogs(LR);
+    ratesLRIn = ethrates(LR, logsLR, (maskLeft&logsLR.changeLeft | maskRight&logsLR.changeRight));
+    printRates(ratesLRIn, 'ATTEND-IN');
+    ratesLROut = ethrates(LR, logsLR, (maskLeft&logsLR.changeRight | maskRight&logsLR.changeLeft));
+    printRates(ratesLROut, 'ATTEND-OUT');
+end
 
 function logs = ethlogs(A)
     % completed trials, and correct trials. Note that logCorrect implies that a
