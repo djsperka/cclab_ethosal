@@ -1,6 +1,9 @@
-zLeft = load('/home/dan/git/cclab_ethosal/output/jodi-240-b.mat');
-zRight = load('/home/dan/git/cclab_ethosal/output/jodi-240-c.mat');
-zNeutral=load('/home/dan/git/cclab_ethosal/output/jodi-240-d.mat');
+% zLeft = load('/home/dan/git/cclab_ethosal/output/jodi-240-b.mat');
+% zRight = load('/home/dan/git/cclab_ethosal/output/jodi-240-c.mat');
+% zNeutral=load('/home/dan/git/cclab_ethosal/output/jodi-240-d.mat');
+zLeft = load('/home/dan/git/cclab_ethosal/output/dan-240-L.mat');
+zRight = load('/home/dan/git/cclab_ethosal/output/dan-240-R.mat');
+zNeutral=load('/home/dan/git/cclab_ethosal/output/dan-240-N.mat');
 inputs=load('/home/dan/git/cclab_ethosal/input/contrast_60images_a.mat');
 
 
@@ -20,13 +23,20 @@ Llogs = ethlogs(L);
 R=horzcat(inputs.blocks{2},zRight.results);
 Rlogs = ethlogs(R);
 
-LratesIN = ethrates(L, Llogs, Llogs.changeLeft);
-printRates(LratesIN, 'Left-IN');
-LratesOUT = ethrates(L, Llogs, Llogs.changeRight);
-printRates(LratesOUT, 'Left-OUT');
+% LratesIN = ethrates(L, Llogs, Llogs.changeLeft);
+% printRates(LratesIN, 'Left-IN');
+% LratesOUT = ethrates(L, Llogs, Llogs.changeRight);
+% printRates(LratesOUT, 'Left-OUT');
 
+LR = [L;R];
+Lmask = vertcat(true(height(L), 1), false(height(R), 1));
+Rmask = vertcat(false(height(L), 1), true(height(R), 1));
 
-
+LRlogs = ethlogs(LR);
+LRratesIN = ethrates(LR, LRlogs, (Lmask&LRlogs.changeLeft | Rmask&LRlogs.changeRight));
+printRates(LRratesIN, 'ATTEND-IN');
+LRratesOUT = ethrates(LR, LRlogs, (Lmask&LRlogs.changeRight | Rmask&LRlogs.changeLeft));
+printRates(LRratesOUT, 'ATTEND-OUT');
 
 
 function logs = ethlogs(A)
@@ -53,6 +63,11 @@ function logs = ethlogs(A)
     logs.changeLeft = A.StimChangeType==1;
     logs.changeRight = A.StimChangeType==2;
     logs.changeNone = A.StimChangeType==0;
+
+    % These indicate just trials where the response was Left or Right or
+    % None.
+    logs.responseLow = (A.iResp==1 & (ismember(A.StimPairType, {'LL', 'LH'}))) | (A.iResp==2 & (ismember(A.StimPairType, {'HH', 'HL'})));
+    logs.responseHigh = (A.iResp==1 & (ismember(A.StimPairType, {'HH', 'HL'}))) | (A.iResp==2 & (ismember(A.StimPairType, {'HH', 'LH'})));
 end
 
 function rates = ethrates(A, logs, subset)
@@ -67,10 +82,21 @@ function rates = ethrates(A, logs, subset)
     end
 
     % Get detection rates
-    rates.drateHH = sum(logs.sciHH & subset & logs.correct)/sum(logs.sciHH & subset & logs.completed);
-    rates.drateHL = sum(logs.sciHL & subset & logs.correct)/sum(logs.sciHL & subset & logs.completed);
-    rates.drateLH = sum(logs.sciLH & subset & logs.correct)/sum(logs.sciLH & subset & logs.completed);
-    rates.drateLL = sum(logs.sciLL & subset & logs.correct)/sum(logs.sciLL & subset & logs.completed);
+    rates.ncorrectHH = sum(logs.sciHH & subset & logs.correct);
+    rates.ncompletedHH = sum(logs.sciHH & subset & logs.completed);
+    rates.drateHH = rates.ncorrectHH/rates.ncompletedHH;
+
+    rates.ncorrectHL = sum(logs.sciHL & subset & logs.correct);
+    rates.ncompletedHL = sum(logs.sciHL & subset & logs.completed);
+    rates.drateHL = rates.ncorrectHL/rates.ncompletedHL;
+
+    rates.ncorrectLH = sum(logs.sciLH & subset & logs.correct);
+    rates.ncompletedLH = sum(logs.sciLH & subset & logs.completed);
+    rates.drateLH = rates.ncorrectLH/rates.ncompletedLH;
+
+    rates.ncorrectLL = sum(logs.sciLL & subset & logs.correct);
+    rates.ncompletedLL = sum(logs.sciLL & subset & logs.completed);
+    rates.drateLL = rates.ncorrectLL/rates.ncompletedLL;
 
     % avg reaction time for correct trials
     rates.treactHH = sum(A{logs.sciHH & subset & logs.correct,"tResp"}-A{logs.sciHH & subset & logs.correct,"tBon"})/sum(logs.sciHH & subset & logs.correct);
@@ -80,20 +106,39 @@ function rates = ethrates(A, logs, subset)
     
     % false alarm rate on no-change trials. Use logs.sciHH0, logs.sciLL0, and
     % logs.sciLHHL0
-    rates.frateHH0 = sum(logs.sciHH0 & logs.changeNone & ~logs.correct)/sum(logs.sciHH0 & logs.changeNone & logs.completed);
-    rates.frateLL0 = sum(logs.sciLL0 & logs.changeNone & ~logs.correct)/sum(logs.sciLL0 & logs.changeNone & logs.completed);
-    rates.frateLHHL0 = sum(logs.sciLHHL0 & logs.changeNone & ~logs.correct)/sum(logs.sciLHHL0 & logs.changeNone & logs.completed);
+
+    rates.nincorrectHH0 = sum(logs.sciHH0 & logs.changeNone & ~logs.correct);
+    rates.ncompletedHH0 = sum(logs.sciHH0 & logs.changeNone & logs.completed);
+    rates.frateHH0 = rates.nincorrectHH0/rates.ncompletedHH0;
+
+    rates.nincorrectLL0 = sum(logs.sciLL0 & logs.changeNone & ~logs.correct);
+    rates.ncompletedLL0 = sum(logs.sciLL0 & logs.changeNone & logs.completed);
+    rates.frateLL0 = rates.nincorrectLL0/rates.ncompletedLL0;
+
+    rates.nincorrectLH0 = sum(logs.sciLHHL0 & logs.changeNone & ~logs.correct & logs.responseLow);
+    rates.ncompletedLH0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed);
+    rates.frateLH0 = rates.nincorrectLH0/rates.ncompletedLH0;
+
+    rates.nincorrectHL0 = sum(logs.sciLHHL0 & logs.changeNone & ~logs.correct & logs.responseHigh);
+    rates.ncompletedHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed);
+    rates.frateHL0 = rates.nincorrectHL0/rates.ncompletedHL0;
+
+    rates.nincorrectLHHL0 = sum(logs.sciLHHL0 & logs.changeNone & ~logs.correct);
+    rates.ncompletedLHHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed);
+    rates.frateLHHL0 = rates.nincorrectLHHL0/rates.ncompletedLHHL0;
+
 end
 
 function printRates(rates, label)
-    fprintf(1,'%s Correct detection\ntype\trate\trxtime(s)\n', label);
-    fprintf(1,'HH\t%.2f\t%.3f\n', rates.drateHH, rates.treactHH);
-    fprintf(1,'HL\t%.2f\t%.3f\n', rates.drateHL, rates.treactHL);
-    fprintf(1,'LH\t%.2f\t%.3f\n', rates.drateLH, rates.treactLH);
-    fprintf(1,'LL\t%.2f\t%.3f\n', rates.drateLL, rates.treactLL);
+    fprintf(1,'%s Correct detection\ntype\trate\tncorr/ntot\trxtime(s)\n', label);
+    fprintf(1,'HH\t%.2f\t%d/%d\t%.3f\n', rates.drateHH, rates.ncorrectHH, rates.ncompletedHH, rates.treactHH);
+    fprintf(1,'HL\t%.2f\t%d/%d\t%.3f\n', rates.drateHL, rates.ncorrectHL, rates.ncompletedHL, rates.treactHL);
+    fprintf(1,'LH\t%.2f\t%d/%d\t%.3f\n', rates.drateLH, rates.ncorrectLH, rates.ncompletedLH, rates.treactLH);
+    fprintf(1,'LL\t%.2f\t%d/%d\t%.3f\n', rates.drateLL, rates.ncorrectLL, rates.ncompletedLL, rates.treactLL);
     fprintf(1,'\n');
-    fprintf(1, 'False alarms\ntype\trate\n');
-    fprintf(1, 'HH\t%.2f\n', rates.frateHH0);
-    fprintf(1, 'LHHL\t%.2f\n', rates.frateLHHL0);
-    fprintf(1, 'LL\t%.2f\n', rates.frateLL0);
+    fprintf(1, 'False alarms\ntype\trate\tnincorr/ntot\n');
+    fprintf(1, 'HH  \t%.2f\t%d/%d\n', rates.frateHH0, rates.nincorrectHH0, rates.ncompletedHH0);
+    fprintf(1, 'HL  \t%.2f\t%d/%d\n', rates.frateHL0, rates.nincorrectHL0, rates.ncompletedHL0);
+    fprintf(1, 'LH  \t%.2f\t%d/%d\n', rates.frateLH0, rates.nincorrectLH0, rates.ncompletedLH0);
+    fprintf(1, 'LL  \t%.2f\t%d/%d\n', rates.frateLL0, rates.nincorrectLL0, rates.ncompletedLL0);
 end
