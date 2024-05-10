@@ -3,6 +3,9 @@ function [allResults] = etholog(varargin)
 %   Detailed explanation goes here
 
 
+    experimentStartTime = GetSecs;
+    
+
 %% deal with input arguments
     p = inputParser;
     
@@ -25,8 +28,12 @@ function [allResults] = etholog(varargin)
     p.addParameter('Screen', 0, @(x) isscalar(x));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Bkgd', [.5 .5 .5], @(x) isrow(x) && length(x) == 3);
+
+    % djs by default no cues are used. 
     p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
     p.addParameter('CueWidth', 2, @(x) isscalar(x));
+    p.addParameter('UseCues', false, @(x) islogical(x));
+
     p.addParameter('FixptDiam', 1, @(x) isscalar(x) && isnumeric(x));
     p.addParameter('FixptXY', [0,0], @(x) isvector(x) && length(x)==2);
     p.addParameter('FixptColor', [0,0,0], @(x) all(size(x) == [1 3]));  % color should be row vector on cmd line
@@ -200,7 +207,8 @@ function [allResults] = etholog(varargin)
     % see cleanup() below.
     myCleanupObj = onCleanup(@() saveResultsAndCleanup(p.Results.Out, p.Results.Name, p.Results.Trials, allResults));
 
-
+    % Use this for managing pauses
+    bPausePending = false;
 
     while ~bQuit && ~strcmp(stateMgr.Current, 'DONE')
         
@@ -210,21 +218,20 @@ function [allResults] = etholog(varargin)
         if keyPressed
             switch keyCode
                 case KbName('space')
-                    % pause OR UNpause
-                    if strcmp(stateMgr.Current, 'WAIT_PAUSE')
+
+                    % un-do a pending pause?
+                    if bPausePending
+                        bPausePending = false;
+                        fprintf(1, 'Pending pause cancelled.\n');
+                    elseif strcmp(stateMgr.Current, 'WAIT_PAUSE')
                         % we are currently paused. Resume by transitioning
                         % to the START state. Current trial is NOT
                         % repeated.
-                        stateMgr.transitionTo('TRIAL_COMPLETE');
+                        stateMgr.transitionTo('START');
                         if (p.Results.Verbose > -1); fprintf('Resume after pause.\n'); end
                     else
-                        % not paused, so we now stop current trial, clear
-                        % screen. If there is output, the output from this
-                        % trial will have to be flushed. TODO. 
-                        Screen('FillRect', windowIndex, bkgdColor);
-                        Screen('Flip', windowIndex);
-                        stateMgr.transitionTo('WAIT_PAUSE');
-                        if (p.Results.Verbose > -1); fprintf('Paused.\n'); end
+                        bPausePending = true;
+                        fprintf('Pause pending...\n');
                     end
                 case KbName('q')
                         % trial will have to be flushed. TODO. 
@@ -303,11 +310,16 @@ function [allResults] = etholog(varargin)
                 stateMgr.transitionTo('WAIT_ACQ');
             case 'WAIT_ACQ'
                 % no maximum here, could go forever
-                if tracker.is_in_rect(fixWindowRect)
+                % djs - a pending pause is honored here. 
+                if bPausePending
+                    stateMgr.transitionTo('CLEAR_THEN_PAUSE');
+                elseif tracker.is_in_rect(fixWindowRect)
                     stateMgr.transitionTo('WAIT_FIX');
                 end
             case 'WAIT_FIX'
-                if stateMgr.timeInState() > trial.FixationTime
+                if bPausePending
+                    stateMgr.transitionTo('CLEAR_THEN_PAUSE');
+                elseif stateMgr.timeInState() > trial.FixationTime
                     stateMgr.transitionTo('DRAW_A');
                 elseif ~tracker.is_in_rect(fixWindowRect)
                     stateMgr.transitionTo('FIXATION_BREAK_EARLY');
@@ -323,7 +335,9 @@ function [allResults] = etholog(varargin)
             case 'DRAW_A'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
-                Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                if p.Results.UseCues
+                    Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                end
 
                 % Note - convert fixpt from oval to cross. 
                 Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
@@ -366,18 +380,12 @@ function [allResults] = etholog(varargin)
             case 'DRAW_B'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
-                Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                if p.Results.UseCues
+                    Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                end
                 Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
                 [ allResults.tBon(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('START_RESPONSE');
-            % case 'WAIT_B'
-            %     if stateMgr.timeInState() >= cclab.trials.TestTime(itrial)
-            %         stateMgr.transitionTo('DRAW_BKGD');
-            %     end
-            % case 'DRAW_BKGD'
-            %     Screen('FillRect', windowIndex, bkgdColor);
-            %     [ allResults.tBoff(itrial) ] = Screen('Flip', windowIndex);
-            %     stateMgr.transitionTo('START_RESPONSE');
             case 'START_RESPONSE'
                 if strcmp(subjectResponseType, 'MilliKey')
                     millikey.start();
@@ -427,8 +435,13 @@ function [allResults] = etholog(varargin)
                             beeper.incorrect();
                         end
                     end
+                elseif ~tracker.is_in_rect(fixWindowRect)
+                    stateMgr.transitionTo('FIXATION_BREAK_LATE');
                 end
             case 'TRIAL_COMPLETE'
+
+                % clear stimulus screen
+                Screen('Flip', windowIndex);
 
                 % stop tracker recording
                 tracker.offline();
@@ -448,7 +461,12 @@ function [allResults] = etholog(varargin)
                     % do stuff for being all done like write output file
                     stateMgr.transitionTo('DONE');
                 else
-                    stateMgr.transitionTo('WAIT_ITI');
+                    % check if a pause is pending
+                    if bPausePending
+                        stateMgr.transitionTo('WAIT_PAUSE');
+                    else
+                        stateMgr.transitionTo('WAIT_ITI');
+                    end
                 end
 
                 % free textures
@@ -458,15 +476,34 @@ function [allResults] = etholog(varargin)
                 if stateMgr.timeInState() >= p.Results.ITI
                     stateMgr.transitionTo('START');
                 end
-            case {'WAIT_PAUSE', 'DONE'}
-                % no-op here, the only way out is to use space bar when paused.
+            case 'CLEAR_THEN_PAUSE'
+                Screen('Flip', windowIndex);
+
+                % stop tracker recording
+                tracker.offline();
+
+                % free textures
+                Screen('Close', unique([tex1a, tex2a, tex1b, tex2b]));
+
+                stateMgr.transitionTo('WAIT_PAUSE');
+            case 'WAIT_PAUSE'
+                % the only way out is to use space bar when paused.
+                if bPausePending
+                    fprintf(1, 'Paused. Hit spacebar to resume.\n');
+                    bPausePending = false;
+                end
+            case 'DONE'
+                % no-op
             otherwise
                 error('Unhandled state %s\n', stateMgr.Current);
         end
     end
-    
+
+    experimentElapsedTime = GetSecs - experimentStartTime;
+    fprintf(1, 'This block took %.1f sec.\n', experimentElapsedTime);
+
     % all done, either because all trials complete or quit
-    disp(allResults);
+    %disp(allResults);
     
 end
 
