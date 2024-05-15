@@ -1,4 +1,4 @@
-function [allResults] = etholog(varargin)
+function [results] = etholog(varargin)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -42,8 +42,7 @@ function [allResults] = etholog(varargin)
     p.addParameter('Stim2XY', [10,0], @(x) isvector(x) && length(x)==2);
 
     p.addParameter('SkipSyncTests', 0, @(x) isscalar(x) && (x==0 || x==1));
-    p.addParameter('Name', 'demo', @(x) ischar(x) && length(x)<9 && ~isempty(x));
-    p.addParameter('Out', 'out', @(x) isdir(x));    
+    p.addParameter('OutputFile', 'etholog_output.mat', @(x) ischar(x));
     p.addParameter('EyelinkDummyMode', 1,  @(x) isscalar(x) && (x == 0 || x == 1));
     p.addParameter('Verbose', 0, @(x) isscalar(x) && isnumeric(x) && x>=0);
     p.addParameter('Fovx', 30, @(x) isscalar(x));
@@ -112,6 +111,7 @@ function [allResults] = etholog(varargin)
     p.parse(varargin{:});
 
     % fetch some stuff from the results
+    ourVerbosity = p.Results.Verbose;
     images = p.Results.Images;
     subjectResponseType = validatestring(p.Results.Response, responseTypes);
     imageChangeType = validatestring(p.Results.ImageChangeType, imageChangeTypes);
@@ -125,6 +125,19 @@ function [allResults] = etholog(varargin)
         otherwise
             error('imageChangeType %s not recognized.', imageChangeType);
     end    
+
+    if isfile(p.Results.OutputFile)
+        warning('OutputFile %s already exists. Finding a suitable name...', p.Results.OutputFile);
+        [path, base, ext] = fileparts(p.Results.OutputFile);
+        [ok, outputFilename] = makeNNNFilename(fullfile(path, [base, '_NNN', ext]));
+        if ~ok
+            error('Cannot form usable filename using folder %s and basename %s', p.Results.Folder, p.Results.Basename);
+        end
+    else
+        outputFilename = p.Results.OutputFile;
+    end
+    fprintf('\n*** Using output filename %s\n', outputFilename);
+
 
     % Init ptb, set preferences. 
     PsychDefaultSetup(2);
@@ -163,11 +176,12 @@ function [allResults] = etholog(varargin)
     if ~p.Results.EyelinkDummyMode
         warning('Initializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup');
     end
-    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.ScreenWH, p.Results.ScreenDistance, p.Results.Name, windowIndex, 'Verbose', p.Results.Verbose);
+    trackerFilename = 'etholog';
+    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.ScreenWH, p.Results.ScreenDistance, trackerFilename, windowIndex, 'Verbose', ourVerbosity);
     
     %% Now start the experiment. 
     
-    stateMgr = statemgr('START', p.Results.Verbose>0);
+    stateMgr = statemgr('START', ourVerbosity>0);
     bQuit = false;
     itrial = p.Results.StartAt;
     bkgdColor = [.5 .5 .5];
@@ -194,9 +208,11 @@ function [allResults] = etholog(varargin)
     % The number of trials to run. Unless you set 'NumTrials' on command
     % line, we run all trials in cclab.trials. 
     NumTrials = min(height(p.Results.Trials), p.Results.NumTrials);
+
+    % All results go here. We put the trial parameters in as well.
     variableNames = { 'Started', 'trialIndex', 'tAon', 'tAoff', 'tBon', 'tBoff', 'tResp', 'iResp' };
     variableTypes = {'logical', 'int32', 'double', 'double', 'double', 'double', 'double', 'int32' };
-    allResults = table('Size', [ NumTrials, length(variableNames)], 'VariableNames', variableNames, 'VariableTypes', variableTypes);
+    results = [p.Results.Trials, table('Size', [ NumTrials, length(variableNames)], 'VariableNames', variableNames, 'VariableTypes', variableTypes)];
     
     % start kbd queue now
     KbQueueStart(p.Results.KeyboardIndex);
@@ -205,7 +221,7 @@ function [allResults] = etholog(varargin)
     % Create a cleanup object, that will execute whenever this script ends
     % (even if it crashes). Use it to restore matlab to a usable state -
     % see cleanup() below.
-    myCleanupObj = onCleanup(@() saveResultsAndCleanup(p.Results.Out, p.Results.Name, p.Results.Trials, allResults));
+    myCleanupObj = onCleanup(@cleanup);
 
     % Use this for managing pauses
     bPausePending = false;
@@ -228,7 +244,7 @@ function [allResults] = etholog(varargin)
                         % to the START state. Current trial is NOT
                         % repeated.
                         stateMgr.transitionTo('START');
-                        if (p.Results.Verbose > -1); fprintf('Resume after pause.\n'); end
+                        if (ourVerbosity > -1); fprintf('Resume after pause.\n'); end
                     else
                         bPausePending = true;
                         fprintf('Pause pending...\n');
@@ -238,7 +254,7 @@ function [allResults] = etholog(varargin)
                         Screen('FillRect', windowIndex, bkgdColor);
                         Screen('Flip', windowIndex);
                         stateMgr.transitionTo('DONE');
-                        if (p.Results.Verbose > -1); fprintf('Quit from kbd.\n'); end
+                        if (ourVerbosity > -1); fprintf('Quit from kbd.\n'); end
                 case KbName('d')
                     % this is for doing drift correct, but only if we are
                     % paused.
@@ -251,16 +267,16 @@ function [allResults] = etholog(varargin)
                         stateMgr.transitionTo('TRIAL_COMPLETE');
                     end
                 otherwise
-                    if (p.Results.Verbose > -1); fprintf('Keys:\n<space> - toggle pause\n\n');end
+                    if (ourVerbosity > -1); fprintf('Keys:\n<space> - toggle pause\n\n');end
             end
         end
 
                     
         switch stateMgr.Current
             case 'START'
-                % get trial structure
-                trial = table2struct(p.Results.Trials(itrial, :));
-                if (p.Results.Verbose > -1)
+                % get a struct with just trial params.  
+                trial = table2struct(results(itrial, 1:13));
+                if (ourVerbosity > -1)
                     fprintf('etholog: START trial %d images %s %s chgtype %d delta %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeType, trial.Delta);
                 end
 
@@ -272,17 +288,17 @@ function [allResults] = etholog(varargin)
 
                 switch trial.StimChangeType
                     case 1
-                        if (p.Results.Verbose > -1); fprintf('etholog: Change L by %d\n', trial.Delta); end
+                        if (ourVerbosity > -1); fprintf('etholog: Change L by %d\n', trial.Delta); end
                         %tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageset.contrast(x, p.Results.BaseContrast + trial.Delta));
                         tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageChangeFunc(x, trial.Base + trial.Delta));
                         tex2b = tex2a;
                     case 2
-                        if (p.Results.Verbose > -1); fprintf('etholog: Change R by %d\n', trial.Delta); end
+                        if (ourVerbosity > -1); fprintf('etholog: Change R by %d\n', trial.Delta); end
                         tex1b = tex1a;
                         %tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageset.contrast(x, p.Results.BaseContrast + trial.Delta));
                         tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageChangeFunc(x, trial.Base + trial.Delta));
                     case 0
-                        if (p.Results.Verbose > -1); fprintf('etholog: Change none\n'); end
+                        if (ourVerbosity > -1); fprintf('etholog: Change none\n'); end
                         tex1b = tex1a;
                         tex2b = tex2a;
                     otherwise
@@ -291,8 +307,8 @@ function [allResults] = etholog(varargin)
                 stateMgr.transitionTo('DRAW_FIXPT');
                 
                 % results
-                allResults.Started(itrial) = true;
-                allResults.trialIndex(itrial) = itrial;
+                results.Started(itrial) = true;
+                results.trialIndex(itrial) = itrial;
 
                 % start tracker recording
                 tracker.start_recording();
@@ -347,7 +363,7 @@ function [allResults] = etholog(varargin)
                 tracker.draw_box(stim2Rect(1), stim2Rect(2), stim2Rect(3), stim2Rect(4), 15);
 
                 % flip and save the flip time
-                [ allResults.tAon(itrial) ] = Screen('Flip', windowIndex);
+                [ results.tAon(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_A');
             case 'WAIT_A'
                 if stateMgr.timeInState() >= trial.SampTime
@@ -371,7 +387,7 @@ function [allResults] = etholog(varargin)
             case 'DRAW_AB'
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawLines', windowIndex, fixLines, 4,p.Results.FixptColor');
-                [ allResults.tAoff(itrial) ] = Screen('Flip', windowIndex);
+                [ results.tAoff(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_AB');
             case 'WAIT_AB'
                 if stateMgr.timeInState() >= trial.GapTime
@@ -384,7 +400,7 @@ function [allResults] = etholog(varargin)
                     Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
                 end
                 Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
-                [ allResults.tBon(itrial) ] = Screen('Flip', windowIndex);
+                [ results.tBon(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('START_RESPONSE');
             case 'START_RESPONSE'
                 if strcmp(subjectResponseType, 'MilliKey')
@@ -416,20 +432,20 @@ function [allResults] = etholog(varargin)
                 end
                 if isResponse || stateMgr.timeInState() >= trial.RespTime
                     stateMgr.transitionTo('TRIAL_COMPLETE');
-                    if (p.Results.Verbose > -1); fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt); end
+                    if (ourVerbosity > -1); fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt); end
                     if strcmp(subjectResponseType, 'MilliKey')
                         millikey.stop(true);
                     end
 
                     % record response
-                    allResults.iResp(itrial) = response;
-                    allResults.tResp(itrial) = tResp;
+                    results.iResp(itrial) = response;
+                    results.tResp(itrial) = tResp;
                     
                     % beep maybe
                     if p.Results.Beep
-                        if allResults.iResp(itrial) == trial.StimChangeType
+                        if results.iResp(itrial) == trial.StimChangeType
                             beeper.correct();
-                        elseif allResults.iResp(itrial) < 0
+                        elseif results.iResp(itrial) < 0
                             beeper.incorrect();
                         else
                             beeper.incorrect();
@@ -454,6 +470,9 @@ function [allResults] = etholog(varargin)
                 if strcmp(subjectResponseType, 'MilliKey')
                     millikey.stop(true);
                 end
+
+                % save data
+                save(outputFilename, 'results');
 
                 % increment trial
                 itrial = itrial + 1;
@@ -499,11 +518,11 @@ function [allResults] = etholog(varargin)
         end
     end
 
+    % save data, again
+    save(outputFilename, 'results');
+
     experimentElapsedTime = GetSecs - experimentStartTime;
     fprintf(1, 'This block took %.1f sec.\n', experimentElapsedTime);
-
-    % all done, either because all trials complete or quit
-    %disp(allResults);
     
 end
 
@@ -531,13 +550,13 @@ function [keyPressed, keyCode,  tDown, tUp] = checkKbdQueue(kbindex)
      end
 end
 
-function saveResultsAndCleanup(folder, base, trials, results)
-    % horzcat, but for tables
-    combined_results=[trials, results];
-    filename=fullfile(folder, [base, char(datetime('now', 'Format', '-yyyyMMdd-HHmm')), '.mat']);
-    save(filename, 'combined_results');
-    cleanup;
-end
+% function saveResultsAndCleanup(folder, base, trials, results)
+%     % horzcat, but for tables
+%     combined_results=[trials, results];
+%     filename=fullfile(folder, [base, char(datetime('now', 'Format', '-yyyyMMdd-HHmm')), '.mat']);
+%     save(filename, 'combined_results');
+%     cleanup;
+% end
 
 
 
