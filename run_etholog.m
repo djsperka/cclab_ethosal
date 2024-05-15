@@ -6,14 +6,15 @@ function results = run_etholog(identifier, lrn)
     if ~ischar(identifier) || ~any(ismember(blockTypes, lower(lrn)))
         error('expecting char inputs');
     end
-    blockType = blockTypes(ismember(blockTypes, lower(lrn)));
+    blockIndex = find(ismember(blockTypes, lower(lrn)));
+    blockType = blockTypes{blockIndex};
 
     % Set these folders according to the current machine
     image_folder = '/data/cclab/images/Babies';
-    input_folder = '/home/dan/git/cclab_ethosal/input';
-    output_folder = '/home/dan/git/cclab_ethosal/output';
+    input_folder = '/home/cclab/Desktop/ethosal/input';
+    output_folder = '/home/cclab/Desktop/ethosal/output';
 
-    outputFilename = fullfile(output_folder, [identifier, '_', blockType{1}, '.mat']);
+    outputFilename = fullfile(output_folder, [identifier, '_', blockType, '.mat']);
     if isfile(outputFilename)
         warning('OutputFile %s already exists. Finding a suitable name...', outputFilename);
         [path, base, ext] = fileparts(outputFilename);
@@ -29,7 +30,7 @@ function results = run_etholog(identifier, lrn)
     img=imageset(image_folder, 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @deal);
     
     % load trial blocks
-    cc=load(fullfile(input_folder, 'contrast_60images_a.mat'));
+    cc=load(fullfile(input_folder, 'contrast_60images_d16.mat'));
     
     % Millikey index (todo - test!)
     mkind = cclabGetMilliKeyIndices();
@@ -37,8 +38,10 @@ function results = run_etholog(identifier, lrn)
     % keyboard index (todo - test)
     
     % This is the keyboard in use at the booth
-    kbind = getKeyboardIndex("Dell KB216 Wired Keyboard");
-    %kbind = getKeyboardIndex("Dell Dell USB Keyboard");
+    %kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
+    
+    % keyboard inside the booth
+    kbind = getKeyboardIndex('Dell Dell USB Keyboard');
     
     screen_dimensions=[598, 336];
     screen_distance=1000;
@@ -62,15 +65,16 @@ function results = run_etholog(identifier, lrn)
     
     
     
-    results=etholog(cc.blocks{indx}, img, screen_dimensions, screen_distance, ...
+    results=etholog(cc.blocks{blockIndex}, img, screen_dimensions, screen_distance, ...
         'ImageChangeType', 'contrast', ...
         'Screen', 1, ...
-        'Out', output_folder, ...
+        'OutputFile', outputFilename, ...
         'Response', 'MilliKey', ...
         'MilliKeyIndex', mkind, ...
         'KeyboardIndex', kbind, ...
         'Beep', true, ...
         'EyelinkDummyMode', dummy_mode, ...
         'SkipSyncTests', 1);
-    
+
+end
     %save('/home/cclab/Desktop/ethosal/output/jodi-240-a.mat', 'results');
