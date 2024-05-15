@@ -46,11 +46,11 @@ function [ind] = getKeyboardIndex(varargin)
 
         if bQueryAndTest
             [indx, tf] = listdlg('PromptString', 'Select a keyboard.', 'ListString', names, 'SelectionMode', 'single');
+            if tf
+                ind = indices(indx);
+            end
         end
 
-        if tf
-            ind = indices(indx);
-        end
     end
 
 end
