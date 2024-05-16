@@ -134,6 +134,7 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocks(varargin)
 
 
         % generate timing columns
+        TrialIndex = [1:nTrials]';
         Base = generateColumn(nTrials, p.Results.BaseContrast);
         FixationTime = generateColumn(nTrials, p.Results.FixationTime);
         MaxAcquisitionTime = generateColumn(nTrials, p.Results.MaxAcquisitionTime);
@@ -144,7 +145,7 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocks(varargin)
         RespTime = generateColumn(nTrials, p.Results.RespTime);
 
         % now create
-        blocks{iblock} = table(StimPairType, Stim1Key, Stim2Key, StimChangeType, Base, Delta, ...
+        blocks{iblock} = table(TrialIndex, StimPairType, Stim1Key, Stim2Key, StimChangeType, Base, Delta, ...
             FixationTime, MaxAcquisitionTime, FixationBreakEarlyTime, FixationBreakLateTime, SampTime, GapTime, RespTime);
     end    
 end
