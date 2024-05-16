@@ -18,12 +18,9 @@ function [results] = etholog(varargin)
     p.addRequired('ScreenWH', @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
     p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
 
-    p.addParameter('StartAt', 1, @(x) isnumeric(x) && isscalar(x))
-
     imageChangeTypes={'luminance', 'contrast'};
     p.addParameter('ImageChangeType', 'luminance', @(x) any(validatestring(x, imageChangeTypes)));
 
-    p.addParameter('NumTrials', inf, @(x) isscalar(x));
     p.addParameter('ITI', 0.5, @(x) isscalar(x));   % inter-trial interval.
     p.addParameter('Screen', 0, @(x) isscalar(x));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
@@ -183,7 +180,6 @@ function [results] = etholog(varargin)
     
     stateMgr = statemgr('START', ourVerbosity>0);
     bQuit = false;
-    itrial = p.Results.StartAt;
     bkgdColor = [.5 .5 .5];
 
     % Convert values for display. Note that stim rect is
@@ -207,13 +203,17 @@ function [results] = etholog(varargin)
     
     % The number of trials to run. Unless you set 'NumTrials' on command
     % line, we run all trials in cclab.trials. 
-    NumTrials = min(height(p.Results.Trials), p.Results.NumTrials);
+    NumTrials = height(p.Results.Trials);
 
     % All results go here. We put the trial parameters in as well.
-    variableNames = { 'Started', 'trialIndex', 'tAon', 'tAoff', 'tBon', 'tBoff', 'tResp', 'iResp' };
+    variableNames = { 'Started', 'trialOrder', 'tAon', 'tAoff', 'tBon', 'tBoff', 'tResp', 'iResp' };
     variableTypes = {'logical', 'int32', 'double', 'double', 'double', 'double', 'double', 'int32' };
     results = [p.Results.Trials, table('Size', [ NumTrials, length(variableNames)], 'VariableNames', variableNames, 'VariableTypes', variableTypes)];
-    
+
+    tqueue = CQueue(num2cell([1:NumTrials]));
+    itrial = tqueue.pop();
+
+
     % start kbd queue now
     KbQueueStart(p.Results.KeyboardIndex);
     ListenChar(-1);
@@ -225,6 +225,10 @@ function [results] = etholog(varargin)
 
     % Use this for managing pauses
     bPausePending = false;
+
+    % Count the number of times we recycle missed trials
+    recycleCount = 0;
+    recycleCountMax = 2;
 
     while ~bQuit && ~strcmp(stateMgr.Current, 'DONE')
         
@@ -308,7 +312,7 @@ function [results] = etholog(varargin)
                 
                 % results
                 results.Started(itrial) = true;
-                results.trialIndex(itrial) = itrial;
+                results.trialOrder(itrial) = itrial;
 
                 % start tracker recording
                 tracker.start_recording();
@@ -474,20 +478,33 @@ function [results] = etholog(varargin)
                 % save data
                 save(outputFilename, 'results');
 
-                % increment trial
-                itrial = itrial + 1;
-                if itrial > NumTrials
-                    % do stuff for being all done like write output file
-                    stateMgr.transitionTo('DONE');
+                % Get next trial. If the trial queue his been emptied, then
+                % re-populate it with the indices of trials that have not
+                % yet been completed. 
+
+                if ~tqueue.isempty()
+                    itrial = tqueue.pop();
                 else
-                    % check if a pause is pending
-                    if bPausePending
-                        stateMgr.transitionTo('WAIT_PAUSE');
+                    if recycleCount==recycleCountMax
+                        stateMgr.transitionTo('DONE');
                     else
-                        stateMgr.transitionTo('WAIT_ITI');
+                        recycleCount = recycleCount + 1;
+                        logCompleted = results.Started & results.tResp>0;
+                        notCompleted = find(~logCompleted);
+                        if isempty(notCompleted)
+                            stateMgr.transitionTo('DONE');
+                        else
+                            tqueue = CQueue(num2cell(notCompleted));
+                            itrial = tqueue.pop();
+                            % check if a pause is pending
+                            if bPausePending
+                                stateMgr.transitionTo('WAIT_PAUSE');
+                            else
+                                stateMgr.transitionTo('WAIT_ITI');
+                            end
+                        end
                     end
                 end
-
                 % free textures
                 Screen('Close', unique([tex1a, tex2a, tex1b, tex2b]));
                 
