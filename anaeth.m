@@ -10,6 +10,9 @@ function [ratesNone, ratesAttended] = anaeth(attendLeft, attendRight, attendNone
     bHaveLR = true;
     if isempty(attendLeft) || isempty(attendRight)
         bHaveLR = false;
+        if ~ismember('AttendSide', fieldnames(attendNone))
+            attendNone.AttendSide = zeros(height(attendNone), 1);
+        end
     else
 
         % add attend side to data if it doesn't already exist.
@@ -37,7 +40,7 @@ function [ratesNone, ratesAttended] = anaeth(attendLeft, attendRight, attendNone
     X=categorical({'HH', 'HL', 'LL', 'LH'});
     X=reordercats(X, {'HH', 'HL', 'LL', 'LH'});
     bar(X,Y);
-    ylim([0,5]);
+    ylim([-5,5]);
     title('Salience effect');
 
     % Congruence.
@@ -279,7 +282,8 @@ function rates = ethratesNone(A, logs)
         logs struct
     end
 
-    % Get detection rates
+    % Get detection rates. 
+    % Reminder: logs.correct implies logs.completed
     rates.ncorrectHH = sum(logs.sciHH & logs.correct);
     rates.ncompletedHH = sum(logs.sciHH & logs.completed);
     rates.drateHH = rates.ncorrectHH/rates.ncompletedHH;
@@ -311,23 +315,23 @@ function rates = ethratesNone(A, logs)
     % Similarly, "HL0" means a trial where both L,H are shown, no change,
     % but H was chosen.
 
-    rates.nincorrectHH0 = sum(logs.sciHH0 & logs.changeNone & ~logs.correct);
+    rates.nincorrectHH0 = sum(logs.sciHH0 & logs.changeNone & logs.completed & ~logs.correct);
     rates.ncompletedHH0 = sum(logs.sciHH0 & logs.changeNone & logs.completed);
     rates.frateHH0 = rates.nincorrectHH0/rates.ncompletedHH0;
 
-    rates.nincorrectLL0 = sum(logs.sciLL0 & logs.changeNone & ~logs.correct);
+    rates.nincorrectLL0 = sum(logs.sciLL0 & logs.changeNone & logs.completed & ~logs.correct);
     rates.ncompletedLL0 = sum(logs.sciLL0 & logs.changeNone & logs.completed);
     rates.frateLL0 = rates.nincorrectLL0/rates.ncompletedLL0;
 
-    rates.nincorrectLH0 = sum(logs.sciLHHL0 & logs.changeNone & ~logs.correct & logs.responseLow);
+    rates.nincorrectLH0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed & ~logs.correct & logs.responseLow);
     rates.ncompletedLH0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed);
     rates.frateLH0 = rates.nincorrectLH0/rates.ncompletedLH0;
 
-    rates.nincorrectHL0 = sum(logs.sciLHHL0 & logs.changeNone & ~logs.correct & logs.responseHigh);
+    rates.nincorrectHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed & ~logs.correct & logs.responseHigh);
     rates.ncompletedHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed);
     rates.frateHL0 = rates.nincorrectHL0/rates.ncompletedHL0;
 
-    rates.nincorrectLHHL0 = sum(logs.sciLHHL0 & logs.changeNone & ~logs.correct);
+    rates.nincorrectLHHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed & ~logs.correct);
     rates.ncompletedLHHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed);
     rates.frateLHHL0 = rates.nincorrectLHHL0/rates.ncompletedLHHL0;
 
