@@ -204,11 +204,12 @@ function [results] = ethologSingleTest(varargin)
     % The number of trials to run. Unless you set 'NumTrials' on command
     % line, we run all trials in cclab.trials. 
     NumTrials = height(p.Results.Trials);
+    results = p.Results.Trials;
 
-    % All results go here. We put the trial parameters in as well.
-    variableNames = { 'Started', 'trialOrder', 'tAon', 'tAoff', 'tBon', 'tBoff', 'tResp', 'iResp' };
-    variableTypes = {'logical', 'int32', 'double', 'double', 'double', 'double', 'double', 'int32' };
-    results = [p.Results.Trials, table('Size', [ NumTrials, length(variableNames)], 'VariableNames', variableNames, 'VariableTypes', variableTypes)];
+%     % All results go here. We put the trial parameters in as well.
+%     variableNames = { 'Started', 'trialOrder', 'tAon', 'tAoff', 'tBon', 'tBoff', 'tResp', 'iResp' };
+%     variableTypes = {'logical', 'int32', 'double', 'double', 'double', 'double', 'double', 'int32' };
+%     results = [p.Results.Trials, table('Size', [ NumTrials, length(variableNames)], 'VariableNames', variableNames, 'VariableTypes', variableTypes)];
 
     tqueue = CQueue(num2cell([1:NumTrials]));
     itrial = tqueue.pop();
@@ -279,12 +280,13 @@ function [results] = ethologSingleTest(varargin)
         switch stateMgr.Current
             case 'START'
                 % get a struct with just trial params.  
-                trial = table2struct(results(itrial, 1:13));
+                trial = table2struct(results(itrial, :));
                 if (ourVerbosity > -1)
                     fprintf('etholog: START trial %d images %s %s chgtype %d delta %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeType, trial.Delta);
                 end
 
                 % get textures ready for this trial
+                whos('trial.Stim1Key')
                 tex1a = images.texture(windowIndex, trial.Stim1Key, @(x) imageBaseFunc(x, trial.Base));
                 tex2a = images.texture(windowIndex, trial.Stim2Key, @(x) imageBaseFunc(x, trial.Base));
                 stim1Rect = CenterRectOnPoint(images.rect(trial.Stim1Key), stim1XYScr(1), stim1XYScr(2));

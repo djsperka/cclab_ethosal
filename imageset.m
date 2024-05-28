@@ -70,8 +70,8 @@ classdef imageset
     methods (Access = private)
     
         function key = parse_key(obj, k)
-            if ~ischar(k)
-                exception = MException('imageset:parse_key:wrongType', 'Wrong type, expecting char');
+            if ~ischar(k) && ~isstring(k)
+                exception = MException('imageset:parse_key:wrongType', 'Wrong type, expecting char or string');
                 throw(exception);
             elseif ~obj.Images.isKey(k)
                 exception = MException('imageset:parse_key:NotAKey', ['Not a key: ' k]);
@@ -164,7 +164,7 @@ classdef imageset
             % create parser for texture() function
             obj.TextureParser = inputParser;
             addRequired(obj.TextureParser, 'Window', @(x) isscalar(x));
-            addRequired(obj.TextureParser, 'Key', @(x) (ischar(x) && obj.Images.isKey(x)) || (iscellstr(x) && all(obj.Images.isKey(x))));
+            addRequired(obj.TextureParser, 'Key', @(x) (ischar(x) && obj.Images.isKey(x)) || (isstring(x) && all(obj.Images.isKey(x))));
             addOptional(obj.TextureParser, 'PreProcessFunc', [], @(x) isempty(x) || isa(x, 'function_handle') || (iscell(x) && all(cellfun(@(x)isa(x,'function_handle'), x))));
 
             % now process files. Each row of the cell array is two elements
