@@ -30,7 +30,8 @@ function results = run_etholog(identifier, lrn)
     img=imageset(image_folder, 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @deal);
     
     % load trial blocks
-    cc=load(fullfile(input_folder, 'contrast_60images_d16.mat'));
+    %cc=load(fullfile(input_folder, 'contrast_60images_d16.mat'));
+    cc=load(fullfile(input_folder, 'contrast_60images_shortsamp.mat'));
     
     % Millikey index (todo - test!)
     mkind = cclabGetMilliKeyIndices();
@@ -38,13 +39,13 @@ function results = run_etholog(identifier, lrn)
     % keyboard index (todo - test)
     
     % This is the keyboard in use at the booth
-    %kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
+    kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
     
     % keyboard inside the booth
-    kbind = getKeyboardIndex('Dell Dell USB Keyboard');
+    %kbind = getKeyboardIndex('Dell Dell USB Keyboard');
     
     screen_dimensions=[598, 336];
-    screen_distance=1000;
+    screen_distance=920;
     dummy_mode=0;   % 0 for participant, 1 for dummy mode
         
     
