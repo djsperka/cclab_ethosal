@@ -19,7 +19,7 @@ function [results] = ethologSingleTest(varargin)
     p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
 
     imageChangeTypes={'luminance', 'contrast'};
-    p.addParameter('ImageChangeType', 'luminance', @(x) any(validatestring(x, imageChangeTypes)));
+    p.addParameter('ImageChangeType', 'contrast', @(x) any(validatestring(x, imageChangeTypes)));
 
     p.addParameter('ITI', 0.5, @(x) isscalar(x));   % inter-trial interval.
     p.addParameter('Screen', 0, @(x) isscalar(x));
@@ -498,29 +498,45 @@ function [results] = ethologSingleTest(varargin)
                 % re-populate it with the indices of trials that have not
                 % yet been completed. 
 
-                if ~tqueue.isempty()
-                    itrial = tqueue.pop();
+                
+                % increment trial
+                itrial = itrial + 1;
+                if itrial > NumTrials
+                    % do stuff for being all done like write output file
+                    stateMgr.transitionTo('DONE');
                 else
-                    if recycleCount==recycleCountMax
-                        stateMgr.transitionTo('DONE');
+                    % check if a pause is pending
+                    if bPausePending
+                        stateMgr.transitionTo('WAIT_PAUSE');
                     else
-                        recycleCount = recycleCount + 1;
-                        logCompleted = results.Started & results.tResp>0;
-                        notCompleted = find(~logCompleted);
-                        if isempty(notCompleted)
-                            stateMgr.transitionTo('DONE');
-                        else
-                            tqueue = CQueue(num2cell(notCompleted));
-                            itrial = tqueue.pop();
-                            % check if a pause is pending
-                            if bPausePending
-                                stateMgr.transitionTo('WAIT_PAUSE');
-                            else
-                                stateMgr.transitionTo('WAIT_ITI');
-                            end
-                        end
+                        stateMgr.transitionTo('WAIT_ITI');
                     end
                 end
+
+%                 if ~tqueue.isempty()
+%                     itrial = tqueue.pop();
+%                 else
+%                     if recycleCount==recycleCountMax
+%                         stateMgr.transitionTo('DONE');
+%                     else
+%                         recycleCount = recycleCount + 1;
+%                         logCompleted = results.Started & results.tResp>0;
+%                         notCompleted = find(~logCompleted);
+%                         if isempty(notCompleted)
+%                             stateMgr.transitionTo('DONE');
+%                         else
+%                             tqueue = CQueue(num2cell(notCompleted));
+%                             itrial = tqueue.pop();
+%                             % check if a pause is pending
+%                             if bPausePending
+%                                 stateMgr.transitionTo('WAIT_PAUSE');
+%                             else
+%                                 stateMgr.transitionTo('WAIT_ITI');
+%                             end
+%                         end
+%                     end
+%                 end
+
                 % free textures
                 Screen('Close', unique([tex1a, tex2a, tex1b, tex2b]));
                 
