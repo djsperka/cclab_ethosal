@@ -9,6 +9,8 @@ function results = run_etholog_single(varargin)
     p.addRequired('lrn', @(x) ismember(x,blockTypes));
     p.addParameter('Test', 'no-test', @(x) ismember(x, testingTypes));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
+    p.addParameter('Inside', false, @(x) islogical(x));
+    p.addParameter('Trials', [], @(x) istable(x));
     p.parse(varargin{:});
 
     blockIndex = find(ismember(blockTypes, lower(p.Results.lrn)));
@@ -50,7 +52,12 @@ function results = run_etholog_single(varargin)
             screenNumber = 1;
             screenRect=[];
             % This may need to be changed if workign inside booth
-            kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
+            if ~p.Results.Inside
+                kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
+            else
+                kbind = getKeyboardIndex('Dell Dell USB Keyboard');
+                eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
+            end
     end            
       
 
@@ -59,7 +66,7 @@ function results = run_etholog_single(varargin)
     if isfile(outputFilename)
         warning('OutputFile %s already exists. Finding a suitable name...', outputFilename);
         [path, base, ext] = fileparts(outputFilename);
-        [ok, outputFilename] = makeNNNFilename(fullfile(path, [base, '_NNN', ext]));
+        [ok, outputFilename] = makeNNNFilename(path, [base, '_NNN', ext]);
         if ~ok
             error('Cannot form usable filename using folder %s and basename %s', p.Results.Folder, [base, '_NNN', ext]);
         end
@@ -89,8 +96,13 @@ function results = run_etholog_single(varargin)
 %     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(100:109), [1,1,1,1]', .78, .16);
 %     save('input/contrast_60_single_TEST_b.mat', 'blocks', 'inputArgs', 'parsedResults');    
 
+    if isempty(p.Results.Trials)
+        t=cc.blocks{blockIndex};
+    else
+        t=p.Results.Trials;
+    end
 
-    results=ethologSingleTest(cc.blocks{blockIndex}, img, screenDimensions, screenDistance, ...
+    results=ethologSingleTest(t, img, screenDimensions, screenDistance, ...
                                 'ImageChangeType', 'contrast', ...
                                 'Screen', screenNumber, ...
                                 'Rect', screenRect, ...
