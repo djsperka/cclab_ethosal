@@ -2,7 +2,6 @@ function [results] = ethologSingleTest(varargin)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
-
     experimentStartTime = GetSecs;
     
 
@@ -23,7 +22,7 @@ function [results] = ethologSingleTest(varargin)
 
     p.addParameter('ITI', 0.5, @(x) isscalar(x));   % inter-trial interval.
     p.addParameter('Screen', 0, @(x) isscalar(x));
-    p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
+    p.addParameter('Rect', [], @(x) isempty(x) || (isvector(x) && length(x) == 4));
     p.addParameter('Bkgd', [.5 .5 .5], @(x) isrow(x) && length(x) == 3);
 
     % djs by default no cues are used. 
@@ -269,13 +268,11 @@ function [results] = ethologSingleTest(varargin)
             case 'START'
                 % get a struct with just trial params.  
                 trial = table2struct(results(itrial, :));
-                if (ourVerbosity > -1)
-                    fprintf('etholog: START trial %d images %s %s chgtype %d delta %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeType, trial.Delta);
-                end
+                % if (ourVerbosity > -1)
+                %     fprintf('etholog: START trial %d images %s %s chgtype %d delta %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeType, trial.Delta);
+                % end
 
                 % get textures ready for this trial
-                trial.Stim1Key
-                trial.Stim2Key
                 tex1a = images.texture(windowIndex, trial.Stim1Key, @(x) imageBaseFunc(x, trial.Base));
                 tex2a = images.texture(windowIndex, trial.Stim2Key, @(x) imageBaseFunc(x, trial.Base));
                 stim1Rect = CenterRectOnPoint(images.rect(trial.Stim1Key), stim1XYScr(1), stim1XYScr(2));
@@ -296,7 +293,7 @@ function [results] = ethologSingleTest(varargin)
                         end
                         tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageChangeFunc(x, c));
                         tex2b = images.texture(windowIndex, 'BKGD');
-                        if (ourVerbosity > -1); fprintf('etholog: Change L by %d\n', trial.Delta); end
+                        %if (ourVerbosity > -1); fprintf('etholog: Change L by %d\n', trial.Delta); end
                     case 2
                         % Right stim will appear. Will it change?
                         switch trial.StimChangeType
@@ -309,7 +306,7 @@ function [results] = ethologSingleTest(varargin)
                         end
                         tex1b = images.texture(windowIndex, 'BKGD');
                         tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageChangeFunc(x, c));
-                        if (ourVerbosity > -1); fprintf('etholog: Change R by %d\n', trial.Delta); end
+                        %if (ourVerbosity > -1); fprintf('etholog: Change R by %d\n', trial.Delta); end
                     otherwise
                         error('StimTestType can only be 1 or 2');
                 end
@@ -441,7 +438,7 @@ function [results] = ethologSingleTest(varargin)
                 end
                 if isResponse || stateMgr.timeInState() >= trial.RespTime
                     stateMgr.transitionTo('TRIAL_COMPLETE');
-                    if (ourVerbosity > -1); fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt); end
+                    %if (ourVerbosity > -1); fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt); end
                     if strcmp(subjectResponseType, 'MilliKey')
                         millikey.stop(true);
                     end
@@ -483,6 +480,10 @@ function [results] = ethologSingleTest(varargin)
                 % save data
                 save(outputFilename, 'results');
 
+
+                if (ourVerbosity > -1)
+                    fprintf('etholog: trial %d pair %s test %d chgtype %d resp %d delta %f\n', itrial, results.StimPairType(itrial), results.StimTestType(itrial), results.StimChangeType(itrial), results.iResp(itrial), results.Delta(itrial));
+                end
                 % Get next trial. If the trial queue his been emptied, then
                 % re-populate it with the indices of trials that have not
                 % yet been completed. 
