@@ -407,8 +407,17 @@ function [results] = ethologSingleTest(varargin)
                 end
                 Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
                 [ results.tBon(itrial) ] = Screen('Flip', windowIndex);
-                stateMgr.transitionTo('START_RESPONSE');
+                stateMgr.transitionTo('WAIT_B');
+            case 'WAIT_B'
+                if stateMgr.timeInState() >= trial.TestTime
+                    stateMgr.transitionTo('START_RESPONSE');
+                elseif ~tracker.is_in_rect(fixWindowRect)
+                    stateMgr.transitionTo('FIXATION_BREAK_LATE');
+                end
             case 'START_RESPONSE'
+                % clear screen
+                Screen('FillRect', windowIndex, bkgdColor);
+                [ results.tBoff(itrial) ] = Screen('Flip', windowIndex);
                 if strcmp(subjectResponseType, 'MilliKey')
                     millikey.start();
                 end
