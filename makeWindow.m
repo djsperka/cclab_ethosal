@@ -1,5 +1,6 @@
 function [windowPtr,windowRect, mywr] = makeWindow(wh,screen,a1,a2)
-%UNTITLED Summary of this function goes here
+%makeWindow(wh,screen,a1,a2) Make a window in the given screen,with given
+%size. Placement uses last two args - see AlignRect().
 %   Detailed explanation goes here
     PsychDefaultSetup(2);
     r=SetRect(0,0,wh(1),wh(2));
