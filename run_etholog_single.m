@@ -78,7 +78,7 @@ function results = run_etholog_single(varargin)
     img=imageset(image_folder, 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @deal);
     
     % load trial blocks
-    cc=load(fullfile(input_folder, 'contrast_60_single_a.mat'));
+    cc=load(fullfile(input_folder, 'contrast_60_single_a_lrn.mat'));
     
     % Millikey index (todo - test!)
     mkind = cclabGetMilliKeyIndices();
