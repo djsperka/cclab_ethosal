@@ -58,6 +58,7 @@ function [ratesNone, ratesAttended, fig] = anaeth(attendLeft, attendRight, atten
     % masks should be used to isolate the attendLeft or attendRight.
 
     % Hack - skip this if no LR data
+    ratesAttended = [];
     if bHaveLR
     
         LR = [attendLeft;attendRight];
