@@ -389,6 +389,7 @@ function [results] = ethologSingleTest(varargin)
             case 'FIXATION_BREAK_LATE_WAIT'
                 if stateMgr.timeInState() > trial.FixationBreakLateTime
                     stateMgr.transitionTo('TRIAL_COMPLETE');
+                    results.iResp(itrial) = -4;
                 end                
             case 'DRAW_AB'
                 Screen('FillRect', windowIndex, bkgdColor);
@@ -445,7 +446,7 @@ function [results] = ethologSingleTest(varargin)
                     case 'MilliKey'
                         [isResponse, response, tResp] = millikey.response();
                 end
-                if isResponse || stateMgr.timeInState() >= trial.RespTime
+                if isResponse
                     stateMgr.transitionTo('TRIAL_COMPLETE');
                     %if (ourVerbosity > -1); fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt); end
                     if strcmp(subjectResponseType, 'MilliKey')
@@ -466,6 +467,9 @@ function [results] = ethologSingleTest(varargin)
                             beeper.incorrect();
                         end
                     end
+                elseif stateMgr.timeInState() >= trial.RespTime
+                    results.iResp(itrial) = -3;
+                    results.tResp(itrial) = -1;
                 elseif ~tracker.is_in_rect(fixWindowRect)
                     stateMgr.transitionTo('FIXATION_BREAK_LATE');
                 end
