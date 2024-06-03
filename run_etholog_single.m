@@ -1,5 +1,5 @@
 function results = run_etholog_single(varargin)
-%run_etholog Run etholog for a specific block
+%run_etholog_single Run etholog for a specific block
 %   Detailed explanation goes here
 
     blockTypes = {'left', 'right', 'none'};
@@ -85,12 +85,12 @@ function results = run_etholog_single(varargin)
     
         
     
-%     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(1:100), [15,15,15,15; 24,6,24,6; 6,24,6,24]', .78, .16);
-%     save('input/contrast_60_single_a.mat', 'blocks', 'inputArgs', 'parsedResults')
-%     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(1:100), [15,15,15,15; 24,6,24,6; 6,24,6,24]', .78, .16);
-%     save('input/contrast_60_single_b.mat', 'blocks', 'inputArgs', 'parsedResults')
-%     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(1:100), [15,15,15,15; 24,6,24,6; 6,24,6,24]', .78, .16);
-%     save('input/contrast_60_single_c.mat', 'blocks', 'inputArgs', 'parsedResults')
+%     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(1:100), [24,6,24,6; 6,24,6,24; 15,15,15,15]', .78, .16);
+%     save('input/contrast_60_single_a_lrn.mat', 'blocks', 'inputArgs', 'parsedResults')
+%     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(1:100), [24,6,24,6; 6,24,6,24; 15,15,15,15]', .78, .16);
+%     save('input/contrast_60_single_b_lrn.mat', 'blocks', 'inputArgs', 'parsedResults')
+%     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(1:100), [24,6,24,6; 6,24,6,24; 15,15,15,15]', .78, .16);
+%     save('input/contrast_60_single_c_lrn.mat', 'blocks', 'inputArgs', 'parsedResults')
 %     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(100:109), [1,1,1,1]', .78, .16);
 %     save('input/contrast_60_single_TEST_a.mat', 'blocks', 'inputArgs', 'parsedResults')
 %     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(100:109), [1,1,1,1]', .78, .16);
