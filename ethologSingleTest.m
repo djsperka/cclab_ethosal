@@ -408,6 +408,17 @@ function [results] = ethologSingleTest(varargin)
                 end
                 Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
                 [ results.tBon(itrial) ] = Screen('Flip', windowIndex);
+
+                % Moved this from START_RESPONSE, so subject may respond as
+                % soon as B image is shown. The WAIT_B period will still
+                % run to completion, as responses are not checked there. 
+                % Can do that, but that's a little tricky. Since the test
+                % period is short, this seems OK to me. 
+                
+                if strcmp(subjectResponseType, 'MilliKey')
+                    millikey.start();
+                end
+
                 stateMgr.transitionTo('WAIT_B');
             case 'WAIT_B'
                 if stateMgr.timeInState() >= trial.TestTime
@@ -419,9 +430,6 @@ function [results] = ethologSingleTest(varargin)
                 % clear screen
                 Screen('FillRect', windowIndex, bkgdColor);
                 [ results.tBoff(itrial) ] = Screen('Flip', windowIndex);
-                if strcmp(subjectResponseType, 'MilliKey')
-                    millikey.start();
-                end
                 stateMgr.transitionTo('WAIT_RESPONSE');
             case 'WAIT_RESPONSE'
                 response = 0;
