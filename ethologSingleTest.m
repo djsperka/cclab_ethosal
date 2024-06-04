@@ -258,6 +258,15 @@ function [results] = ethologSingleTest(varargin)
                         tracker.drift_correct(fixXYScr(1), fixXYScr(2));
                         stateMgr.transitionTo('TRIAL_COMPLETE');
                     end
+                case KbName('s')
+                    % this is for getting into camera setup. Should be able
+                    % to re-calibrate from here. Not sure about drift
+                    % correction.
+                    if strcmp(stateMgr.Current, 'WAIT_PAUSE')
+                        fprintf('Entering camera setup. Hit ExitSetup to return to trials.\n');
+                        tracker.do_tracker_setup();
+                        stateMgr.transitionTo('TRIAL_COMPLETE');
+                    end
                 otherwise
                     if (ourVerbosity > -1); fprintf('Keys:\n<space> - toggle pause\n\n');end
             end
@@ -414,7 +423,7 @@ function [results] = ethologSingleTest(varargin)
                 % run to completion, as responses are not checked there. 
                 % Can do that, but that's a little tricky. Since the test
                 % period is short, this seems OK to me. 
-                
+
                 if strcmp(subjectResponseType, 'MilliKey')
                     millikey.start();
                 end

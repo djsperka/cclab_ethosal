@@ -177,6 +177,16 @@ classdef eyetracker < handle
                 EyelinkDoDriftCorrect(obj.EyelinkDefaults, x, y, 0, 0);
             end
         end
+
+        function do_tracker_setup(obj)
+            %drift_correct(obj, x, y) Do drift correct for (already drawn)
+            %item at x,y
+            if ~obj.DummyMode
+                % Put EyeLink Host PC in Camera Setup mode for participant setup/calibration
+                EyelinkDoTrackerSetup(obj.EyelinkDefaults);
+            end
+        end
+
     end
     
     methods (Access = private)
