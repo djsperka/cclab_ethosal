@@ -468,6 +468,7 @@ function [results] = ethologSingleTest(varargin)
                         end
                     end
                 elseif stateMgr.timeInState() >= trial.RespTime
+                    stateMgr.transitionTo('TRIAL_COMPLETE');
                     results.iResp(itrial) = -3;
                     results.tResp(itrial) = -1;
                 elseif ~tracker.is_in_rect(fixWindowRect)
