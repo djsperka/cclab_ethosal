@@ -19,9 +19,9 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
     p.addOptional('FixationTime', 0.5, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('MaxAcquisitionTime', 2.0, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('FixationBreakEarlyTime', 0.5, @(x) isnumeric(x) && length(x)<3);
-    p.addOptional('FixationBreakLateTime', 2.0, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('FixationBreakLateTime', 0.5, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('SampTime', 0.4, @(x) isnumeric(x) && length(x)<3);
-    p.addOptional('TestTime', 0.2, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('TestTime', 0.4, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('RespTime', 2.0, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('GapTime', 0.2, @(x) isnumeric(x) && length(x)<3);
 
