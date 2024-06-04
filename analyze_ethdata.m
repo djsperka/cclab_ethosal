@@ -58,6 +58,20 @@ None=load('/home/dan/work/cclab/ethdata/output/test_none_028.mat');
 
 
 
+Left=load('/home/dan/work/cclab/ethdata/output/subject008_left.mat');
+Right=load('/home/dan/work/cclab/ethdata/output/subject008_right.mat');
+None=load('/home/dan/work/cclab/ethdata/output/subject008_none_002.mat');
+[~, ~, fig] = anaeth(Left.results, Right.results, None.results, 's008');
+
+Left=load('/home/dan/work/cclab/ethdata/output/subject009_left.mat');
+Right=load('/home/dan/work/cclab/ethdata/output/subject009_right.mat');
+None=load('/home/dan/work/cclab/ethdata/output/subject009_none.mat');
+[~, ~, fig] = anaeth(Left.results, Right.results, None.results, 's009');
+
+
+
+
+
 % append each of the figures to output.pdf
 for i=1:length(allfigures)
     exportgraphics(allfigures(i), 'output/alloutput.pdf', 'Append', true);
