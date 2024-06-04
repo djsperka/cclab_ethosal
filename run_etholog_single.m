@@ -96,6 +96,11 @@ function results = run_etholog_single(varargin)
 %     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(100:109), [1,1,1,1]', .78, .16);
 %     save('input/contrast_60_single_TEST_b.mat', 'blocks', 'inputArgs', 'parsedResults');    
 
+%      [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(100:109), [2,2,2,2]', .78, .16, 'SampTime', 1.0, 'TestTime', 1.0);
+%      save('input/contrast_60_single_DEMO_LONG_a.mat', 'blocks', 'inputArgs', 'parsedResults')
+
+
+
     if isempty(p.Results.Trials)
         t=cc.blocks{blockIndex};
     else
