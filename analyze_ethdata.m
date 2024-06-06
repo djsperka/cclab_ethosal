@@ -68,8 +68,33 @@ Right=load('/home/dan/work/cclab/ethdata/output/subject009_right.mat');
 None=load('/home/dan/work/cclab/ethdata/output/subject009_none.mat');
 [~, ~, fig] = anaeth(Left.results, Right.results, None.results, 's009');
 
+Left=load('/home/dan/work/cclab/ethdata/output/subject010_left.mat');
+Right=load('/home/dan/work/cclab/ethdata/output/subject010_right.mat');
+None=load('/home/dan/work/cclab/ethdata/output/subject010_none.mat');
+[~, ~, fig] = anaeth(Left.results, Right.results, None.results, 's010');
+
+Left=load('/home/dan/work/cclab/ethdata/output/subject011_left.mat');
+Right=load('/home/dan/work/cclab/ethdata/output/subject011_right.mat');
+None=load('/home/dan/work/cclab/ethdata/output/subject011_none.mat');
+[~, ~, fig11] = anaeth(Left.results, Right.results, None.results, 's011');
+
+Left=load('/home/dan/work/cclab/ethdata/output/subject012_left.mat');
+Right=load('/home/dan/work/cclab/ethdata/output/subject012_right.mat');
+None=load('/home/dan/work/cclab/ethdata/output/subject012_none.mat');
+[~, ~, fig12] = anaeth(Left.results, Right.results, None.results, 's012');
 
 
+Left=load('/home/dan/work/cclab/ethdata/output/subject013_left.mat');
+Right=load('/home/dan/work/cclab/ethdata/output/subject013_right.mat');
+None=load('/home/dan/work/cclab/ethdata/output/subject013_none.mat');
+[~, ~, fig13] = anaeth(Left.results, Right.results, None.results, 's013');
+
+
+None=load('/home/dan/work/cclab/ethdata/output/rowan12_none_000.mat');
+[rN, ~, fig] = anaeth([], [], None.results, 'rowan12');
+
+None=load('/home/dan/work/cclab/ethdata/output/dan12_none.mat');
+[rN, ~, fig2] = anaeth([], [], None.results, 'dan12');
 
 
 % append each of the figures to output.pdf
