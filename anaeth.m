@@ -134,9 +134,6 @@ function logs = ethlogs(A)
     logs.sameImages = ismember(A.StimPairType, {'HH', 'LL'});
     logs.notSameImages = ismember(A.StimPairType, {'HL', 'LH'});
 
-    % Is the test image High or Low salience?
-    %logs.testIsHigh = 
-
     % These tell if the attended-side contains a low- or high-salience
     % image -- independent of whether it changes or not.
     logs.attendToLow = (A.AttendSide==1 & ismember(A.StimPairType, {'LL', 'LH'})) | (A.AttendSide==2 & ismember(A.StimPairType, {'LL', 'HL'}));
@@ -146,6 +143,10 @@ function logs = ethlogs(A)
     % change happened on attended side or unattended side. 
     logs.changeAttendedSide = (A.StimChangeType==A.AttendSide) & ismember(A.StimChangeType, [1,2]);
     logs.changeUnattendedSide = (A.StimChangeType~=A.AttendSide) & ismember(A.StimChangeType, [1,2]) & ismember(A.AttendSide, [1,2]);
+
+    % Is the test image High or Low salience?
+    logs.testIsLow = (A.StimTestType==1 & ismember(A.StimPairType, {'LL', 'LH'})) | (A.StimTestType==2 & ismember(A.StimPairType, {'LL', 'HL'}));
+    logs.testIsHigh = (A.StimTestType==1 & ismember(A.StimPairType, {'HH', 'HL'})) | (A.StimTestType==2 & ismember(A.StimPairType, {'HH', 'LH'}));
 
     %% logical indices involving responses
 
@@ -317,8 +318,8 @@ function rates = ethratesNone(A, logs)
     % false alarm rate on no-change trials. Use logs.sciHH0, logs.sciLL0, and
     % logs.sciLHHL0.
     %
-    % When "LH0" is used, it means a trial where both L,H are shown, no
-    % change, but L was chosen. 
+    % When "LH0" is used, it means a trial where both L,H are shown, L IS TEST IMAGE, 
+    % no change, but L was chosen. 
     % 
     % Similarly, "HL0" means a trial where both L,H are shown, no change,
     % but H was chosen.
@@ -331,17 +332,17 @@ function rates = ethratesNone(A, logs)
     rates.ncompletedLL0 = sum(logs.sciLL0 & logs.changeNone & logs.completed);
     rates.frateLL0 = rates.nincorrectLL0/rates.ncompletedLL0;
 
-    rates.nincorrectLH0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed & ~logs.correct & logs.responseLow);
-    rates.ncompletedLH0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed);
+    rates.nincorrectLH0 = sum(logs.sciLHHL0 & logs.testIsLow &  logs.changeNone & logs.completed & logs.responseLow);
+    rates.ncompletedLH0 = sum(logs.sciLHHL0 & logs.testIsLow & logs.changeNone & logs.completed);
     rates.frateLH0 = rates.nincorrectLH0/rates.ncompletedLH0;
 
-    rates.nincorrectHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed & ~logs.correct & logs.responseHigh);
-    rates.ncompletedHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed);
+    rates.nincorrectHL0 = sum(logs.sciLHHL0 & logs.testIsHigh &  logs.changeNone & logs.completed & logs.responseHigh);
+    rates.ncompletedHL0 = sum(logs.sciLHHL0 &  logs.testIsHigh & logs.changeNone & logs.completed);
     rates.frateHL0 = rates.nincorrectHL0/rates.ncompletedHL0;
 
-    rates.nincorrectLHHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed & ~logs.correct);
-    rates.ncompletedLHHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed);
-    rates.frateLHHL0 = rates.nincorrectLHHL0/rates.ncompletedLHHL0;
+    % rates.nincorrectLHHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed & ~logs.correct);
+    % rates.ncompletedLHHL0 = sum(logs.sciLHHL0 & logs.changeNone & logs.completed);
+    % rates.frateLHHL0 = rates.nincorrectLHHL0/rates.ncompletedLHHL0;
 
     % dprime values;
     fprintf('min %f max %f\n', min(0.99, rates.drateHH), max(0.01, rates.frateHH0));
