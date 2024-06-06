@@ -41,7 +41,7 @@ function [ratesNone, ratesAttended, fig] = anaeth(attendLeft, attendRight, atten
     X=categorical({'HH', 'HL', 'LL', 'LH'});
     X=reordercats(X, {'HH', 'HL', 'LL', 'LH'});
     bar(X,Y);
-    ylim([-5,5]);
+    ylim([-3,3]);
     title('Salience effect');
 
     % Congruence.
@@ -83,6 +83,9 @@ function [ratesNone, ratesAttended, fig] = anaeth(attendLeft, attendRight, atten
         ylim([-2,2]);
         title('Congruence');
     
+
+        %printRates(ratesAttended,'Attended');
+
     end
     sgtitle(figtitle);
 end
@@ -131,6 +134,9 @@ function logs = ethlogs(A)
     logs.sameImages = ismember(A.StimPairType, {'HH', 'LL'});
     logs.notSameImages = ismember(A.StimPairType, {'HL', 'LH'});
 
+    % Is the test image High or Low salience?
+    %logs.testIsHigh = 
+
     % These tell if the attended-side contains a low- or high-salience
     % image -- independent of whether it changes or not.
     logs.attendToLow = (A.AttendSide==1 & ismember(A.StimPairType, {'LL', 'LH'})) | (A.AttendSide==2 & ismember(A.StimPairType, {'LL', 'HL'}));
@@ -144,7 +150,7 @@ function logs = ethlogs(A)
     %% logical indices involving responses
 
     % completed and correct trials. 
-    logs.completed = A.Started & A.tResp>0;
+    logs.completed = A.Started & A.tResp>0 & A.iResp>-1;
     logs.correct = logs.completed & A.StimChangeType==A.iResp;
     
 
