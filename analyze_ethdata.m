@@ -66,12 +66,12 @@ None=load('/home/dan/work/cclab/ethdata/output/subject008_none_002.mat');
 Left=load('/home/dan/work/cclab/ethdata/output/subject009_left.mat');
 Right=load('/home/dan/work/cclab/ethdata/output/subject009_right.mat');
 None=load('/home/dan/work/cclab/ethdata/output/subject009_none.mat');
-[~, ~, fig] = anaeth(Left.results, Right.results, None.results, 's009');
+[~, ~, fig9] = anaeth(Left.results, Right.results, None.results, 's009');
 
 Left=load('/home/dan/work/cclab/ethdata/output/subject010_left.mat');
 Right=load('/home/dan/work/cclab/ethdata/output/subject010_right.mat');
 None=load('/home/dan/work/cclab/ethdata/output/subject010_none.mat');
-[~, ~, fig] = anaeth(Left.results, Right.results, None.results, 's010');
+[~, ~, fig10] = anaeth(Left.results, Right.results, None.results, 's010');
 
 Left=load('/home/dan/work/cclab/ethdata/output/subject011_left.mat');
 Right=load('/home/dan/work/cclab/ethdata/output/subject011_right.mat');
@@ -88,6 +88,11 @@ Left=load('/home/dan/work/cclab/ethdata/output/subject013_left.mat');
 Right=load('/home/dan/work/cclab/ethdata/output/subject013_right.mat');
 None=load('/home/dan/work/cclab/ethdata/output/subject013_none.mat');
 [~, ~, fig13] = anaeth(Left.results, Right.results, None.results, 's013');
+
+Left=load('/home/dan/work/cclab/ethdata/output/subject014_left.mat');
+Right=load('/home/dan/work/cclab/ethdata/output/subject014_right.mat');
+None=load('/home/dan/work/cclab/ethdata/output/subject014_none.mat');
+[~, ~, fig14] = anaeth(Left.results, Right.results, None.results, 's014');
 
 
 None=load('/home/dan/work/cclab/ethdata/output/rowan12_none_000.mat');
