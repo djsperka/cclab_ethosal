@@ -62,8 +62,16 @@ classdef eyetracker < handle
         % Move the edf file from the tracker to the local machine. The
         % 'name_or_path' arg is either a filename (is_path==0) or a
         % pathname (is_path==1).
-        function szBytes = receive_file(obj, name_or_path, is_path)
-            szBytes = Eyelink('ReceiveFile', obj.Name, name_or_path, is_path);
+        function szBytes = receive_file(obj, varargin)
+            if nargin==1
+                szBytes = Eyelink('ReceiveFile');
+            elseif nargin==3
+                name_or_path = varargin{1};
+                is_path = varargin{2};
+                szBytes = Eyelink('ReceiveFile', obj.Name, name_or_path, is_path);
+            else
+                error('Expecting 0 or 2 args - see Eyelink(ReceiveFile)');
+            end
         end
 
 
@@ -128,13 +136,17 @@ classdef eyetracker < handle
         end
 
         function offline(obj)
+            obj.stop_recording();
+        end            
+
+        function stop_recording(obj)
             if ~obj.DummyMode
                 Eyelink('SetOfflineMode');
             elseif obj.Verbose
-                fprintf('eyetracker.offline: dummy mode.\n');
+                fprintf('eyetracker.stop_recording/offline: dummy mode.\n');
             end
         end            
-
+            
         function [tf] = is_in_rect(obj, rect)
             %is_in_rect Is current eye pos in the rect? Returns 1/0.
             [x, y] = obj.eyepos();
