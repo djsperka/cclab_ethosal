@@ -70,6 +70,18 @@ tracker.start_recording()
 tracker.offline();
 tracker.stop_recording();
 
+% Getting/testing eye position
+[eyeX, eyeY] = tracker.eyepos();
+
+% Is the current eye position inside this rectangle?
+tf = tracker.is_in_rect(rect_in_screen_pixels);
+
+% Is the current eye position inside one of a group of rectangles?
+% Each rectangle is a COLUMN in the array, which must be 4xN:
+% The return is a row vector, each element corresponds to the
+% rect in that column
+S = tracker.saccade(rectangles_in_columns);
+
 % Once you're done and you want to fetch the edf file (optional), call this.
 % This is the simplest call, the file is copied to the current (matlab) folder, with the same
 % filename as that used when the eyetracker object was created.
