@@ -144,6 +144,10 @@ function logs = ethlogs(A)
     logs.changeAttendedSide = (A.StimChangeType==A.AttendSide) & ismember(A.StimChangeType, [1,2]);
     logs.changeUnattendedSide = (A.StimChangeType~=A.AttendSide) & ismember(A.StimChangeType, [1,2]) & ismember(A.AttendSide, [1,2]);
 
+    % Is test image on attended side?
+    logs.testIsAttendedSide = (A.StimTestType==A.AttendSide) & ismember(A.StimTestType, [1,2]);
+    logs.testIsUnattendedSide = (A.StimTestType~=A.AttendSide) & ismember(A.StimTestType, [1,2]) & ismember(A.AttendSide, [1,2]);
+
     % Is the test image High or Low salience?
     logs.testIsLow = (A.StimTestType==1 & ismember(A.StimPairType, {'LL', 'LH'})) | (A.StimTestType==2 & ismember(A.StimPairType, {'LL', 'HL'}));
     logs.testIsHigh = (A.StimTestType==1 & ismember(A.StimPairType, {'HH', 'HL'})) | (A.StimTestType==2 & ismember(A.StimPairType, {'HH', 'LH'}));
@@ -194,19 +198,20 @@ function rates = ethratesAttended(A, logs)
     rates.dratehH = rates.ncorrecthH/rates.ncompletedhH;
 
     % FA hH0: both hi-salience, no change, response to attended
-    rates.ncompletedHH0 = sum(logs.completed & logs.sciHH0);
-    rates.nincorrecthH0 = sum(logs.completed & logs.sciHH0 & logs.responseAttendedSide);
-    rates.fratehH0 = rates.nincorrecthH0/rates.ncompletedHH0;
+    rates.ncompletedhH0 = sum(logs.completed & logs.sciHH0 & logs.testIsAttendedSide);
+    rates.nincorrecthH0 = sum(logs.completed & logs.sciHH0 & logs.testIsAttendedSide & logs.responseAttendedSide);
+    rates.fratehH0 = rates.nincorrecthH0/rates.ncompletedhH0;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Hh: both hi-salience, unattended changes
-    rates.ncompletedHh = sum(logs.completed & logs.sciHH & logs.changeUnattendedSide);
-    rates.ncorrectHh = sum(logs.completed & logs.sciHH & logs.changeUnattendedSide & logs.correct);
+    % Hh: both hi-salience, test unattended, unattended changes
+    rates.ncompletedHh = sum(logs.completed & logs.sciHH & logs.testIsUnattendedSide & logs.changeUnattendedSide);
+    rates.ncorrectHh = sum(logs.completed & logs.sciHH & logs.testIsUnattendedSide & logs.changeUnattendedSide & logs.correct);
     rates.drateHh = rates.ncorrectHh/rates.ncompletedHh;
 
     % FA Hh0: both hi-salience, no change, response to unattended
-    rates.nincorrectHh0 = sum(logs.completed & logs.sciHH0 & logs.responseUnattendedSide);
-    rates.frateHh0 = rates.nincorrectHh0/rates.ncompletedHH0;
+    rates.ncompletedHh0 = sum(logs.completed & logs.sciHH0 & logs.testIsUnattendedSide);
+    rates.nincorrectHh0 = sum(logs.completed & logs.sciHH0 & logs.testIsUnattendedSide & logs.responseUnattendedSide);
+    rates.frateHh0 = rates.nincorrectHh0/rates.ncompletedHh0;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % lL: both low-salience, attended changes
@@ -215,9 +220,9 @@ function rates = ethratesAttended(A, logs)
     rates.dratelL = rates.ncorrectlL/rates.ncompletedlL;
 
     % FA lL0: both low-salience, no change, response to attended
-    rates.ncompletedLL0 = sum(logs.completed & logs.sciLL0);
-    rates.nincorrectlL0 = sum(logs.completed & logs.sciLL0 & logs.responseAttendedSide);
-    rates.fratelL0 = rates.nincorrectlL0/rates.ncompletedLL0;
+    rates.ncompletedlL0 = sum(logs.completed & logs.sciLL0  & logs.testIsAttendedSide);
+    rates.nincorrectlL0 = sum(logs.completed & logs.sciLL0 & logs.testIsAttendedSide & logs.responseAttendedSide);
+    rates.fratelL0 = rates.nincorrectlL0/rates.ncompletedlL0;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Ll: both low-salience, unattended changes
@@ -226,8 +231,9 @@ function rates = ethratesAttended(A, logs)
     rates.drateLl = rates.ncorrectLl/rates.ncompletedLl;
 
     % FA Ll0: both low-salience, no change, response to unattended
-    rates.nincorrectLl0 = sum(logs.completed & logs.sciLL0 & logs.responseUnattendedSide);
-    rates.frateLl0 = rates.nincorrectLl0/rates.ncompletedLL0;
+    rates.ncompletedLl0 = sum(logs.completed & logs.sciLL0  & logs.testIsUnattendedSide);
+    rates.nincorrectLl0 = sum(logs.completed & logs.sciLL0 & logs.testIsUnattendedSide & logs.responseUnattendedSide);
+    rates.frateLl0 = rates.nincorrectLl0/rates.ncompletedLl0;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % hL: one of each, attended is hi-salience, Test is attended, attended changes
