@@ -22,7 +22,7 @@ classdef twotonebeeper < handle
             try
                 p = inputParser;
                 p.addOptional('Correct', 800, @(x) isscalar(x) && x>0 );
-                p.addOptional('Incorrect', 350,  @(x) isscalar(x) && x>0 );
+                p.addOptional('Incorrect', 600,  @(x) isscalar(x) && x>0 );
                 p.addOptional('Duration', 0.25, @(x) isscalar(x) && x>0 );
                 p.addOptional('Playback', 44100, @(x) isscalar(x) && x > 0);    % can preobably do better
                 p.addOptional('OpenSnd', true, @(x) islogical(x));

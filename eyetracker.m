@@ -26,6 +26,7 @@ classdef eyetracker < handle
                 p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
                 p.addRequired('EDFName', @(x) ischar(x) && ~isempty(x) && length(x) < 9);
                 p.addRequired('Window', @(x) isscalar(x));
+                p.addParameter('DoSetup', true, @(x) islogical(x));
                 p.addParameter('Verbose', 0, @(x) isscalar(x) && isnumeric(x) && x>=0);
                 p.parse(mode, screen_dimensions, screen_distance, name, window, varargin{:});
             catch ME
@@ -46,14 +47,30 @@ classdef eyetracker < handle
             if obj.DummyMode
                 fprintf('Using eyetracker in dummy mode.\n');
             else
-                obj.eyelink_setup();
+                obj.eyelink_setup(p.Results.DoSetup);
             end
         end
-        
+
+        % Destructor. Since this is a handle class, this method is called
+        % whenever tracker object is destroyed (including when script
+        % crashes and you still have a living eyetracker object, so the
+        % link is closed and the tracker is left in a usable state). 
         function delete(~)
             Eyelink('Shutdown');
         end
-        
+
+        % Move the edf file from the tracker to the local machine. The
+        % 'name_or_path' arg is either a filename (is_path==0) or a
+        % pathname (is_path==1).
+        function szBytes = receive_file(obj, name_or_path, is_path)
+            szBytes = Eyelink('ReceiveFile', obj.Name, name_or_path, is_path);
+        end
+
+
+
+
+        % For those inscrutable eyelink commands. See docs, I don;t have 
+        % much to say about this. 
         function [] = command(obj, formatstring, varargin)
             %command Issues Eyelink('Command', cmdString) if not in dummy
             %mode. In dummy mode, nothing happens.
@@ -64,7 +81,8 @@ classdef eyetracker < handle
                 fprintf(1, 'Eyelink Command: %s', sprintf(formatstring, varargin{:}));
             end
         end
-        
+
+        % Put message into EDF file (this is for markers, by the way).
         function [] = message(obj, formatstring, varargin)
             %command Issues Eyelink('Command', cmdString) if not in dummy
             %mode. In dummy mode, nothing happens.
@@ -73,6 +91,30 @@ classdef eyetracker < handle
                 Eyelink('Message', formatstring, varargin{:});
             elseif obj.Verbose
                 fprintf(1, 'No Eyelink(Message) in dummy mode: %s', cmdString);
+            end
+        end
+
+        % Initiate drift correction for item already drawn at (x,y). In
+        % other words, draw something at (x,y), then call this. Have
+        % subject look at the thing you drew, and when the eye stabilizes,
+        % click "Accept Fixation". 
+        function drift_correct(obj, x, y)
+            %drift_correct(obj, x, y) Do drift correct for (already drawn)
+            %item at x,y
+            if ~obj.DummyMode
+                obj.command('driftcorrect_cr_disable = OFF');
+                obj.command('online_dcorr_button = OFF');
+                obj.command('normal_click_dcorr = OFF');
+                EyelinkDoDriftCorrect(obj.EyelinkDefaults, x, y, 0, 0);
+            end
+        end
+
+        % Initiate tracker "Camera Setup" mode. Blocks until "Exit Setup"
+        % is clicked on the tracker.
+        function do_tracker_setup(obj)
+            if ~obj.DummyMode
+                % Put EyeLink Host PC in Camera Setup mode for participant setup/calibration
+                EyelinkDoTrackerSetup(obj.EyelinkDefaults);
             end
         end
 
@@ -135,7 +177,10 @@ classdef eyetracker < handle
             end
 
         end
-    
+
+        % Check if eye pos is in any of a series or rects. Rects should
+        % come as 4xN array, each column is a rect. A 1xN row vector of 1/0
+        % is returned - each rect is checked. 
         function S = saccade(obj, R)
             if size(R,1) ~= 4
                 exception = MException('eyetracker.saccade', 'input should be 4xN array of rects');
@@ -148,39 +193,33 @@ classdef eyetracker < handle
             end
         end
 
+
+        % clear TRACKER screeen to color c (an int, see docs)
         function clear_screen(obj, c)
             if ~obj.DummyMode
                 obj.command('clear_screen %d', c);
             end
         end
 
+        % draw box on tracker screen
         function draw_box(obj, x1, y1, x2, y2, c)
             if ~obj.DummyMode
                 obj.command('draw_box %ld %ld %ld %ld %ld', round(x1), round(y1), round(x2), round(y2), c);
             end
         end
 
+        % draw cross on tracker screen
         function draw_cross(obj, x, y, c)
             if ~obj.DummyMode
                 obj.command('draw_cross %ld %ld %ld', round(x), round(y), c);
             end
         end
 
-        function drift_correct(obj, x, y)
-            %drift_correct(obj, x, y) Do drift correct for (already drawn)
-            %item at x,y
-            if ~obj.DummyMode
-                obj.command('driftcorrect_cr_disable = OFF');
-                %obj.command('online_dcorr_refposn 960, 540');
-                obj.command('online_dcorr_button = OFF');
-                obj.command('normal_click_dcorr = OFF');
-                EyelinkDoDriftCorrect(obj.EyelinkDefaults, x, y, 0, 0);
-            end
-        end
+
     end
     
     methods (Access = private)
-        function eyelink_setup(obj)
+        function eyelink_setup(obj,doSetup)
             [result, ~] = EyelinkInit(obj.DummyMode);
             if ~result
                 errID = 'eyetracker:eyelink_setup';
@@ -269,7 +308,10 @@ classdef eyetracker < handle
                 obj.command('clear_screen 0');
 
                 % Put EyeLink Host PC in Camera Setup mode for participant setup/calibration
-                EyelinkDoTrackerSetup(obj.EyelinkDefaults);
+                if doSetup
+                    % This just calls eyelink camera setup mode
+                    obj.do_tracker_setup();
+                end
             end
         end
     end

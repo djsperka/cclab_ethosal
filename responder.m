@@ -16,7 +16,7 @@ classdef responder < handle
             tPressed = -1;
             while ~bDone && KbEventAvail(obj.DevIndex) 
                 [event, ~] = KbEventGet(obj.DevIndex);
-                fprintf('code %3d pressed %d t %f\n', event.Keycode, event.Pressed, event.Time);
+                %fprintf('code %3d pressed %d t %f\n', event.Keycode, event.Pressed, event.Time);
                 if event.Pressed
                     bDone = true;
                     keyPressed = true;
