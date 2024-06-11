@@ -32,6 +32,61 @@ results=etholog(trials, imgbw, [600, 1000], 'ImageChangeType', 'contrast', 'Eyel
 
 ## Utilities
 
+### eyetracker
+
+Encapsulation of Eyelink tracker. Boilerplate code is hidden, this class initializes tracker in the same way as all the Eyelink examples, suitable for use in most lab situations. 
+
+```
+% for use with subject, set to 1 for mouse (not same as Eyelink "mouse mode")
+% When using dummy mode (==1), calls to eyepos() will return the current MOUSE position on screen.
+% This is independent of the Eyelink's mouse simulation mode! 
+dummy_mode = 0;  
+
+% dimensions of screen and screen dist, in mm
+wh = [600,300];
+dist = 900;
+
+% name is an 8 character filename (without extension) for the EDF file.
+% I think this is a throwback to the DOS days, when filenames had to
+% be 8.3 chars.
+edfname = 'myedf001';
+
+% Now make the object, and initiate "Camera Setup"
+% 'windowIndex' is the PTB window index. Yes, you have to have an open window
+% to be able to use this object!
+tracker=eyetracker(dummy_mode, wh, dist, edfname, windowIndex);
+
+% Alternative call, skipping over the Camera Setup step
+tracker=eyetracker(dummy_mode, wh, dist, edfname, windowIndex, 'DoSetup', false);
+
+% Any time you are RECORDING (in the Eyelink sense), you can observe eye position. Thus,
+% you have to call this to start the tracker recording:
+
+tracker.start_recording()
+
+% Either of these stops recording. The Eyelink uses the term "offline" for when the tracker is not recording. 
+% In other words, you only need to call one of these - they're the same.
+
+tracker.offline();
+tracker.stop_recording();
+
+% Once you're done and you want to fetch the edf file (optional), call this.
+% This is the simplest call, the file is copied to the current (matlab) folder, with the same
+% filename as that used when the eyetracker object was created.
+
+tracker.receive_file();
+
+% If you want to use the same filename, but move it in to a different folder. The second arg
+% tells if the first arg was a pathname (1) or filename (with or without a path, 0).
+
+tracker.receive_file('/home/cclab/data', 1);
+
+% To give it a folder and a different name
+
+tracker.receive_file('/home/cclab/data/newname.edf', 0);
+
+```
+
 ### makeWindow
 Its useful to be able to quickly create a window on screen. This function lets you specify the dimensions of the window, and where on your desktop you want it. 
 Below, it creates an 800x600 window at the center of the right-hand side of screen 0. (See docs for AlignRect for last two args).
