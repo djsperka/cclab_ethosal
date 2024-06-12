@@ -87,6 +87,16 @@ classdef statemgr < handle
             %current Returns the current state name.
             s=obj.Current;
         end
+
+        function [t] = currentStartedAt(obj)
+            % currentStartedAt Returns the time current state started
+            t = obj.StartedAt;
+        end
+
+        function [previousState, previousStateStartedAt] = setCurrent(obj, state)
+            % setCurrent Changes current state without changing start time.
+            [previousState, previousStateStartedAt] = obj.transitionTo(state, obj.currentStartedAt());
+        end
         
     end
 end
