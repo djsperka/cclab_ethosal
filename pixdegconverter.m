@@ -26,8 +26,6 @@ classdef pixdegconverter
             %   Detailed explanation goes here
             obj.W = rect(3);
             obj.H = rect(4);
-            nargin
-            varargin{:}
             if nargin == 2
                 obj.PPD = rect(3)/varargin{1};
                 obj.PPMM = nan;

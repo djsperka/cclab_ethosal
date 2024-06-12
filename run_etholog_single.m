@@ -3,7 +3,7 @@ function results = run_etholog_single(varargin)
 %   Detailed explanation goes here
 
     blockTypes = {'left', 'right', 'none'};
-    testingTypes = {'no-test', 'desk', 'booth'}
+    testingTypes = {'no-test', 'desk', 'booth'};
     p=inputParser;
     p.addRequired('ID', @(x) ischar(x));
     p.addRequired('lrn', @(x) ismember(x,blockTypes));
