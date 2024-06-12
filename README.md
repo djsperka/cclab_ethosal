@@ -22,6 +22,65 @@ lumDeltas = [0 10 20];
 trials=generateThreshBlock(lumbw.BalancedFileKeys, numberOfImages, 'HL', baseLumArg, lumDeltas, 1);
 ```
 
+### About the keyboard index
+
+The keyboard index is used to get input from the experimenter.
+Keystrokes can pause, quit, maybe even other stuff. 
+
+One must first solve the mystery of what your keyboard index is.
+Use this command:
+
+```
+>> [ind names allinf] = GetKeyboardIndices();
+```
+
+
+**MAC**
+On my macbook, this command gives a single index, a device with the
+name 'Apple Internal Keyboard / Trackpad'. I use this index with my
+macbook (testing only) and it works fine. 
+
+
+**LINUX (ubuntu 22.04.4)**
+
+On the linux desktop, use the command ***xinput -list***:
+```
+dan@bucky:~/git/cclab_ethosal$ xinput -list
+⎡ Virtual core pointer                    	id=2	[master pointer  (3)]
+⎜   ↳ Virtual core XTEST pointer              	id=4	[slave  pointer  (2)]
+⎜   ↳ Logitech USB Trackball                  	id=10	[slave  pointer  (2)]
+⎣ Virtual core keyboard                   	id=3	[master keyboard (2)]
+    ↳ Virtual core XTEST keyboard             	id=5	[slave  keyboard (3)]
+    ↳ Power Button                            	id=6	[slave  keyboard (3)]
+    ↳ Power Button                            	id=7	[slave  keyboard (3)]
+    ↳ Sleep Button                            	id=8	[slave  keyboard (3)]
+    ↳ Dell Dell USB Keyboard                  	id=9	[slave  keyboard (3)]
+```
+
+Your keyboard is listed as one of the "slave keyboard" entries. In particular, the name listed for your keyboard, 
+here it is **Dell Dell USB Keyboard**, is important. The ***id=#*** values are NOT the same as the indices used in PTB. 
+You need to run the ***GetKeyboardIndices*** command in Matlab.
+
+```
+>> [ind names allinf] = GetKeyboardIndices();
+```
+
+This is the contents of 'names':
+```
+>> names
+
+names =
+
+  1×5 cell array
+
+    {'Virtual core XTEST key…'}    {'Power Button'}    {'Power Button'}    {'Sleep Button'}    {'Dell Dell USB Keyboard'}
+```
+
+Your task is to decide which of the 'names' best describes your
+keyboard. In my case, the name matches exactly what is listed in the
+***xinput*** command output, so I use the index at position 5 in the 
+ind() array (from GetKeyboardIndices): for me ind(5) is 7, and I use
+7 as my keyboard index. 
 
 ### Run
 
