@@ -5,7 +5,7 @@ function [results] = ethologSingleTest(varargin)
     experimentStartTime = GetSecs;
     
 
-%% deal with input arguments
+%% Create a parser and parse input arguments
     p = inputParser;
     
     p.addRequired('Trials', @(x) istable(x));
@@ -52,58 +52,11 @@ function [results] = ethologSingleTest(varargin)
     % make an annoying beep telling subject right/wrong response
     p.addParameter('Beep', false, @(x) islogical(x));
     
-    % The keyboard index is used to get input from the experimenter.
-    % Keystrokes can pause, quit, maybe even other stuff. 
-    % 
-    % One must first solve the mystery of what your keyboard index is.
-    % Use this command:
-    % >> [ind names allinf] = GetKeyboardIndices();
-    %
-    % MAC
-    %
-    % On my macbook, this command gives a single index, a device with the
-    % name 'Apple Internal Keyboard / Trackpad'. I use this index with my
-    % macbook (testing only) and it works fine. 
-    %
-    %
-    % LINUX (ubuntu 22.04.4)
-    %
-    % On my linux desktop, here is the output of xinput -list:
-    %
-    %     dan@bucky:~/git/cclab_ethosal$ xinput -list
-    %     ⎡ Virtual core pointer                    	id=2	[master pointer  (3)]
-    %     ⎜   ↳ Virtual core XTEST pointer              	id=4	[slave  pointer  (2)]
-    %     ⎜   ↳ Logitech USB Trackball                  	id=10	[slave  pointer  (2)]
-    %     ⎣ Virtual core keyboard                   	id=3	[master keyboard (2)]
-    %         ↳ Virtual core XTEST keyboard             	id=5	[slave  keyboard (3)]
-    %         ↳ Power Button                            	id=6	[slave  keyboard (3)]
-    %         ↳ Power Button                            	id=7	[slave  keyboard (3)]
-    %         ↳ Sleep Button                            	id=8	[slave  keyboard (3)]
-    %         ↳ Dell Dell USB Keyboard                  	id=9	[slave  keyboard (3)]
-    %
-    % Your keyboard is listed as one of the "slave keyboard" entries. 
-    % When I run (in Matlab) GetKeyboardIndices:
-    %
-    % >> [ind names allinf] = GetKeyboardIndices();
-    % 
-    % This is the contents of 'names':
-    %     >> names
-    %     
-    %     names =
-    %     
-    %       1×5 cell array
-    %     
-    %         {'Virtual core XTEST key…'}    {'Power Button'}    {'Power Button'}    {'Sleep Button'}    {'Dell Dell USB Keyboard'}
-    % 
-    % Your task is to decide which of the 'names' best describes your
-    % keyboard. In my case, the name matches exactly what is listed in the
-    % 'xinput' command output, so I use the index at position 5 in the 
-    % ind() array (from GetKeyboardIndices): for me ind(5) is 7, and I use
-    % 7 as my keyboard index. 
-    %
-
+    % keyboard index is needed for experimenter controls during the expt.
+    % See docs for details.
     p.addParameter('KeyboardIndex', 0, @(x) isscalar(x));
 
+    % Now parse the input arguments
     p.parse(varargin{:});
 
     % fetch some stuff from the results
@@ -135,7 +88,10 @@ function [results] = ethologSingleTest(varargin)
     fprintf('\n*** Using output filename %s\n', outputFilename);
 
 
-    % Init ptb, set preferences. 
+
+
+    %% Initialize PTB and associated things
+    % PTB defaults
     PsychDefaultSetup(2);
     Screen('Preference', 'SkipSyncTests', p.Results.SkipSyncTests);
     
@@ -175,19 +131,21 @@ function [results] = ethologSingleTest(varargin)
     trackerFilename = 'etholog';
     tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.ScreenWH, p.Results.ScreenDistance, trackerFilename, windowIndex, 'Verbose', ourVerbosity);
     
-    %% Now start the experiment. 
+    %% Initialize experimental parameters
     
     stateMgr = statemgr('START', ourVerbosity>0);
     bQuit = false;
     bkgdColor = [.5 .5 .5];
 
-    % Convert values for display. Note that stim rect is
-    % generated on the fly, in case of different sizes. 
+    % Diameter of fixation point/cross in pixels
     fixDiamPix = converter.deg2pix(p.Results.FixptDiam);
+
+    % on-screen position of fixation (center) point. deg2scr converts to
+    % screen-pixel values (where 0,0 is upper left corner, y positive down.
     fixXYScr = converter.deg2scr(p.Results.FixptXY);
-    % row 1 = x values, row2 = y values
-    % first (second) column: start(end) of first segment
-    % and so on
+
+    % Lines for the fixation "+" sign. The array fixLines has x,y values in
+    % columns, one column for each line segment.
     fixLines = [ ...
         fixXYScr(1) + fixDiamPix/2, fixXYScr(2); ...
         fixXYScr(1) - fixDiamPix/2, fixXYScr(2); ...
@@ -196,15 +154,20 @@ function [results] = ethologSingleTest(varargin)
         ]';
     stim1XYScr = converter.deg2scr(p.Results.Stim1XY);
     stim2XYScr = converter.deg2scr(p.Results.Stim2XY);
+
+    % Fixation window. The rect will be used with the eyetracker to test
+    % for looking/not-looking
     fixWindowDiamPix = converter.deg2pix(p.Results.FixptWindowDiam);
     fixWindowRect = CenterRectOnPoint([0 0 fixWindowDiamPix fixWindowDiamPix], fixXYScr(1), fixXYScr(2));
     
     
-    % The number of trials to run. Unless you set 'NumTrials' on command
-    % line, we run all trials in cclab.trials. 
+    % The number of trials to run.
     NumTrials = height(p.Results.Trials);
-    results = p.Results.Trials;
     itrial = 1;
+
+    % All trial parameters are contained in results. Also put
+    % results/timestamps/responses/etc in same table.
+    results = p.Results.Trials;
 
     % start kbd queue now
     KbQueueStart(p.Results.KeyboardIndex);
@@ -218,6 +181,8 @@ function [results] = ethologSingleTest(varargin)
     % Use this for managing pauses
     bPausePending = false;
 
+
+    %% Start trial loop
     while ~bQuit && ~strcmp(stateMgr.Current, 'DONE')
         
         
@@ -275,20 +240,23 @@ function [results] = ethologSingleTest(varargin)
                     
         switch stateMgr.Current
             case 'START'
+
+                % In this state, initialize parameters, textures, etc that
+                % are unique to this trial. 
+
                 % get a struct with just trial params.  
                 trial = table2struct(results(itrial, :));
-                % if (ourVerbosity > -1)
-                %     fprintf('etholog: START trial %d images %s %s chgtype %d delta %f\n', itrial, trial.Stim1Key, trial.Stim2Key, trial.StimChangeType, trial.Delta);
-                % end
 
-                % get textures ready for this trial
+                % textures for this trial. The 'a' textures (tex1a, tex2a)
+                % are shown first.
                 tex1a = images.texture(windowIndex, trial.Stim1Key, @(x) imageBaseFunc(x, trial.Base));
                 tex2a = images.texture(windowIndex, trial.Stim2Key, @(x) imageBaseFunc(x, trial.Base));
                 stim1Rect = CenterRectOnPoint(images.rect(trial.Stim1Key), stim1XYScr(1), stim1XYScr(2));
                 stim2Rect = CenterRectOnPoint(images.rect(trial.Stim2Key), stim2XYScr(1), stim2XYScr(2));
 
-                % StimTestType is the stim (1=left, 2=right) which appears
-                % during test phase.
+                % The 'b' textures are shown in the test phase. StimTestType 
+                % is the stim (1=left, 2=right) which appears during test phase.
+                % The other stim is blank.
                 switch trial.StimTestType
                     case 1
                         % Left stim will appear. Will it change?
@@ -302,7 +270,6 @@ function [results] = ethologSingleTest(varargin)
                         end
                         tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageChangeFunc(x, c));
                         tex2b = images.texture(windowIndex, 'BKGD');
-                        %if (ourVerbosity > -1); fprintf('etholog: Change L by %d\n', trial.Delta); end
                     case 2
                         % Right stim will appear. Will it change?
                         switch trial.StimChangeType
@@ -315,7 +282,6 @@ function [results] = ethologSingleTest(varargin)
                         end
                         tex1b = images.texture(windowIndex, 'BKGD');
                         tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageChangeFunc(x, c));
-                        %if (ourVerbosity > -1); fprintf('etholog: Change R by %d\n', trial.Delta); end
                     otherwise
                         error('StimTestType can only be 1 or 2');
                 end
@@ -329,12 +295,12 @@ function [results] = ethologSingleTest(varargin)
                 tracker.start_recording();
 
             case 'DRAW_FIXPT'
-                % fixpt only
+                % Draw fixation cross on screen
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
                 Screen('Flip', windowIndex);
 
-                % draw fixpt and box
+                % Draw cross and box on tracker screen
                 tracker.draw_cross(fixXYScr(1), fixXYScr(2), 15);
                 tracker.draw_box(fixWindowRect(1), fixWindowRect(2), fixWindowRect(3), fixWindowRect(4), 15);
 
@@ -356,6 +322,7 @@ function [results] = ethologSingleTest(varargin)
                     stateMgr.transitionTo('FIXATION_BREAK_EARLY');
                 end
             case 'FIXATION_BREAK_EARLY'
+                % clear screen, then wait for a little bit
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('Flip', windowIndex);
                 stateMgr.transitionTo('FIXATION_BREAK_EARLY_WAIT');
@@ -364,13 +331,13 @@ function [results] = ethologSingleTest(varargin)
                     stateMgr.transitionTo('DRAW_FIXPT');
                 end
             case 'DRAW_A'
+                % draw textures, cues if used, and fixation cross on
+                % screen.
                 Screen('FillRect', windowIndex, bkgdColor);
                 Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
                 if p.Results.UseCues
                     Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
                 end
-
-                % Note - convert fixpt from oval to cross. 
                 Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
 
                 % draw boxes for images on tracker
