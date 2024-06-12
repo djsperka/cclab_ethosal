@@ -98,6 +98,8 @@ function results = run_etholog_single(varargin)
 
 %      [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(100:109), [2,2,2,2]', .78, .16, 'SampTime', 1.0, 'TestTime', 1.0);
 %      save('input/contrast_60_single_DEMO_LONG_a.mat', 'blocks', 'inputArgs', 'parsedResults')
+%
+%      trials = generateThreshBlock(imgbw.BalancedFileKeys, 5, 'HL', .8, [0, .04, .08, .12], 1);
 
 
 
