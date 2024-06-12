@@ -16,9 +16,10 @@ function t = generateThreshBlock(varargin)
     p.addOptional('MaxAcquisitionTime', 2.0, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('FixationBreakEarlyTime', 0.5, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('FixationBreakLateTime', 2.0, @(x) isnumeric(x) && length(x)<3);
-    p.addOptional('SampTime', [1.0, 2.0], @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('SampTime', 0.4, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('RespTime', 2.0, @(x) isnumeric(x) && length(x)<3);
-    p.addOptional('GapTime', 0.25, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('GapTime', 0.2, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('TestTime', 0.4, @(x) isnumeric(x) && length(x)<3);
 
     p.parse(varargin{:});
 
@@ -56,6 +57,9 @@ function t = generateThreshBlock(varargin)
     t.Stim2Key=imageset.make_keys(t.RType, t.ImageKey);
     nTrials = height(t);
 
+    % StimPairType - needed for     etholog, but not really.
+    t.StimPairType = char(strcat(t.LType, t.RType));
+
     % base value
     t.Base = generateColumn(nTrials, p.Results.Base);
 
@@ -63,6 +67,7 @@ function t = generateThreshBlock(varargin)
     t.StimChangeType = generateColumn(nTrials, p.Results.ChangeType);
     t.StimChangeType(t.Delta == 0) = 0;
 
+    t.StimTestType = generateColumn(nTrials, p.Results.ChangeType);
     t.FixationTime = generateColumn(nTrials, p.Results.FixationTime);
     t.MaxAcquisitionTime = generateColumn(nTrials, p.Results.MaxAcquisitionTime);
     t.FixationBreakEarlyTime = generateColumn(nTrials, p.Results.FixationBreakEarlyTime);
@@ -70,6 +75,7 @@ function t = generateThreshBlock(varargin)
     t.SampTime = generateColumn(nTrials, p.Results.SampTime);
     t.GapTime = generateColumn(nTrials, p.Results.GapTime);
     t.RespTime = generateColumn(nTrials, p.Results.RespTime);
+    t.TestTime = generateColumn(nTrials, p.Results.TestTime);
 
 end
 
