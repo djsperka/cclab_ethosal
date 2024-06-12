@@ -394,28 +394,23 @@ function [results] = ethologSingleTest(varargin)
                 if strcmp(subjectResponseType, 'MilliKey')
                     millikey.start();
                 end
-
-                stateMgr.transitionTo('WAIT_B');
-            case 'WAIT_B'
-                if stateMgr.timeInState() >= trial.TestTime
-                    stateMgr.transitionTo('START_RESPONSE');
-                elseif ~tracker.is_in_rect(fixWindowRect)
-                    stateMgr.transitionTo('FIXATION_BREAK_LATE');
-                end
-            case 'START_RESPONSE'
-                % clear screen
-                Screen('FillRect', windowIndex, bkgdColor);
-                [ results.tBoff(itrial) ] = Screen('Flip', windowIndex);
-                stateMgr.transitionTo('WAIT_RESPONSE');
-            case 'WAIT_RESPONSE'
+                stateMgr.transitionTo('WAIT_RESPONSE_WITH_B');
+%                 stateMgr.transitionTo('WAIT_B');
+%             case 'WAIT_B'
+%                 if stateMgr.timeInState() >= trial.TestTime
+%                     stateMgr.transitionTo('START_RESPONSE');
+%                 elseif ~tracker.is_in_rect(fixWindowRect)
+%                     stateMgr.transitionTo('FIXATION_BREAK_LATE');
+%                 end
+%             case 'START_RESPONSE'
+%                 % clear screen
+%                 Screen('FillRect', windowIndex, bkgdColor);
+%                 [ results.tBoff(itrial) ] = Screen('Flip', windowIndex);
+%                 stateMgr.transitionTo('WAIT_RESPONSE_WITH_B');
+            case {'WAIT_RESPONSE_WITH_B', 'WAIT_RESPONSE'}
                 response = 0;
                 tResp = 0;
 
-               
-                % TODO - more accuracy w/r/to the response time would be
-                % good. That will change when we nail down what to use as a
-                % response device. 
-                
                 isResponse = false;
                 switch subjectResponseType
                     case 'Saccade'
@@ -431,8 +426,8 @@ function [results] = ethologSingleTest(varargin)
                         [isResponse, response, tResp] = millikey.response();
                 end
                 if isResponse
+                    fprintf('Response in %s\n', stateMgr.Current);
                     stateMgr.transitionTo('TRIAL_COMPLETE');
-                    %if (ourVerbosity > -1); fprintf('etholog: TRIAL_COMPLETE response %d dt %f\n', response, tResp - stateMgr.StartedAt); end
                     if strcmp(subjectResponseType, 'MilliKey')
                         millikey.stop(true);
                     end
@@ -451,12 +446,26 @@ function [results] = ethologSingleTest(varargin)
                             beeper.incorrect();
                         end
                     end
-                elseif stateMgr.timeInState() >= trial.RespTime
-                    stateMgr.transitionTo('TRIAL_COMPLETE');
-                    results.iResp(itrial) = -3;
-                    results.tResp(itrial) = -1;
-                elseif ~tracker.is_in_rect(fixWindowRect)
-                    stateMgr.transitionTo('FIXATION_BREAK_LATE');
+                else
+                    switch stateMgr.Current
+                        case 'WAIT_RESPONSE_WITH_B'
+                            if ~tracker.is_in_rect(fixWindowRect)
+                                stateMgr.transitionTo('FIXATION_BREAK_LATE');
+                            elseif stateMgr.timeInState() >= trial.TestTime
+                                % still waiting for response, but clear screen
+                                Screen('FillRect', windowIndex, bkgdColor);
+                                Screen('Flip', windowIndex);
+                                stateMgr.setCurrent('WAIT_RESPONSE');
+                            end
+                        case 'WAIT_RESPONSE'
+                            if stateMgr.timeInState() >= trial.RespTime
+                                stateMgr.transitionTo('TRIAL_COMPLETE');
+                                results.iResp(itrial) = -3;
+                                results.tResp(itrial) = -1;
+                            end
+                        otherwise
+                            error('unhandled state while waiting for response');
+                    end
                 end
             case 'TRIAL_COMPLETE'
 
@@ -482,10 +491,6 @@ function [results] = ethologSingleTest(varargin)
                 if (ourVerbosity > -1)
                     fprintf('etholog: trial %d pair %s test %d chgtype %d resp %d delta %f\n', itrial, results.StimPairType(itrial), results.StimTestType(itrial), results.StimChangeType(itrial), results.iResp(itrial), results.Delta(itrial));
                 end
-                % Get next trial. If the trial queue his been emptied, then
-                % re-populate it with the indices of trials that have not
-                % yet been completed. 
-
                 
                 % increment trial
                 itrial = itrial + 1;
