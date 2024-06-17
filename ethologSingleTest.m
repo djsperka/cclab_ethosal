@@ -334,8 +334,16 @@ function [results] = ethologSingleTest(varargin)
                     % Because there will be two gabors on every trial,  we 
                     % only care about ChangeType, not TestType.
                     GaborParams.contrast = trial.Delta;
-                    tex1b = GaborTex;
-                    tex2b = GaborTex;
+                    switch trial.StimTestType
+                        case 1
+                            tex1b = GaborTex;
+                            tex2b = images.texture(windowIndex, 'BKGD');
+                        case 2
+                            tex1b = images.texture(windowIndex, 'BKGD');
+                            tex2b = GaborTex;
+                        otherwise
+                            error('StimTestType must be 1 or 2');
+                    end
                     switch trial.StimChangeType
                         case 0
                             GaborOri = [0, 0];
