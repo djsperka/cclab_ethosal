@@ -2,7 +2,7 @@ function results = run_etholog_single(varargin)
 %run_etholog_single Run etholog for a specific block
 %   Detailed explanation goes here
 
-    blockTypes = {'left', 'right', 'none'};
+    blockTypes = {'left', 'right', 'none', 'thr'};
     testingTypes = {'no-test', 'desk', 'booth'};
     p=inputParser;
     p.addRequired('ID', @(x) ischar(x));
@@ -11,6 +11,7 @@ function results = run_etholog_single(varargin)
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Inside', false, @(x) islogical(x));
     p.addParameter('Trials', [], @(x) istable(x));
+    p.addParameter('GaborTest', false, @(x) islogical(x));
     p.parse(varargin{:});
 
     blockIndex = find(ismember(blockTypes, lower(p.Results.lrn)));
@@ -119,6 +120,7 @@ function results = run_etholog_single(varargin)
                                 'KeyboardIndex', kbind, ...
                                 'Beep', true, ...
                                 'EyelinkDummyMode', eyelinkDummyMode, ...
-                                'SkipSyncTests', 1);
+                                'SkipSyncTests', 1, ...
+                                'GaborTest', p.Results.GaborTest);
 end
     %save('/home/cclab/Desktop/ethosal/output/jodi-240-a.mat', 'results');
