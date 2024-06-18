@@ -166,7 +166,13 @@ function [results] = ethologSingleTest(varargin)
         % need height and width of images in imageset
         rectTemp = images.UniformOrFirstRect;
         GaborTex = CreateProceduralGabor(windowIndex, RectWidth(rectTemp), RectHeight(rectTemp), 0, [0.5 0.5 0.5 0.0]);
+    else 
+        GaborTex = -1;
     end
+
+
+    % In general, nice to have a background texture laying around
+    BkgdTex = images.texture(windowIndex, 'BKGD');
 
 
 
@@ -308,9 +314,9 @@ function [results] = ethologSingleTest(varargin)
                         switch trial.StimTestType
                             case 1
                                 tex1b = GaborTex;
-                                tex2b = images.texture(windowIndex, 'BKGD');
+                                tex2b = BkgdTex;
                             case 2
-                                tex1b = images.texture(windowIndex, 'BKGD');
+                                tex1b = BkgdTex;
                                 tex2b = GaborTex;
                             otherwise
                                 error('StimTestType must be 1 or 2');
@@ -357,7 +363,7 @@ function [results] = ethologSingleTest(varargin)
                                     error('StimTestType is 1, StimChangeType must be 1 or 0');
                             end
                             tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageChangeFunc(x, c));
-                            tex2b = images.texture(windowIndex, 'BKGD');
+                            tex2b = BkgdTex;
                         case 2
                             % Right stim will appear. Will it change?
                             switch trial.StimChangeType
@@ -368,7 +374,7 @@ function [results] = ethologSingleTest(varargin)
                                 otherwise
                                     error('StimTestType is 2, StimChangeType must be 2 or 0');
                             end
-                            tex1b = images.texture(windowIndex, 'BKGD');
+                            tex1b = BkgdTex;
                             tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageChangeFunc(x, c));
                         otherwise
                             error('StimTestType can only be 1 or 2');
@@ -469,7 +475,6 @@ function [results] = ethologSingleTest(varargin)
                 Screen('FillRect', windowIndex, bkgdColor);
                 if p.Results.GaborTest || p.Results.GaborThresh
                     paramsTemp = struct2array(GaborParams);
-                    fprintf('Ori %d %d\n',GaborOri(1), GaborOri(2));
                     Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]', GaborOri, [], [], [], [], kPsychDontDoRotation, [paramsTemp;paramsTemp]');
                 else
                     Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
@@ -584,6 +589,7 @@ function [results] = ethologSingleTest(varargin)
 
                 % screen output update
                 if (ourVerbosity > -1)
+                    fprintf('textures %d %d %d %d\n', tex1a, tex2a, tex1b, tex2b);
                     if p.Results.GaborThresh
                         fprintf('etholog: trial %d test %d chgtype %d resp %d delta %f\n', itrial, results.StimTestType(itrial), results.StimChangeType(itrial), results.iResp(itrial), results.Delta(itrial));
                     elseif p.Results.GaborTest
@@ -608,11 +614,12 @@ function [results] = ethologSingleTest(varargin)
                 end
 
                 % free textures, but not gabor textures.
-                if p.Results.GaborTest || p.Results.GaborThresh
-                    Screen('Close', unique([tex1a, tex2a]));
-                else
-                    Screen('Close', unique([tex1a, tex2a, tex1b, tex2b]));
-                end
+                Screen('Close', unique(setdiff([tex1a, tex2a, tex1b, tex2b], [GaborTex, BkgdTex])));
+                % if p.Results.GaborTest || p.Results.GaborThresh
+                %     Screen('Close', unique([tex1a, tex2a]));
+                % else
+                %     Screen('Close', unique([tex1a, tex2a, tex1b, tex2b]));
+                % end
                 
             case 'WAIT_ITI'
                 if stateMgr.timeInState() >= p.Results.ITI
