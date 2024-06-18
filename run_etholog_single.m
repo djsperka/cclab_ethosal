@@ -11,6 +11,7 @@ function results = run_etholog_single(varargin)
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Inside', false, @(x) islogical(x));
     p.addParameter('Trials', [], @(x) istable(x));
+    p.addParameter('GaborThresh', false, @(x) islogical(x));
     p.addParameter('GaborTest', false, @(x) islogical(x));
     p.parse(varargin{:});
 
@@ -121,6 +122,7 @@ function results = run_etholog_single(varargin)
                                 'Beep', true, ...
                                 'EyelinkDummyMode', eyelinkDummyMode, ...
                                 'SkipSyncTests', 1, ...
+                                'GaborThresh', p.Results.GaborThresh, ...
                                 'GaborTest', p.Results.GaborTest);
 end
     %save('/home/cclab/Desktop/ethosal/output/jodi-240-a.mat', 'results');
