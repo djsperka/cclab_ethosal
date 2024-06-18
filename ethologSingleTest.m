@@ -329,11 +329,11 @@ function [results] = ethologSingleTest(varargin)
                     end                        
                     switch trial.StimChangeType
                         case 0
-                            GaborOri = [0, 0];
+                            GaborOri = [90, 90];
                         case 1
-                            GaborOri = [90, 0];
-                        case 2
                             GaborOri = [0, 90];
+                        case 2
+                            GaborOri = [90, 0];
                         otherwise
                             error('StimTestType can only be 0, 1, or 2');
                     end
@@ -469,6 +469,7 @@ function [results] = ethologSingleTest(varargin)
                 Screen('FillRect', windowIndex, bkgdColor);
                 if p.Results.GaborTest || p.Results.GaborThresh
                     paramsTemp = struct2array(GaborParams);
+                    fprintf('Ori %d %d\n',GaborOri(1), GaborOri(2));
                     Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]', GaborOri, [], [], [], [], kPsychDontDoRotation, [paramsTemp;paramsTemp]');
                 else
                     Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
