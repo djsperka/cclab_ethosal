@@ -12,6 +12,7 @@ function results = run_etholog_single(varargin)
     p.addParameter('Inside', false, @(x) islogical(x));
     p.addParameter('Trials', [], @(x) istable(x));
     p.addParameter('GaborThresh', false, @(x) islogical(x));
+    p.addParameter('ImageThresh', false, @(x) islogical(x));
     p.addParameter('GaborTest', false, @(x) islogical(x));
     p.parse(varargin{:});
 
