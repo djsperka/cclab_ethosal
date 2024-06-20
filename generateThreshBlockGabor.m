@@ -1,4 +1,4 @@
-function t = generateThreshBlockGabor(varargin)
+function trialsOrBlocks = generateThreshBlockGabor(varargin)
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -14,6 +14,7 @@ function t = generateThreshBlockGabor(varargin)
     p.addOptional('RespTime', 2.0, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('GapTime', 0.2, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('TestTime', 0.4, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('NumBlocks', 1, @(x) isnumeric(x) && x>0);
 
     p.parse(varargin{:});
 
@@ -43,42 +44,60 @@ function t = generateThreshBlockGabor(varargin)
     names{5} = 'Delta';
     
     multiplicities = [p.Results.NumImages, 2, 2, 2, length(p.Results.Deltas)];
-    t = randomizeParams(multiplicities, 'VariableNames', names, 'Replacements', reps);
+    trialsOrBlocks = randomizeParams(multiplicities, 'VariableNames', names, 'Replacements', reps);
  
     % StimKeys
-    t.Stim1Key = imageset.make_keys(t.FolderKey, t.ImageKey);
-    t.Stim2Key = t.Stim1Key;
-    t.Stim1Key(t.StimTestType==2) = {'BKGD'};
-    t.Stim2Key(t.StimTestType==1) = {'BKGD'};
+    trialsOrBlocks.Stim1Key = imageset.make_keys(trialsOrBlocks.FolderKey, trialsOrBlocks.ImageKey);
+    trialsOrBlocks.Stim2Key = trialsOrBlocks.Stim1Key;
+    trialsOrBlocks.Stim1Key(trialsOrBlocks.StimTestType==2) = {'BKGD'};
+    trialsOrBlocks.Stim2Key(trialsOrBlocks.StimTestType==1) = {'BKGD'};
     
     % StimChangeType
-    nTrials = height(t);
-    t.StimChangeType = zeros(nTrials, 1);
-    t.StimChangeType(t.StimTestType==1 & t.TestOri==90) = 1;
-    t.StimChangeType(t.StimTestType==2 & t.TestOri==90) = 2;
+    nTrials = height(trialsOrBlocks);
+    trialsOrBlocks.StimChangeType = zeros(nTrials, 1);
+    trialsOrBlocks.StimChangeType(trialsOrBlocks.StimTestType==1 & trialsOrBlocks.TestOri==90) = 1;
+    trialsOrBlocks.StimChangeType(trialsOrBlocks.StimTestType==2 & trialsOrBlocks.TestOri==90) = 2;
     
     % base value
-    t.Base = generateColumn(nTrials, 100);
+    trialsOrBlocks.Base = generateColumn(nTrials, 100);
 
     % etc
-    t.FixationTime = generateColumn(nTrials, p.Results.FixationTime);
-    t.MaxAcquisitionTime = generateColumn(nTrials, p.Results.MaxAcquisitionTime);
-    t.FixationBreakEarlyTime = generateColumn(nTrials, p.Results.FixationBreakEarlyTime);
-    t.FixationBreakLateTime = generateColumn(nTrials, p.Results.FixationBreakLateTime);
-    t.SampTime = generateColumn(nTrials, p.Results.SampTime);
-    t.GapTime = generateColumn(nTrials, p.Results.GapTime);
-    t.RespTime = generateColumn(nTrials, p.Results.RespTime);
-    t.TestTime = generateColumn(nTrials, p.Results.TestTime);
+    trialsOrBlocks.FixationTime = generateColumn(nTrials, p.Results.FixationTime);
+    trialsOrBlocks.MaxAcquisitionTime = generateColumn(nTrials, p.Results.MaxAcquisitionTime);
+    trialsOrBlocks.FixationBreakEarlyTime = generateColumn(nTrials, p.Results.FixationBreakEarlyTime);
+    trialsOrBlocks.FixationBreakLateTime = generateColumn(nTrials, p.Results.FixationBreakLateTime);
+    trialsOrBlocks.SampTime = generateColumn(nTrials, p.Results.SampTime);
+    trialsOrBlocks.GapTime = generateColumn(nTrials, p.Results.GapTime);
+    trialsOrBlocks.RespTime = generateColumn(nTrials, p.Results.RespTime);
+    trialsOrBlocks.TestTime = generateColumn(nTrials, p.Results.TestTime);
 
     % results
-    t.Started = false(nTrials, 1);
-    t.trialIndex = zeros(nTrials, 1);
-    t.Aon = generateColumn(nTrials, -1);
-    t.Aoff = generateColumn(nTrials, -1);
-    t.Bon = generateColumn(nTrials, -1);
-    t.Boff = generateColumn(nTrials, -1);
-    t.tResp = generateColumn(nTrials, -1);
-    t.iResp = -1*ones(nTrials, 1);
+    trialsOrBlocks.Started = false(nTrials, 1);
+    trialsOrBlocks.trialIndex = zeros(nTrials, 1);
+    trialsOrBlocks.Aon = generateColumn(nTrials, -1);
+    trialsOrBlocks.Aoff = generateColumn(nTrials, -1);
+    trialsOrBlocks.Bon = generateColumn(nTrials, -1);
+    trialsOrBlocks.Boff = generateColumn(nTrials, -1);
+    trialsOrBlocks.tResp = generateColumn(nTrials, -1);
+    trialsOrBlocks.iResp = -1*ones(nTrials, 1);
+
+
+    % checkif we need to break into blocks
+    if p.Results.NumBlocks > 1
+        % I want to make sure there's no rounding error on the last one, 
+        % so I force the last element to be the height.
+        endIndex = round(cumsum(ones(1, p.Results.NumBlocks)/p.Results.NumBlocks) * nTrials);
+        endIndex(p.Results.NumBlocks) = nTrials;    
+        blocks = cell(p.Results.NumBlocks, 1);
+        lastEnd = 0;
+        for iblock=1:p.Results.NumBlocks
+            blocks{iblock} = trialsOrBlocks(lastEnd+1:endIndex(iblock), :);
+            fprintf('Block %d has %d elements\n', iblock, height(blocks{iblock}));
+            lastEnd = endIndex(iblock);
+        end
+        trialsOrBlocks = blocks;
+    end
+
 
 
 end
