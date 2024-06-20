@@ -2,7 +2,7 @@ function results = run_etholog_single(varargin)
 %run_etholog_single Run etholog for a specific block
 %   Detailed explanation goes here
 
-    blockTypes = {'left', 'right', 'none', 'thr'};
+    blockTypes = {'left', 'right', 'none', 'thr', 'gabthr'};
     testingTypes = {'no-test', 'desk', 'booth'};
     p=inputParser;
     p.addRequired('ID', @(x) ischar(x));
@@ -82,7 +82,15 @@ function results = run_etholog_single(varargin)
     
     % load trial blocks
     cc=load(fullfile(input_folder, 'contrast_60_single_a_lrn_12.mat'));
-    
+    if isempty(p.Results.Trials)
+        t=cc.blocks{blockIndex};
+    else
+        t=p.Results.Trials;
+    end
+
+
+
+
     % Millikey index (todo - test!)
     mkind = cclabGetMilliKeyIndices();
     
@@ -106,11 +114,6 @@ function results = run_etholog_single(varargin)
 
 
 
-    if isempty(p.Results.Trials)
-        t=cc.blocks{blockIndex};
-    else
-        t=p.Results.Trials;
-    end
 
     results=ethologSingleTest(t, img, screenDimensions, screenDistance, ...
                                 'ImageChangeType', 'contrast', ...
