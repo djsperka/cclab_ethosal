@@ -113,7 +113,17 @@ classdef eyetracker < handle
                 obj.command('driftcorrect_cr_disable = OFF');
                 obj.command('online_dcorr_button = OFF');
                 obj.command('normal_click_dcorr = OFF');
-                EyelinkDoDriftCorrect(obj.EyelinkDefaults, x, y, 0, 0);
+                % We allow setup with ESC during drift correction - the
+                % last arg below is set to 1 (0 means ESC aborts the drift
+                % correct)
+                % From the docs for EyelinkDoDriftCorrect:
+                % If the participant repeatedly fails the Drift Check, it's best to press 
+                % the "ESC" key to enter Camera Setup and recalibrate the participant. Once 
+                % you have recalibrated and validated, pressing "Output / Record" on the Host 
+                % PC will take you back to the same Drift Check where you left off without 
+                % disrupting the course of your experiment.
+
+                EyelinkDoDriftCorrect(obj.EyelinkDefaults, x, y, 0, 1);
             end
         end
 
