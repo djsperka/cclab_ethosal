@@ -1,0 +1,36 @@
+https://www.sr-research.com/support/thread-213.html?highlight=drift
+
+The Drift Correction and Drift Check procedure are very similar; 
+the participant fixates a single target, then either the participant or 
+more typically the experimenter presses a button or key and the system 
+calculates the deviation of the recorded gaze position of the participant 
+and the drift correction target. The difference between the two operations 
+is what the system does with that information subsequently.
+
+For a Drift Check, the system simply checks if the participant's gaze 
+position is < 2° of visual angle from the presented target. If so, the 
+participant may proceed with the experiment, if not the participant must 
+try again.
+
+For a Drift Correction, the system attempts to apply a linear correction 
+to the calibration model to compensate for this deviation.
+
+For the EyeLink I and II systems, an actual Drift Correction is applied by 
+default - the fixation error is used to shift the calibration map. This 
+linear adjustment often improves the overall accuracy for upcoming 
+recordings because the drift is usually caused by slippage of headband.
+
+For the EyeLink 1000, EyeLink 1000 Plus and EyeLink Portable Duo systems, 
+performing an actual Drift Correction and shifting the calibration map 
+generally does not improve gaze accuracy (in fact, it can actually reduce 
+the accuracy of your tracking if the correction was applied when the 
+participant was actually not properly fixating). Therefore, the default 
+behavior in the Pupil-CR mode in these systems is to simply report the 
+calculated fixation error without altering the calibration map in any way 
+(i.e. a Drift Check).
+
+If the participant repeatedly fails the Drift Check, it's best to press 
+the "ESC" key to enter Camera Setup and recalibrate the participant. Once 
+you have recalibrated and validated, pressing "Output / Record" on the Host 
+PC will take you back to the same Drift Check where you left off without 
+disrupting the course of your experiment.
