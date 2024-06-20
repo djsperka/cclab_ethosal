@@ -266,6 +266,19 @@ function [results] = ethologSingleTest(varargin)
                         Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
                         Screen('Flip', windowIndex);
                         tracker.drift_correct(fixXYScr(1), fixXYScr(2));
+                        
+                        % Re-generate textures that might have been cleared
+                        % by the tracker. It seems that the tracker might
+                        % clear textures during the drift correction (maybe
+                        % because they use textures for the calibration
+                        % dots?)
+                        if GaborTex > 0
+                            GaborTex = CreateProceduralGabor(windowIndex, RectWidth(rectTemp), RectHeight(rectTemp), 0, [0.5 0.5 0.5 0.0]);
+                            fprintf('Regenerated gabor texture id %d\n');
+                        end
+                        BkgdTex = images.texture(windowIndex, 'BKGD');
+                        fprintf('Regenerated background texture id %d\n');
+
                         stateMgr.transitionTo('TRIAL_COMPLETE');
                     end
                 case KbName('s')
@@ -275,6 +288,20 @@ function [results] = ethologSingleTest(varargin)
                     if strcmp(stateMgr.Current, 'WAIT_PAUSE')
                         fprintf('Entering camera setup. Hit ExitSetup to return to trials.\n');
                         tracker.do_tracker_setup();
+
+                        % Re-generate textures that might have been cleared
+                        % by the tracker. It seems that the tracker might
+                        % clear textures during the drift correction (maybe
+                        % because they use textures for the calibration
+                        % dots?)
+                        if GaborTex > 0
+                            GaborTex = CreateProceduralGabor(windowIndex, RectWidth(rectTemp), RectHeight(rectTemp), 0, [0.5 0.5 0.5 0.0]);
+                            fprintf('Regenerated gabor texture id %d\n');
+                        end
+                        BkgdTex = images.texture(windowIndex, 'BKGD');
+                        fprintf('Regenerated background texture id %d\n');
+
+                        
                         stateMgr.transitionTo('TRIAL_COMPLETE');
                     end
                 otherwise
