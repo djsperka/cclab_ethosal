@@ -1,6 +1,8 @@
 classdef imageset
     %imageset Set of images, can be made into textures (in the PTB/OpenGL 
-    %   sense of the word) at a contrast.
+    %   sense of the word). Pre- processing can be done with a
+    %   user-provided function, and processing can be done prior to
+    %   generating textures as well. 
     %   Detailed explanation goes here
     
     properties
@@ -147,6 +149,7 @@ classdef imageset
             p = inputParser;
             %addRequired(p, 'Root', @(x) ischar(x) && isdir(x));
             addRequired(p, 'Root');
+            addOptional(p,'ParamsFunc','', @(x) isfile(fullfile(p.Results.Root,[x{:},'.m'])));
             addParameter(p, 'Subfolders', {'H', {'natT', 'naturalT'}; 'L', 'texture'}, @(x) iscellstr(x) && size(x, 2)==2);
             addParameter(p, 'Extensions', {'.bmp', '.jpg', '.png'});
             addParameter(p, 'OnLoad', @deal, @(x) isa(x, 'function_handle'));  % check if isempty()
@@ -155,10 +158,39 @@ classdef imageset
             p.parse(varargin{:});
 
             obj.Root = p.Results.Root;
-            obj.Subfolders = p.Results.Subfolders;
-            obj.Extensions = p.Results.Extensions;
-            obj.OnLoadFunc = p.Results.OnLoad;
-            obj.Bkgd = p.Results.Bkgd;
+
+            % If a params func is used, load it and assign values
+            if ~isempty(p.Results.ParamsFunc)
+                currentDir=pwd;
+                cd(p.Results.Root);
+                Y=eval(p.Results.ParamsFunc{:});
+                cd(currentDir);
+            else
+                Y=struct;
+            end
+
+            if isfield(Y,'Subfolders')
+                obj.Subfolders = Y.Subfolders;
+            else
+                obj.Subfolders = p.Results.Subfolders;
+            end
+            if isfield(Y,'Extensions')
+                obj.Extensions = Y.Extensions;
+            else
+                obj.Extensions = p.Results.Extensions;
+            end
+            if isfield(Y,'OnLoadFunc')
+                obj.OnLoadFunc = Y.OnLoadFunc;
+            else
+                obj.OnLoadFunc = p.Results.OnLoad;
+            end
+            if isfield(Y,'Bkgd')
+                obj.Bkgd = Y.Bkgd;
+            else
+                obj.Bkgd = p.Results.Bkgd;
+            end
+
+            % Holds images after loading.
             obj.Images = containers.Map;
             
             % create parser for texture() function
@@ -182,7 +214,8 @@ classdef imageset
                         throw(exception);
                     end
                 end
-                add_images_from_folder(obj, fullfile(obj.Root, useSubFolderName), obj.Subfolders{i,1});
+                c = add_images_from_folder(obj, fullfile(obj.Root, useSubFolderName), obj.Subfolders{i,1});
+                fprintf('Found %d images in ''%s'' folder %s\n', c, obj.Subfolders{i,1}, fullfile(obj.Root, useSubFolderName));
             end
             
             % check key balance
@@ -213,13 +246,14 @@ classdef imageset
             end
         end
         
-        function add_images_from_folder(obj, folder, folder_key)
+        function count = add_images_from_folder(obj, folder, folder_key)
             % look at all files in the folder
             if ~isfolder(folder)
                 exception = MException('imageset:add_images_from_folder:NotAFolder', sprintf('This is not a folder: %s\n', folder));
                 throw(exception);
             end
             d=dir(folder);
+            count = 0;
             for i=1:height(d)
                 fname = fullfile(d(i).folder, d(i).name);
                 if isfile(fname)
@@ -230,6 +264,7 @@ classdef imageset
                     
                         key = imageset.make_key(folder_key, base);                        
                         obj.add_image(fname, key);
+                        count = count + 1;
 
                     else
                         fprintf('imageset - skipping file %s\n', fname);
