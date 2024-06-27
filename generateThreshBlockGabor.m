@@ -21,7 +21,7 @@ function trialsOrBlocks = generateThreshBlockGabor(varargin)
     % build replacements arrays
     % first var is image key
     reps = cell(5,1);
-    names=cell(1,5);
+    names=cell(5,1);
 
     imageIndices = randperm(length(p.Results.FileKeys), p.Results.NumImages);
     reps{1} = reshape(p.Results.FileKeys(imageIndices), p.Results.NumImages, 1);
@@ -43,8 +43,9 @@ function trialsOrBlocks = generateThreshBlockGabor(varargin)
     reps{5} = reshape(p.Results.Deltas, length(p.Results.Deltas), 1);
     names{5} = 'Delta';
     
-    multiplicities = [p.Results.NumImages, 2, 2, 2, length(p.Results.Deltas)];
-    trialsOrBlocks = randomizeParams(multiplicities, 'VariableNames', names, 'Replacements', reps);
+    % Multiplicites removed; it is inferred from the shape of reps.
+    %multiplicities = [p.Results.NumImages, 2, 2, 2, length(p.Results.Deltas)];
+    trialsOrBlocks = randomizeParams('VariableNames', names, 'Replacements', reps);
  
     % StimKeys
     trialsOrBlocks.Stim1Key = imageset.make_keys(trialsOrBlocks.FolderKey, trialsOrBlocks.ImageKey);
