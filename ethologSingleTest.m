@@ -579,7 +579,11 @@ function [results] = ethologSingleTest(varargin)
                             if ~tracker.is_in_rect(fixWindowRect)
                                 stateMgr.transitionTo('FIXATION_BREAK_LATE');
                             elseif stateMgr.timeInState() >= trial.TestTime
-                                % still waiting for response, but clear screen
+                                % still waiting for response, but clear
+                                % screen. Do a state change that doesn't
+                                % change the start time of the state - then
+                                % we can use the timeInState to test for
+                                % timeout on response.
                                 Screen('FillRect', windowIndex, bkgdColor);
                                 Screen('Flip', windowIndex);
                                 stateMgr.setCurrent('WAIT_RESPONSE');
