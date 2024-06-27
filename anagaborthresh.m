@@ -50,7 +50,7 @@ function [rates] = anagaborthresh(r)
     rates.drateChangeTrialByContrast = sum(rates.lgChangeTrialByContrast & rates.lgCorrect)./sum(rates.lgChangeTrialByContrast & rates.lgCompleted);
     rates.frateChangeTrialByContrast = sum(rates.lgNoChangeTrialByContrast & rates.lgIncorrect)./sum(rates.lgNoChangeTrialByContrast & rates.lgCompleted);
 
-    % rates by contrast for H, L
+    % rates by contrast for H
     rates.drateHChangeTrialByContrast = sum(rates.lgH & rates.lgChangeTrialByContrast & rates.lgCorrect)./sum(rates.lgH & rates.lgChangeTrialByContrast & rates.lgCompleted);
     rates.frateHChangeTrialByContrast = sum(rates.lgH & rates.lgNoChangeTrialByContrast & rates.lgIncorrect)./sum(rates.lgH & rates.lgNoChangeTrialByContrast & rates.lgCompleted);
 
@@ -62,6 +62,10 @@ function [rates] = anagaborthresh(r)
         rates.rxHChangeTrialByContrast(i) = sum(r.tResp(lgTmpHOK(:,i))-r.tBon(lgTmpHOK(:,i)))/sum(lgTmpHOK(:,i));
         rates.fxHChangeTrialByContrast(i) = sum(r.tResp(lgTmpHFA(:,i))-r.tBon(lgTmpHFA(:,i)))/sum(lgTmpHFA(:,i));
     end
+
+    % rates by contrast for L
+    rates.drateLChangeTrialByContrast = sum(rates.lgL & rates.lgChangeTrialByContrast & rates.lgCorrect)./sum(rates.lgL & rates.lgChangeTrialByContrast & rates.lgCompleted);
+    rates.frateLChangeTrialByContrast = sum(rates.lgL & rates.lgNoChangeTrialByContrast & rates.lgIncorrect)./sum(rates.lgL & rates.lgNoChangeTrialByContrast & rates.lgCompleted);
 
     % rx times for L
     rates.rxLChangeTrialByContrast = zeros(1, length(deltas));
