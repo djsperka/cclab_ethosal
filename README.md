@@ -22,6 +22,49 @@ lumDeltas = [0 10 20];
 trials=generateThreshBlock(lumbw.BalancedFileKeys, numberOfImages, 'HL', baseLumArg, lumDeltas, 1);
 ```
 
+Generate trials for gabor threshold
+
+```
+trials=generateThreshBlockGabor(img.BalancedFileKeys, 30, [2,4,6,8],'TestTime',0.1);
+```
+
+Generate trials for processed images. 
+
+Several things are hard-coded in this script, including 
+
+```
+    deltas = [-20;-10;0;10;20];
+```
+
+The imageset uses a newfangled params.m file in its Root folder. That file
+maps the folders to folder keys. The images are divided into two groups, 
+'Texture' and 'Natural'. Each of those groups is further divided into a contrast
+reduced image. The folder names indicate the contrast change from the original.
+
+In this thresh test, we will change the contrasts both up and down from a 
+central base value. To accomplish this, the subfolders are mapped to a set of 
+characters so that their alphabetical order is also the order of increasing contrast.
+
+```
+function Y = params()
+    Y.Subfolders={ ...
+    'F','Nature/HistMatch0';'G','Nature/HistMatch10';'H','Nature/HistMatch20';'I','Nature/HistMatch30';'J','Nature/HistMatch40';...
+    'O','Texture/HistMatch0';'P','Texture/HistMatch10';'Q','Texture/HistMatch20';'R','Texture/HistMatch30';'S','Texture/HistMatch40'
+    };
+end
+```
+
+So, the letters F,G,H,I,J represent contrast differences -20,-10,0,10,20. Similarly for low salience images, 
+the letters O,P,Q,R,S represent -20,-10,0,10,20 (it wouldn't have worked with L as the center, then we'd have
+overlapped).
+
+Here's how to generate
+
+```
+trials=generateThreshBlockProcImage(img.BalancedFileKeys, 5)
+```
+
+
 ### About the keyboard index
 
 The keyboard index is used to get input from the experimenter.
