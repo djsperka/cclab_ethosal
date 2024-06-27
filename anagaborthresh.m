@@ -1,7 +1,41 @@
 function [rates] = anagaborthresh(r)
 %ANAGABORTHRESH Compute rates et al for etholog, single test image, with
-%gabor images at multiple contrasts.Texture
-%   Detailed explanation goes here
+%gabor images at multiple contrasts.
+%   Assumes you have a complete set of trials - consistency checks will
+%   fail if you use an incomplete set! To run this script, first load a
+%   full set. Of the two full sets we have, these commands will load the 
+%   set from dan (after you adjust for your own paths):
+%
+%   Y1=load('/home/dan/work/cclab/ethdata/output/gabor-threshold/thr-100-dan-1_none_000.mat');
+%   Y2=load('/home/dan/work/cclab/ethdata/output/gabor-threshold/thr-100-dan-2_none.mat');
+%   Y3=load('/home/dan/work/cclab/ethdata/output/gabor-threshold/thr-100-dan-3_none.mat');
+%   fullresults = vertcat(Y1.results,Y2.results,Y3.results);
+%
+%   These lines will do the same for Rowan's data:
+%
+%   Z1=load('/home/dan/work/cclab/ethdata/output/gabor-threshold/thr-100-rowan-1_none.mat');
+%   Z2=load('/home/dan/work/cclab/ethdata/output/gabor-threshold/thr-100-rowan-2_none.mat');
+%   Z3=load('/home/dan/work/cclab/ethdata/output/gabor-threshold/thr-100-rowan-3_none.mat');
+%   fullresults=vertcat(Z1.results,Z2.results,Z3.results);
+%   
+%   Once you have the full set of results, run the analysis:
+%
+%   rates=anagaborthresh(fullresults);
+%
+%   The rates struct contains a lot. The rates of interest include some 
+%   arrays - in each case the columns correspond to the different contrast
+%   values used: 2,4,6,8
+%
+%   rates.drateHChangeTrialByContrast - detection rate for H trials
+%   rates.frateHChangeTrialByContrast - false alarm rate for H trials
+%   rates.rxHChangeTrialByContrast - reaction time for successful H trials
+%   rates.fxHChangeTrialByContrast - reaction time for FA H trials
+%
+%   rates.drateLChangeTrialByContrast - detection rate for L trials
+%   rates.frateLChangeTrialByContrast - false alarm rate for L trials
+%   rates.rxLChangeTrialByContrast - reaction time for successful L trials
+%   rates.fxLChangeTrialByContrast - reaction time for FA L trials
+%
 
     rates = struct;
 
