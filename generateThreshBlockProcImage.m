@@ -40,7 +40,7 @@ function trialsOrBlocks = generateThreshBlockProcImage(varargin)
     names{4} = 'StimChange';
 
     % delta
-    deltas = [-20;-10;0;10;20];
+    deltas = [-20;-10;10;20];
     reps{5} = deltas;
     names{5} = 'Delta';
     trialsOrBlocks = randomizeParams('VariableNames', names, 'Replacements', reps);
