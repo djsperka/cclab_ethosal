@@ -123,7 +123,10 @@ function results = run_etholog_single(varargin)
 %      save('input/contrast_60_single_DEMO_LONG_a.mat', 'blocks', 'inputArgs', 'parsedResults')
 %
 %      trials = generateThreshBlock(imgbw.BalancedFileKeys, 5, 'HL', .8, [0, .04, .08, .12], 1);
-
+%
+% img=imageset(image_folder,{'params'});
+% trials=generateThreshBlockProcImage(img.BalancedFileKeys, 5)
+% run_etholog_single('test','thr','Test','desk','Trials',trials,'Threshold',true,'ImageTest',true,'ImageFolder','/home/dan/work/cclab/images/eth/babies_match_V2')
 
 
 
