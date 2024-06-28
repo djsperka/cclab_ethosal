@@ -11,9 +11,10 @@ function results = run_etholog_single(varargin)
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Inside', false, @(x) islogical(x));
     p.addParameter('Trials', [], @(x) istable(x));
-    p.addParameter('GaborThresh', false, @(x) islogical(x));
-    p.addParameter('ImageThresh', false, @(x) islogical(x));
+    p.addParameter('Threshold', false, @(x) islogical(x));
+    p.addParameter('ImageTest', false, @(x) islogical(x));
     p.addParameter('GaborTest', false, @(x) islogical(x));
+    p.addParameter('ImageFolder','', @(x) ischar(x));
     p.parse(varargin{:});
 
     blockIndex = find(ismember(blockTypes, lower(p.Results.lrn)));
@@ -22,7 +23,11 @@ function results = run_etholog_single(varargin)
     switch(p.Results.Test)
         case 'desk'
             % Set these folders according to the current machine
-            image_folder = '/home/dan/work/cclab/images/eth/Babies';
+            if length(p.Results.ImageFolder) > 0
+                image_folder = p.Results.ImageFolder;
+            else
+                image_folder = '/home/dan/work/cclab/images/eth/Babies';
+            end
             input_folder = '/home/dan/work/cclab/ethdata/input';
             output_folder = '/home/dan/work/cclab/ethdata/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
@@ -34,7 +39,11 @@ function results = run_etholog_single(varargin)
             kbind = getKeyboardIndex('Dell Dell USB Keyboard');
         case 'no-test'
             % Set these folders according to the current machine
-            image_folder = '/data/cclab/images/Babies';
+            if length(p.Results.ImageFolder) > 0
+                image_folder = p.Results.ImageFolder;
+            else
+                image_folder = '/data/cclab/images/Babies';
+            end
             input_folder = '/home/cclab/Desktop/ethosal/input';
             output_folder = '/home/cclab/Desktop/ethosal/output';
             eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
@@ -46,7 +55,11 @@ function results = run_etholog_single(varargin)
             kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
         case 'booth'
             % Set these folders according to the current machine
-            image_folder = '/data/cclab/images/Babies';
+            if length(p.Results.ImageFolder) > 0
+                image_folder = p.Results.ImageFolder;
+            else
+                image_folder = '/data/cclab/images/Babies';
+            end
             input_folder = '/home/cclab/Desktop/ethosal/input';
             output_folder = '/home/cclab/Desktop/ethosal/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
@@ -78,17 +91,16 @@ function results = run_etholog_single(varargin)
 
 
     % load imageset
-    img=imageset(image_folder, 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @deal);
+    % old default img=imageset(image_folder, 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @deal);
+    img=imageset(image_folder,{'params'});
     
     % load trial blocks
-    cc=load(fullfile(input_folder, 'contrast_60_single_a_lrn_12.mat'));
     if isempty(p.Results.Trials)
+        cc=load(fullfile(input_folder, 'contrast_60_single_a_lrn_12.mat'));
         t=cc.blocks{blockIndex};
     else
         t=p.Results.Trials;
     end
-
-
 
 
     % Millikey index (todo - test!)
@@ -126,7 +138,8 @@ function results = run_etholog_single(varargin)
                                 'Beep', true, ...
                                 'EyelinkDummyMode', eyelinkDummyMode, ...
                                 'SkipSyncTests', 1, ...
-                                'GaborThresh', p.Results.GaborThresh, ...
+                                'Threshold', p.Results.Threshold, ...
+                                'ImageTest', p.Results.ImageTest, ...
                                 'GaborTest', p.Results.GaborTest);
 end
     %save('/home/cclab/Desktop/ethosal/output/jodi-240-a.mat', 'results');

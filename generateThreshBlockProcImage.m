@@ -35,15 +35,23 @@ function trialsOrBlocks = generateThreshBlockProcImage(varargin)
     reps{3} = [1;2];
     names{3} = 'StimTestType';
 
+    % change type
+    reps{4} = [0;1];
+    names{4} = 'StimChange';
+
     % delta
     deltas = [-20;-10;0;10;20];
-    reps{4} = deltas;
-    names{4} = 'Delta';
+    reps{5} = deltas;
+    names{5} = 'Delta';
     trialsOrBlocks = randomizeParams('VariableNames', names, 'Replacements', reps);
     nTrials = height(trialsOrBlocks);
  
-    % StimKeys
+    % StimKeys. Set them the same, then set one to 'BKGD', depending on
+    % test type.
     trialsOrBlocks.Stim1Key = imageset.make_keys(trialsOrBlocks.FolderKey, trialsOrBlocks.ImageKey);
+    trialsOrBlocks.Stim2Key = imageset.make_keys(trialsOrBlocks.FolderKey, trialsOrBlocks.ImageKey);
+    trialsOrBlocks.Stim1Key(trialsOrBlocks.StimTestType==2) = {'BKGD'};
+    trialsOrBlocks.Stim2Key(trialsOrBlocks.StimTestType==1) = {'BKGD'};
     
     mH=containers.Map([-20,-10,0,10,20],{'F','G','H','I','J'});
     mQ=containers.Map([-20,-10,0,10,20],{'O','P','Q','R','S'});
@@ -52,12 +60,12 @@ function trialsOrBlocks = generateThreshBlockProcImage(varargin)
     z = cell(height(trialsOrBlocks), 1);
     z(lzH) = arrayfun(@(x) {mH(x)}, trialsOrBlocks.Delta(lzH));
     z(lzQ) = arrayfun(@(x) {mQ(x)}, trialsOrBlocks.Delta(lzQ));
-    trialsOrBlocks.Stim2Key = imageset.make_keys(z, trialsOrBlocks.ImageKey);
+    trialsOrBlocks.StimTestKey = imageset.make_keys(z, trialsOrBlocks.ImageKey);
     
 %     % StimChangeType
      trialsOrBlocks.StimChangeType = zeros(nTrials, 1);
-     trialsOrBlocks.StimChangeType(trialsOrBlocks.StimTestType==1 & trialsOrBlocks.Delta~=0) = 1;
-     trialsOrBlocks.StimChangeType(trialsOrBlocks.StimTestType==2 & trialsOrBlocks.Delta~=0) = 2;
+     trialsOrBlocks.StimChangeType(trialsOrBlocks.StimTestType==1 & trialsOrBlocks.StimChange==1) = 1;
+     trialsOrBlocks.StimChangeType(trialsOrBlocks.StimTestType==2 & trialsOrBlocks.StimChange==1) = 2;
 %     
 %     % base value
 %     trialsOrBlocks.Base = generateColumn(nTrials, 100);
