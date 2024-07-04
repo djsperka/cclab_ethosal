@@ -15,6 +15,7 @@ function trialsOrBlocks = generateThreshBlockProcImage(varargin)
     p.addOptional('GapTime', 0.2, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('TestTime', 0.4, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('NumBlocks', 1, @(x) isnumeric(x) && x>0);
+    p.addOptional('Threshold', true, @(x) islogical(x));
 
     p.parse(varargin{:});
 
@@ -50,8 +51,11 @@ function trialsOrBlocks = generateThreshBlockProcImage(varargin)
     % test type.
     trialsOrBlocks.Stim1Key = imageset.make_keys(trialsOrBlocks.FolderKey, trialsOrBlocks.ImageKey);
     trialsOrBlocks.Stim2Key = imageset.make_keys(trialsOrBlocks.FolderKey, trialsOrBlocks.ImageKey);
-    trialsOrBlocks.Stim1Key(trialsOrBlocks.StimTestType==2) = {'BKGD'};
-    trialsOrBlocks.Stim2Key(trialsOrBlocks.StimTestType==1) = {'BKGD'};
+
+    if p.Results.Threshold
+        trialsOrBlocks.Stim1Key(trialsOrBlocks.StimTestType==2) = {'BKGD'};
+        trialsOrBlocks.Stim2Key(trialsOrBlocks.StimTestType==1) = {'BKGD'};
+    end
     
     mH=containers.Map([-20,-10,0,10,20],{'F','G','H','I','J'});
     mQ=containers.Map([-20,-10,0,10,20],{'O','P','Q','R','S'});
