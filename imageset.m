@@ -165,6 +165,11 @@ classdef imageset
                 cd(p.Results.Root);
                 Y=eval(p.Results.ParamsFunc{:});
                 cd(currentDir);
+            elseif isfile(fullfile(p.Results.Root,'params.m'))
+                currentDir=pwd;
+                cd(p.Results.Root);
+                Y=params();
+                cd(currentDir);
             else
                 Y=struct;
             end
