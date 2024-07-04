@@ -12,8 +12,7 @@ function results = run_etholog_single(varargin)
     p.addParameter('Inside', false, @(x) islogical(x));
     p.addParameter('Trials', [], @(x) istable(x));
     p.addParameter('Threshold', false, @(x) islogical(x));
-    p.addParameter('ImageTest', false, @(x) islogical(x));
-    p.addParameter('GaborTest', false, @(x) islogical(x));
+    p.addParameter('ExperimentTestType', 'Contrast', @(x) ischar(x));
     p.addParameter('ImageFolder','', @(x) ischar(x));
     p.parse(varargin{:});
 
@@ -142,7 +141,6 @@ function results = run_etholog_single(varargin)
                                 'EyelinkDummyMode', eyelinkDummyMode, ...
                                 'SkipSyncTests', 1, ...
                                 'Threshold', p.Results.Threshold, ...
-                                'ImageTest', p.Results.ImageTest, ...
-                                'GaborTest', p.Results.GaborTest);
+                                'ExperimentTestType', p.Results.ExperimentTestType);
 end
     %save('/home/cclab/Desktop/ethosal/output/jodi-240-a.mat', 'results');
