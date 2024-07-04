@@ -5,6 +5,41 @@ Ethological salience expt
 
 ### Generate trials
 
+Load imageset (need the list of file keys)
+
+```
+>> imgbw = imageset('/path/to/images');
+```
+
+The imageset folder can have a single matlab function called 'params()', in a single file named 'params.m'. 
+The function returns a struct that can set any of the parameters used by the imageset. If there are multiple 
+folders and keys, then this can be useful. 
+
+An alternate version of this function can be placed in the root folder. It must be a matlab function that returns a struct. See imageset for the properties. 
+
+The 'Subfolders' arg is a Nx2 cell array, where the first column are the folder keys, and the second column are the subfolders, 
+relative to the base folder, where images are found.
+
+For the processed images, the params file looks like this:
+
+```
+function Y = params()
+    Y.Subfolders={ ...
+    'F','Nature/HistMatch0';'G','Nature/HistMatch10';'H','Nature/HistMatch20';'I','Nature/HistMatch30';'J','Nature/HistMatch40';...
+    'O','Texture/HistMatch0';'P','Texture/HistMatch10';'Q','Texture/HistMatch20';'R','Texture/HistMatch30';'S','Texture/HistMatch40'
+    };
+end
+```
+
+The simpler imageset have a pair of folders. This is the Babies/ folder we used for the earlier black and white test:
+
+```
+function Y = params()
+    Y.Subfolders={ 'H','bw'; 'L','bw-texture'}; 
+end
+```
+
+
 Generate trials for contrast change
 
 ```
