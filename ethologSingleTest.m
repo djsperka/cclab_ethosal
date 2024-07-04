@@ -42,14 +42,17 @@ function [results] = ethologSingleTest(varargin)
     % CImageTest is set. 
     p.addParameter('Threshold', false, @(x) islogical(x));
 
-    % If a threshold, but an image test:
-    p.addParameter('ImageTest', false, @(x) islogical(x));
+    % Specify the test type as 'Contrast' (default - this is the original
+    % instance of the expt, where a base image is modified on the fly to 
+    % increase its contrast), 'Gabor', or 'Image')
+
+    testTypes = {'Contrast', 'Gabor', 'Image'};
+    p.addParameter('ExperimentTestType', 'Contrast', @(x) any(validatestring(x, testTypes)));
 
     % These are for gabors. The Gabors are only used if GaborTest or 
     % GaborThresh is true,otherwise the parameters here are ignored.
     p.addParameter('GaborSF', 0.05, @(x) x>0);
     p.addParameter('GaborSC', 100, @(x) x>0);
-    p.addParameter('GaborTest', false, @(x) islogical(x));
 
     p.addParameter('SkipSyncTests', 0, @(x) isscalar(x) && (x==0 || x==1));
     p.addParameter('OutputFile', 'etholog_output.mat', @(x) ischar(x));
@@ -76,44 +79,27 @@ function [results] = ethologSingleTest(varargin)
     % fetch some stuff from the results
     ourVerbosity = p.Results.Verbose;
     images = p.Results.Images;
-    subjectResponseType = validatestring(p.Results.Response, responseTypes);
-    imageChangeType = validatestring(p.Results.ImageChangeType, imageChangeTypes);
-    switch imageChangeType
-        case 'luminance'
-            imageBaseFunc = @imadd;
-            imageChangeFunc = @imadd;
-        case 'contrast'
-            if p.Results.Threshold
-                if p.Results.GaborTest
-                    % for gabor threshold, load images w/o modification. The
-                    % imageChangeFunc is not used for this case. 
-                    imageBaseFunc = @deal;
-                    imageChangeFunc = @deal;
-                elseif p.Results.ImageTest
-                    imageBaseFunc = [];
-                    imageChangeFunc = [];
-                else
-                    imageBaseFunc = @imageset.contrast;
-                    imageChangeFunc = @imageset.contrast;
-                end
-            else
-                if p.Results.GaborTest
-                    % for gabor test, load images w/o modification. The
-                    % imageChangeFunc is not used for this case. 
-                    imageBaseFunc = @deal;
-                    imageChangeFunc = @deal;
-                elseif p.Results.ImageTest
-                    imageBaseFunc = [];
-                    imageChangeFunc = [];
-                else
-                    imageBaseFunc = @imageset.contrast;
-                    imageChangeFunc = @imageset.contrast;
-                end                    
-            end
-        otherwise
-            error('imageChangeType %s not recognized.', imageChangeType);
-    end    
 
+    % This will determine the "test" type - what is shown as the "B" phase.
+    % Contrast is the original usage: trials must have a 'Delta'
+    bStimType = validatestring(p.Results.ExperimentTestType, testTypes);
+
+    subjectResponseType = validatestring(p.Results.Response, responseTypes);
+
+
+    % These are applied to images when "A" texture is made (imageBaseFunc),
+    % and when the "B" texture is made (imageChangeFunc). FYI - deal is a
+    % function that just passes input to output, so is effectively a NO-OP.
+    imageBaseFunc = @deal;
+    imageChangeFunc = @deal;
+    if strcmp(bStimType, 'Contrast')
+        imageBaseFunc = @imageset.contrast;
+        imageChangeFunc = @imageset.contrast;
+    end
+
+
+    % Prepare output file name. Make sure an existing file does not get
+    % clobbered.
     if isfile(p.Results.OutputFile)
         warning('OutputFile %s already exists. Finding a suitable name...', p.Results.OutputFile);
         [path, base, ext] = fileparts(p.Results.OutputFile);
@@ -172,7 +158,7 @@ function [results] = ethologSingleTest(varargin)
 
     % For gabor tests, must generate a texture here, after the window is
     % opened.
-    if p.Results.Threshold && p.Results.GaborTest
+    if strcmp(bStimType, 'Gabor')
         % This struct gets passed (as an array from struct2array) to
         % DrawTextures.
         GaborParams.phase = 0;
@@ -294,10 +280,10 @@ function [results] = ethologSingleTest(varargin)
                         % dots?)
                         if GaborTex > 0
                             GaborTex = CreateProceduralGabor(windowIndex, RectWidth(rectTemp), RectHeight(rectTemp), 0, [0.5 0.5 0.5 0.0]);
-                            fprintf('Regenerated gabor texture id %d\n');
+                            fprintf('Regenerated gabor texture id %d\n', GaborTex);
                         end
                         BkgdTex = images.texture(windowIndex, 'BKGD');
-                        fprintf('Regenerated background texture id %d\n');
+                        fprintf('Regenerated background texture id %d\n', BkgdTex);
 
                         stateMgr.transitionTo('TRIAL_COMPLETE');
                     end
@@ -316,10 +302,10 @@ function [results] = ethologSingleTest(varargin)
                         % dots?)
                         if GaborTex > 0
                             GaborTex = CreateProceduralGabor(windowIndex, RectWidth(rectTemp), RectHeight(rectTemp), 0, [0.5 0.5 0.5 0.0]);
-                            fprintf('Regenerated gabor texture id %d\n');
+                            fprintf('Regenerated gabor texture id %d\n', GaborTex);
                         end
                         BkgdTex = images.texture(windowIndex, 'BKGD');
-                        fprintf('Regenerated background texture id %d\n');
+                        fprintf('Regenerated background texture id %d\n', BkgdTex);
 
                         
                         stateMgr.transitionTo('TRIAL_COMPLETE');
@@ -341,18 +327,23 @@ function [results] = ethologSingleTest(varargin)
 
                 % screen output update
                 if (ourVerbosity > -1)
-                    if p.Results.Threshold
-                        if p.Results.ImageTest
-                            switch trial.StimTestType
-                                case 1
-                                    side = 'left';
-                                case 2
-                                    side = 'right';
-                                case 0
-                                    side = 'none';
-                            end
-                            fprintf('etholog: trial: %3d\t%s\tchange? %d\tdelta %3.0f\n', itrial, side, trial.StimChange, trial.Delta);
+                    switch trial.StimTestType
+                        case 1
+                            side = 'left';
+                        case 2
+                            side = 'right';
+                        case 0
+                            side = 'none';
+                    end
+                    if strcmp(bStimType, 'Image')
+                        fprintf('etholog: trial: %3d\t%s\tchange? %d\tdelta %3.0f\n', itrial, side, trial.StimChange, trial.Delta);
+                    elseif strcmp(bStimType, 'Gabor')
+                        if trial.StimTestType == trial.StimChangeType
+                            sChange = 'YES';
+                        else
+                            sChange = 'NO';
                         end
+                        fprintf('etholog: trial: %3d\t%s\tchange? %s\tdelta %3.0f\n', itrial, side, sChange, trial.Delta);
                     end
                 end
 
@@ -362,93 +353,102 @@ function [results] = ethologSingleTest(varargin)
                 stim2Rect = CenterRectOnPoint(images.rect(trial.Stim2Key), stim2XYScr(1), stim2XYScr(2));
 
 
-                if p.Results.Threshold
-                    if p.Results.GaborTest
-                        % textures for this trial. The 'a' textures (tex1a, tex2a)
-                        % are shown first.
-                        tex1a = images.texture(windowIndex, trial.Stim1Key);
-                        tex2a = images.texture(windowIndex, trial.Stim2Key);
-    
-                        % When doing GaborTest, a pair of gabors is displayed
-                        % during the test phase. The "change" side has a
-                        % vertical (ori=90) gabor, and the non-change side has
-                        % a horizontal (ori=0) gabor.
-                        % Because there will be two gabors on every trial,  we 
-                        % only care about ChangeType, not TestType.
+                texturesA = [0,0];
+                texturesB = [0,0];
+                
+                switch bStimType
+                    case {'Contrast'}
+
+                        % This is the original version of the expt, where a
+                        % base image is modified with a processing
+                        % function, which here will adjust the contrast of
+                        % the base for the test image only. 
+
+                        texturesA = [ ...
+                            images.texture(windowIndex, trial.Stim1Key, @(x) imageBaseFunc(x, trial.Base)), ...
+                            images.texture(windowIndex, trial.Stim2Key, @(x) imageBaseFunc(x, trial.Base))
+                            ];
+
+                        % The 'b' textures are shown in the test phase. StimTestType 
+                        % is the stim (1=left, 2=right) which appears during test phase.
+                        % The other stim is blank.
+                        iBaseContrast = trial.Base;
+                        switch trial.StimChangeType
+                            case 1
+                                iTestContrast = trial.Base + trial.Delta;
+                            case 0
+                                iTestContrast = trial.Base;
+                            otherwise
+                                error('StimTestType is 1, StimChangeType must be 1 or 0');
+                        end
+                        switch trial.StimTestType
+                            case 1
+                                iChangeIndex = 1;
+                                iChangeStimKey = trial.Stim1Key;
+                                iNoChangeIndex = 2;
+                                iNoChangeStimKey = trial.Stim2Key;
+                            case 2
+                                iChangeIndex = 2;
+                                iChangeStimKey = trial.Stim2Key;
+                                iNoChangeIndex = 1;
+                            otherwise
+                                error('StimTestType can only be 1 or 2');
+                        end
+                        texturesB(iChangeIndex) = images.texture(windowIndex, iChangeStimKey, @(x) imageChangeFunc(x, iTestContrast));
+                        if p.Results.Threshold
+                            texturesB(iNoChangeIndex) = BkgdTex;
+                        else
+                            texturesB(iNoChangeIndex) = texturesA(iNoChangeIndex);
+                        end
+                    case 'Gabor'
+                        texturesA = [ ...
+                            images.texture(windowIndex, trial.Stim1Key), ...
+                            images.texture(windowIndex, trial.Stim2Key)
+                            ];
+
                         switch trial.StimChangeType
                             case 0
                                 GaborOri = [90, 90];
+                                iChangeIndex = 1;
+                                iNoChangeIndex = 2;
                             case 1
                                 GaborOri = [0, 90];
+                                iChangeIndex = 1;
+                                iNoChangeIndex = 2;
                             case 2
                                 GaborOri = [90, 0];
+                                iChangeIndex = 2;
+                                iNoChangeIndex = 1;
                             otherwise
                                 error('StimTestType can only be 0, 1, or 2');
                         end
-
-
+                        if p.Results.Threshold
+                            iNoChangeTex = BkgdTex;
+                        else
+                            iNoChangeTex = GaborTex;
+                        end
+                        
                         GaborParams.contrast = trial.Delta;
-                        switch trial.StimTestType
-                            case 1
-                                tex1b = GaborTex;
-                                tex2b = BkgdTex;
-                            case 2
-                                tex1b = BkgdTex;
-                                tex2b = GaborTex;
-                            otherwise
-                                error('StimTestType must be 1 or 2');
-                        end
-                    elseif p.Results.ImageTest
-                        tex1a = images.texture(windowIndex, trial.Stim1Key);
-                        tex2a = images.texture(windowIndex, trial.Stim2Key);
-                        switch trial.StimTestType
-                            case 1
-                                tex1b = images.texture(windowIndex, trial.StimTestKey);
-                                tex2b = tex2a;
-                            case 2
-                                tex1b = tex1a;
-                                tex2b = images.texture(windowIndex, trial.StimTestKey);
-                            otherwise
-                                error('StimTestType must be 1 or 2');
-                        end
 
-                    end                        
-                else
-                    % textures for this trial. The 'a' textures (tex1a, tex2a)
-                    % are shown first.
-                    tex1a = images.texture(windowIndex, trial.Stim1Key, @(x) imageBaseFunc(x, trial.Base));
-                    tex2a = images.texture(windowIndex, trial.Stim2Key, @(x) imageBaseFunc(x, trial.Base));
-                    % The 'b' textures are shown in the test phase. StimTestType 
-                    % is the stim (1=left, 2=right) which appears during test phase.
-                    % The other stim is blank.
-                    switch trial.StimTestType
-                        case 1
-                            % Left stim will appear. Will it change?
-                            switch trial.StimChangeType
-                                case 1
-                                    c = trial.Base + trial.Delta;
-                                case 0
-                                    c = trial.Base;
-                                otherwise
-                                    error('StimTestType is 1, StimChangeType must be 1 or 0');
-                            end
-                            tex1b = images.texture(windowIndex, trial.Stim1Key, @(x) imageChangeFunc(x, c));
-                            tex2b = BkgdTex;
-                        case 2
-                            % Right stim will appear. Will it change?
-                            switch trial.StimChangeType
-                                case 2
-                                    c = trial.Base + trial.Delta;
-                                case 0
-                                    c = trial.Base;
-                                otherwise
-                                    error('StimTestType is 2, StimChangeType must be 2 or 0');
-                            end
-                            tex1b = BkgdTex;
-                            tex2b = images.texture(windowIndex, trial.Stim2Key, @(x) imageChangeFunc(x, c));
-                        otherwise
-                            error('StimTestType can only be 1 or 2');
-                    end
+                        texturesB(iChangeIndex) = GaborTex;
+                        texturesB(iNoChangeIndex) = iNoChangeTex;
+                    
+                    case 'Image'
+
+                        texturesA = [ ...
+                            images.texture(windowIndex, trial.Stim1Key), ...
+                            images.texture(windowIndex, trial.Stim2Key)
+                            ];
+                        switch trial.StimTestType
+                            case 1
+                                texturesB = [images.texture(windowIndex, trial.StimTestKey), texturesA(2)];
+                            case 2
+                                texturesB = [texturesA(1), images.texture(windowIndex, trial.StimTestKey)];
+                            otherwise
+                                error('StimTestType must be 1 or 2');
+                        end
+                    otherwise
+                        error('Unrecognized value for B stim type (%s)', bStimType);
                 end
                 stateMgr.transitionTo('DRAW_FIXPT');
                 
@@ -499,7 +499,7 @@ function [results] = ethologSingleTest(varargin)
                 % draw textures, cues if used, and fixation cross on
                 % screen.
                 Screen('FillRect', windowIndex, bkgdColor);
-                Screen('DrawTextures', windowIndex, [tex1a tex2a], [], [stim1Rect;stim2Rect]');
+                Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]');
                 if p.Results.UseCues
                     Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
                 end
@@ -543,11 +543,11 @@ function [results] = ethologSingleTest(varargin)
                 end
             case 'DRAW_B'
                 Screen('FillRect', windowIndex, bkgdColor);
-                if p.Results.GaborTest
+                if strcmp(bStimType, 'Gabor')
                     paramsTemp = struct2array(GaborParams);
-                    Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]', GaborOri, [], [], [], [], kPsychDontDoRotation, [paramsTemp;paramsTemp]');
+                    Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]', GaborOri, [], [], [], [], kPsychDontDoRotation, [paramsTemp;paramsTemp]');
                 else
-                    Screen('DrawTextures', windowIndex, [tex1b tex2b], [], [stim1Rect;stim2Rect]');
+                    Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]');
                 end                    
                 if p.Results.UseCues
                     Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
@@ -565,18 +565,6 @@ function [results] = ethologSingleTest(varargin)
                     millikey.start();
                 end
                 stateMgr.transitionTo('WAIT_RESPONSE_WITH_B');
-%                 stateMgr.transitionTo('WAIT_B');
-%             case 'WAIT_B'
-%                 if stateMgr.timeInState() >= trial.TestTime
-%                     stateMgr.transitionTo('START_RESPONSE');
-%                 elseif ~tracker.is_in_rect(fixWindowRect)
-%                     stateMgr.transitionTo('FIXATION_BREAK_LATE');
-%                 end
-%             case 'START_RESPONSE'
-%                 % clear screen
-%                 Screen('FillRect', windowIndex, bkgdColor);
-%                 [ results.tBoff(itrial) ] = Screen('Flip', windowIndex);
-%                 stateMgr.transitionTo('WAIT_RESPONSE_WITH_B');
             case {'WAIT_RESPONSE_WITH_B', 'WAIT_RESPONSE'}
                 response = 0;
                 tResp = 0;
@@ -662,28 +650,30 @@ function [results] = ethologSingleTest(varargin)
 
                 % screen output update
                 if (ourVerbosity > -1)
-                    if p.Results.Threshold
-                        if p.Results.ImageTest
-                            if results.iResp(itrial)==1
-                                sresp = 'LEFT CHANGE';
-                            elseif results.iResp(itrial)==2
-                                sresp = 'RIGHT CHANGE';
-                            elseif results.iResp(itrial)==0
-                                sresp = 'NO CHANGE';
-                            else
-                                sresp = 'NO RESPONSE';
-                            end
-                            if results.iResp(itrial) == results.StimChangeType(itrial)
-                                scorr = 'CORRECT';
-                            else
-                                scorr = 'INCORRECT';
-                            end
-                            fprintf('etholog: trial: %3d\t%s\tchange? %d\tdelta %3.0f\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChange, trial.Delta, sresp, scorr);
-                        else
-                            fprintf('etholog: trial %d test %d chgtype %d resp %d delta %f\n', itrial, results.StimTestType(itrial), results.StimChangeType(itrial), results.iResp(itrial), results.Delta(itrial));
-                        end
+                    if results.iResp(itrial)==1
+                        sresp = 'LEFT CHANGE';
+                    elseif results.iResp(itrial)==2
+                        sresp = 'RIGHT CHANGE';
+                    elseif results.iResp(itrial)==0
+                        sresp = 'NO CHANGE';
                     else
-                        fprintf('etholog: trial %d pair %s test %d chgtype %d resp %d delta %f\n', itrial, results.StimPairType(itrial), results.StimTestType(itrial), results.StimChangeType(itrial), results.iResp(itrial), results.Delta(itrial));
+                        sresp = 'NO RESPONSE';
+                    end
+                    if results.iResp(itrial) == results.StimChangeType(itrial)
+                        scorr = 'CORRECT';
+                    else
+                        scorr = 'INCORRECT';
+                    end
+
+                    if strcmp(bStimType, 'Image')
+                        fprintf('etholog: trial: %3d\t%s\tchange? %d\tdelta %3.0f\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChange, trial.Delta, sresp, scorr);
+                    elseif strcmp(bStimType, 'Gabor')
+                        if trial.StimTestType == trial.StimChangeType
+                            sChange = 'YES';
+                        else
+                            sChange = 'NO';
+                        end
+                        fprintf('etholog: trial: %3d\t%s\tchange? %s\tdelta %3.0f\tresponse: %s\tcorrect? %s\n', itrial, side, sChange, trial.Delta, sresp, scorr);
                     end
                 end
                 
@@ -702,12 +692,7 @@ function [results] = ethologSingleTest(varargin)
                 end
 
                 % free textures, but not gabor textures.
-                Screen('Close', unique(setdiff([tex1a, tex2a, tex1b, tex2b], [GaborTex, BkgdTex])));
-                % if p.Results.GaborTest || p.Results.GaborThresh
-                %     Screen('Close', unique([tex1a, tex2a]));
-                % else
-                %     Screen('Close', unique([tex1a, tex2a, tex1b, tex2b]));
-                % end
+                Screen('Close', unique(setdiff([texturesA, texturesB], [GaborTex, BkgdTex])));
                 
             case 'WAIT_ITI'
                 if stateMgr.timeInState() >= p.Results.ITI
@@ -719,8 +704,8 @@ function [results] = ethologSingleTest(varargin)
                 % stop tracker recording
                 tracker.offline();
 
-                % free textures
-                Screen('Close', unique([tex1a, tex2a, tex1b, tex2b]));
+                % free textures, but not gabor textures.
+                Screen('Close', unique(setdiff([texturesA, texturesB], [GaborTex, BkgdTex])));
 
                 stateMgr.transitionTo('WAIT_PAUSE');
             case 'WAIT_PAUSE'
