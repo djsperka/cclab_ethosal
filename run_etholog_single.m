@@ -14,6 +14,7 @@ function results = run_etholog_single(varargin)
     p.addParameter('Threshold', false, @(x) islogical(x));
     p.addParameter('ExperimentTestType', 'Contrast', @(x) ischar(x));
     p.addParameter('ImageFolder','', @(x) ischar(x));
+    p.addParameter('Images', [], @(x) isa(x, 'imageset'));
     p.parse(varargin{:});
 
     blockIndex = find(ismember(blockTypes, lower(p.Results.lrn)));
@@ -91,7 +92,11 @@ function results = run_etholog_single(varargin)
 
     % load imageset
     % old default img=imageset(image_folder, 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @deal);
-    img=imageset(image_folder,{'params'});
+    if isempty(p.Results.Images)
+        img=imageset(image_folder,{'params'});
+    else
+        img = p.Results.Images;
+    end
     
     % load trial blocks
     if isempty(p.Results.Trials)

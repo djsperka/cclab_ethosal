@@ -336,7 +336,7 @@ function [results] = ethologSingleTest(varargin)
                             side = 'none';
                     end
                     if strcmp(bStimType, 'Image')
-                        fprintf('etholog: trial: %3d\t%s\tchange? %d\tdelta %3.0f\n', itrial, side, trial.StimChange, trial.Delta);
+                        fprintf('etholog: trial: %3d\t%s\tchange? %d\n', itrial, side, trial.StimChangeType);
                     elseif strcmp(bStimType, 'Gabor')
                         if trial.StimTestType == trial.StimChangeType
                             sChange = 'YES';
@@ -405,44 +405,47 @@ function [results] = ethologSingleTest(varargin)
                             images.texture(windowIndex, trial.Stim1Key), ...
                             images.texture(windowIndex, trial.Stim2Key)
                             ];
+                        % For threshold gabor, place gabor at test site,
+                        % bkgd on other side.
+                        if p.Results.Threshold
+                            texturesB = [BkgdTex, BkgdTex];
+                            texturesB(trial.StimTestType) = GaborTex;
+                        else
+                            texturesB = [GaborTex, GaborTex];
+                        end
 
                         switch trial.StimChangeType
                             case 0
                                 GaborOri = [90, 90];
-                                iChangeIndex = 1;
-                                iNoChangeIndex = 2;
                             case 1
                                 GaborOri = [0, 90];
-                                iChangeIndex = 1;
-                                iNoChangeIndex = 2;
                             case 2
                                 GaborOri = [90, 0];
-                                iChangeIndex = 2;
-                                iNoChangeIndex = 1;
                             otherwise
                                 error('StimTestType can only be 0, 1, or 2');
                         end
-                        if p.Results.Threshold
-                            iNoChangeTex = BkgdTex;
-                        else
-                            iNoChangeTex = GaborTex;
-                        end
+
                         
                         GaborParams.contrast = trial.Delta;
 
-                        texturesB(iChangeIndex) = GaborTex;
-                        texturesB(iNoChangeIndex) = iNoChangeTex;
-                    
                     case 'Image'
 
-                        texturesA = [ ...
-                            images.texture(windowIndex, trial.Stim1Key), ...
-                            images.texture(windowIndex, trial.Stim2Key)
-                            ];
                         switch trial.StimTestType
                             case 1
+                                texturesA(1) = images.texture(windowIndex, trial.Stim1Key);
+                                if p.Results.Threshold
+                                    texturesA(2) = BkgdTex;
+                                else
+                                    texturesA(2) = images.texture(windowIndex, trial.Stim2Key);
+                                end
                                 texturesB = [images.texture(windowIndex, trial.StimTestKey), texturesA(2)];
                             case 2
+                                texturesA(2) = images.texture(windowIndex, trial.Stim2Key);
+                                if p.Results.Threshold
+                                    texturesA(1) = BkgdTex;
+                                else
+                                    texturesA(1) = images.texture(windowIndex, trial.Stim1Key);
+                                end
                                 texturesB = [texturesA(1), images.texture(windowIndex, trial.StimTestKey)];
                             otherwise
                                 error('StimTestType must be 1 or 2');
@@ -666,7 +669,7 @@ function [results] = ethologSingleTest(varargin)
                     end
 
                     if strcmp(bStimType, 'Image')
-                        fprintf('etholog: trial: %3d\t%s\tchange? %d\tdelta %3.0f\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChange, trial.Delta, sresp, scorr);
+                        fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
                     elseif strcmp(bStimType, 'Gabor')
                         if trial.StimTestType == trial.StimChangeType
                             sChange = 'YES';

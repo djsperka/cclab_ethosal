@@ -16,6 +16,7 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
     p.addRequired('BaseContrast', @(x) isnumeric(x) && isscalar(x));
     p.addRequired('Delta', @(x) isnumeric(x) && isscalar(x));
     p.addOptional('FolderKeys', {'H'; 'L'},  @(x) iscellstr(x));
+    p.addOptional('TestKeys', {},  @(x) iscellstr(x));
     p.addOptional('FixationTime', 0.5, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('MaxAcquisitionTime', 2.0, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('FixationBreakEarlyTime', 0.5, @(x) isnumeric(x) && length(x)<3);
@@ -27,6 +28,16 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
 
     p.parse(varargin{:});
     parsedResults = p.Results;
+
+    doStimTestKey = false;
+    if length(p.Results.TestKeys) > 0
+        if length(p.Results.TestKeys) == length(p.Results.FolderKeys)
+            doStimTestKey = true;
+        else
+            error('TestKeys should be same length as FolderKeys');
+        end
+    end
+
 
     % for each image selected, there are 4 stim types. 
     % Type 1: HH
@@ -41,7 +52,7 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
     if ~all(sums==sums(1))
         error('Each column of LRNCounts input should add to the same number.');
     end
-    nImages = sums(1)
+    nImages = sums(1);
     nTrials = nImages * nStimTypes;
 
     % divvy up the images
@@ -51,6 +62,7 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
         'StimPairType'          ,
         'Stim1Key'              ,
         'Stim2Key'              ,
+        'StimTestKey'           ,
         'AttendSide'            ,
         'StimChangeType'        ,
         'StimTestType'          ,
@@ -74,10 +86,10 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
         'iResp'                 ,
         };
 
-    varTypes = {'string','string','string','int32','int32','int32','double','double','double','double','double','double','double','double','double','double','logical','int32','double','double','double','double','double','int32'};
+    varTypes = {'string','string','string','string','int32','int32','int32','double','double','double','double','double','double','double','double','double','double','logical','int32','double','double','double','double','double','int32'};
 
 
-    % Generate a trials struct for each COLUMN in LRNCounts
+    % Generate a trials struct (i.e. a block) for each COLUMN in LRNCounts
     blocks=cell(1,size(p.Results.LRNCounts, 2));
 
     for iblock = 1:size(p.Results.LRNCounts, 2)
@@ -123,6 +135,10 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
                     error('too many groups!');
             end
 
+            % ifkeyInd is an index into fkeyInd, which is itself an array 
+            % returned from randperm. So, the input list of file keys  
+            % (p.Results.FileKeys is the list of file base names, without 
+            % their folder key/letter)
             % starting point for image index - we skip over all previously
             % used images
             for ifkeyInd = imageIndStart:imageIndEnd
@@ -139,6 +155,10 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
                 t.Base(itrial) = p.Results.BaseContrast;
                 t.Delta(itrial) = p.Results.Delta;
 
+                if doStimTestKey
+                    t.StimTestKey(itrial) = getStimTestKey(t.StimPairType(itrial), p.Results.FolderKeys, p.Results.TestKeys, stimTestTypeThisGroup, stimChangeTypeThisGroup, imageKey);
+                end
+
                 % HL
                 itrial = (ifkeyInd-1)*4 + 2;
                 imageKey = p.Results.FileKeys{fkeyInd(ifkeyInd)};
@@ -151,6 +171,10 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
                 t.Base(itrial) = p.Results.BaseContrast;
                 t.Delta(itrial) = p.Results.Delta;
     
+                if doStimTestKey
+                    t.StimTestKey(itrial) = getStimTestKey(t.StimPairType(itrial), p.Results.FolderKeys, p.Results.TestKeys, stimTestTypeThisGroup, stimChangeTypeThisGroup, imageKey);
+                end
+
                 % LH
                 itrial = (ifkeyInd-1)*4 + 3;
                 imageKey = p.Results.FileKeys{fkeyInd(ifkeyInd)};
@@ -163,6 +187,10 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
                 t.Base(itrial) = p.Results.BaseContrast;
                 t.Delta(itrial) = p.Results.Delta;
     
+                if doStimTestKey
+                    t.StimTestKey(itrial) = getStimTestKey(t.StimPairType(itrial), p.Results.FolderKeys, p.Results.TestKeys, stimTestTypeThisGroup, stimChangeTypeThisGroup, imageKey);
+                end
+
                 % LL
                 itrial = (ifkeyInd-1)*4 + 4;
                 imageKey = p.Results.FileKeys{fkeyInd(ifkeyInd)};
@@ -174,6 +202,10 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
                 t.StimTestType(itrial) = stimTestTypeThisGroup;
                 t.Base(itrial) = p.Results.BaseContrast;
                 t.Delta(itrial) = p.Results.Delta;
+
+                if doStimTestKey
+                    t.StimTestKey(itrial) = getStimTestKey(t.StimPairType(itrial), p.Results.FolderKeys, p.Results.TestKeys, stimTestTypeThisGroup, stimChangeTypeThisGroup, imageKey);
+                end
             end
         end
 
@@ -207,5 +239,14 @@ function [A] = generateColumn(n, valueOrRange)
         A = valueOrRange * ones(n, 1);
     else
         A = valueOrRange(1) + (valueOrRange(2)-valueOrRange(1)) * rand(n, 1);
+    end
+end
+
+function [skey] = getStimTestKey(stimPairType, folderKeys, testKeys, stimTestType, stimChangeType, fkey)
+    c=char(stimPairType);
+    if stimChangeType~=1 && stimChangeType~=2
+        skey = imageset.make_key(folderKeys{c(stimTestType)=='HL'}, fkey);
+    else
+        skey = imageset.make_key(testKeys{c(stimTestType)=='HL'}, fkey);
     end
 end
