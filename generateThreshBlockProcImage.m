@@ -29,7 +29,8 @@ function trialsOrBlocks = generateThreshBlockProcImage(varargin)
     names{1} = 'ImageKey';
 
     % salience
-    reps{2}={'H';'Q'};
+    % reps{2}={'H';'Q'};
+    reps{2}={'F';'O'};
     names{2} = 'FolderKey';
 
     % lr test
@@ -41,7 +42,7 @@ function trialsOrBlocks = generateThreshBlockProcImage(varargin)
     names{4} = 'StimChange';
 
     % delta
-    deltas = [-20;-10;10;20];
+    deltas = [10;20;30;40];
     reps{5} = deltas;
     names{5} = 'Delta';
     trialsOrBlocks = randomizeParams('VariableNames', names, 'Replacements', reps);
@@ -57,13 +58,18 @@ function trialsOrBlocks = generateThreshBlockProcImage(varargin)
         trialsOrBlocks.Stim2Key(trialsOrBlocks.StimTestType==1) = {'BKGD'};
     end
     
-    mH=containers.Map([-20,-10,0,10,20],{'F','G','H','I','J'});
-    mQ=containers.Map([-20,-10,0,10,20],{'O','P','Q','R','S'});
-    lzH = strcmp(trialsOrBlocks.FolderKey, 'H');
-    lzQ = strcmp(trialsOrBlocks.FolderKey, 'Q');
+    % for using +- 10, +-20
+    % mH=containers.Map([-20,-10,0,10,20],{'F','G','H','I','J'});
+    % mQ=containers.Map([-20,-10,0,10,20],{'O','P','Q','R','S'});
+    % lzH = strcmp(trialsOrBlocks.FolderKey, 'H');
+    % lzQ = strcmp(trialsOrBlocks.FolderKey, 'Q');
+    mH=containers.Map([0,10,20,30,40],{'F','G','H','I','J'});
+    mQ=containers.Map([0,10,20,30,40],{'O','P','Q','R','S'});
+    lzF = strcmp(trialsOrBlocks.FolderKey, 'F');
+    lzO = strcmp(trialsOrBlocks.FolderKey, 'O');
     z = cell(height(trialsOrBlocks), 1);
-    z(lzH) = arrayfun(@(x) {mH(x)}, trialsOrBlocks.Delta(lzH));
-    z(lzQ) = arrayfun(@(x) {mQ(x)}, trialsOrBlocks.Delta(lzQ));
+    z(lzF) = arrayfun(@(x) {mH(x)}, trialsOrBlocks.Delta(lzF));
+    z(lzO) = arrayfun(@(x) {mQ(x)}, trialsOrBlocks.Delta(lzO));
     trialsOrBlocks.StimTestKey = imageset.make_keys(z, trialsOrBlocks.ImageKey);
     
 %     % StimChangeType
