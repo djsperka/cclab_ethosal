@@ -2,11 +2,9 @@ function results = run_etholog_single(varargin)
 %run_etholog_single Run etholog for a specific block
 %   Detailed explanation goes here
 
-    blockTypes = {'left', 'right', 'none', 'thr', 'gabthr'};
     testingTypes = {'no-test', 'desk', 'booth'};
     p=inputParser;
     p.addRequired('ID', @(x) ischar(x));
-    p.addRequired('lrn', @(x) ismember(x,blockTypes));
     p.addParameter('Test', 'no-test', @(x) ismember(x, testingTypes));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Inside', false, @(x) islogical(x));
@@ -16,9 +14,6 @@ function results = run_etholog_single(varargin)
     p.addParameter('ImageFolder','', @(x) ischar(x));
     p.addParameter('Images', [], @(x) isa(x, 'imageset'));
     p.parse(varargin{:});
-
-    blockIndex = find(ismember(blockTypes, lower(p.Results.lrn)));
-    blockType = blockTypes{blockIndex};
 
     switch(p.Results.Test)
         case 'desk'
@@ -78,7 +73,7 @@ function results = run_etholog_single(varargin)
       
 
 
-    outputFilename = fullfile(output_folder, [p.Results.ID, '_', blockType, '.mat']);
+    outputFilename = fullfile(output_folder, [p.Results.ID, '.mat']);
     if isfile(outputFilename)
         warning('OutputFile %s already exists. Finding a suitable name...', outputFilename);
         [path, base, ext] = fileparts(outputFilename);
@@ -98,13 +93,14 @@ function results = run_etholog_single(varargin)
         img = p.Results.Images;
     end
     
-    % load trial blocks
-    if isempty(p.Results.Trials)
-        cc=load(fullfile(input_folder, 'contrast_60_single_a_lrn_12.mat'));
-        t=cc.blocks{blockIndex};
-    else
-        t=p.Results.Trials;
-    end
+%     % load trial blocks
+%     if isempty(p.Results.Trials)
+%         cc=load(fullfile(input_folder, 'contrast_60_single_a_lrn_12.mat'));
+%         t=cc.blocks{blockIndex};
+%     else
+%         t=p.Results.Trials;
+%     end
+    t=p.Results.Trials;
 
 
     % Millikey index (todo - test!)
