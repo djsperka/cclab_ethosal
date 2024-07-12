@@ -23,7 +23,6 @@ function results = run_etholog_single(varargin)
             else
                 image_folder = '/home/dan/work/cclab/images/eth/Babies';
             end
-            input_folder = '/home/dan/work/cclab/ethdata/input';
             output_folder = '/home/dan/work/cclab/ethdata/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
             screenDimensions=[];
@@ -39,7 +38,6 @@ function results = run_etholog_single(varargin)
             else
                 image_folder = '/data/cclab/images/Babies';
             end
-            input_folder = '/home/cclab/Desktop/ethosal/input';
             output_folder = '/home/cclab/Desktop/ethosal/output';
             eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
             screenDimensions=[598, 336];
@@ -55,8 +53,7 @@ function results = run_etholog_single(varargin)
             else
                 image_folder = '/data/cclab/images/Babies';
             end
-            input_folder = '/home/cclab/Desktop/ethosal/input';
-            output_folder = '/home/cclab/Desktop/ethosal/output';
+            output_folder = '/home/cclab/Desktop/cclab/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
             screenDimensions=[];
             screenDistance=[];
@@ -93,13 +90,6 @@ function results = run_etholog_single(varargin)
         img = p.Results.Images;
     end
     
-%     % load trial blocks
-%     if isempty(p.Results.Trials)
-%         cc=load(fullfile(input_folder, 'contrast_60_single_a_lrn_12.mat'));
-%         t=cc.blocks{blockIndex};
-%     else
-%         t=p.Results.Trials;
-%     end
     t=p.Results.Trials;
 
 
