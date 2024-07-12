@@ -18,6 +18,7 @@ classdef imageset
         Bkgd
         IsUniform
         UniformOrFirstRect
+        ShowName
     end
     
     methods (Static)
@@ -154,6 +155,7 @@ classdef imageset
             addParameter(p, 'Extensions', {'.bmp', '.jpg', '.png'});
             addParameter(p, 'OnLoad', @deal, @(x) isa(x, 'function_handle'));  % check if isempty()
             addParameter(p, 'Bkgd', [.5; .5; .5], @(x) isnumeric(x) && iscolumn(x) && length(x)==3);
+            addParameter(p, 'ShowName', false, @(x) islogical(x));
             
             p.parse(varargin{:});
 
@@ -193,6 +195,18 @@ classdef imageset
                 obj.Bkgd = Y.Bkgd;
             else
                 obj.Bkgd = p.Results.Bkgd;
+            end
+            if isfield(Y,'ShowName')
+                obj.ShowName = Y.ShowName;
+            else
+                obj.ShowName = p.Results.ShowName;
+            end
+
+            if obj.ShowName
+                if exist('insertText')~=2
+                    warning('Cannot use ShowName=true on this machine. Cannot find insertText() - must have Computer Vision Toolbox installed. Will continue without this setting.');
+                    obj.ShowName = false;
+                end
             end
 
             % Holds images after loading.
@@ -244,6 +258,10 @@ classdef imageset
                 else
                     image = obj.OnLoadFunc(imread(filename));
                 end
+
+                if obj.ShowName
+                    image = insertText(image, size(image, [1,2])/2, key,FontSize=floor(size(image,1)/6),AnchorPoint="center");
+                end
                 obj.Images(key) = struct('fname', filename, 'image', image);
             catch ME
                 fprintf('Error reading file %s\n', filename);
@@ -288,6 +306,9 @@ classdef imageset
             obj.TextureParser.parse(varargin{:});
             w = obj.TextureParser.Results.Window;
             key = obj.TextureParser.Results.Key;
+
+            % Generate textures, depends on whether key is a cell array or
+            % not, and whether preprocess func is cell or not. 
             if ~iscell(key)
                 if isempty(obj.TextureParser.Results.PreProcessFunc)
                     textureID = Screen('MakeTexture', w, obj.Images(key).image);
