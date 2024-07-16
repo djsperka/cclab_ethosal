@@ -53,17 +53,16 @@ function trialsOrBlocks = generateThreshBlockProcImage(varargin)
         trialsOrBlocks = randomizeParams('VariableNames', names, 'Replacements', reps);
         nTrials = height(trialsOrBlocks);
 
+        % StimKeys. Set them the same, then set one to 'BKGD', depending on
+        % test type.
+        trialsOrBlocks.Stim1Key = imageset.make_keys(trialsOrBlocks.FolderKey, trialsOrBlocks.ImageKey);
+        trialsOrBlocks.Stim2Key = imageset.make_keys(trialsOrBlocks.FolderKey, trialsOrBlocks.ImageKey);
+
         % On a threshold block, we want a single image displayed - it will
         % be displayed on the side corresponding to the test type. Make the
         % opposite side be a background texture.
         trialsOrBlocks.Stim1Key(trialsOrBlocks.StimTestType==2) = {'BKGD'};
         trialsOrBlocks.Stim2Key(trialsOrBlocks.StimTestType==1) = {'BKGD'};
-
-        % StimKeys. Set them the same, then set one to 'BKGD', depending on
-        % test type.
-        trialsOrBlocks.Stim1Key = imageset.make_keys(trialsOrBlocks.FolderKey, trialsOrBlocks.ImageKey);
-        trialsOrBlocks.Stim2Key = imageset.make_keys(trialsOrBlocks.FolderKey, trialsOrBlocks.ImageKey);
-    
         
         % for using +- 10, +-20
         % mH=containers.Map([-20,-10,0,10,20],{'F','G','H','I','J'});
@@ -87,7 +86,7 @@ function trialsOrBlocks = generateThreshBlockProcImage(varargin)
         trialsOrBlocks.StimChangeType(trialsOrBlocks.StimTestType==1 & trialsOrBlocks.StimChange) = 1;
         trialsOrBlocks.StimChangeType(trialsOrBlocks.StimTestType==2 & trialsOrBlocks.StimChange) = 2;
     else
-        error('Not implemented Threshold=true')
+        error('Not implemented Threshold=false')
     end
 
 
