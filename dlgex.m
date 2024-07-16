@@ -166,7 +166,11 @@ if any(contains(fieldnames(Y), 'blocks'))
     fprintf('Block %d has %d trials\n', iBlockNumber, height(Y.blocks{iBlockNumber}));
     if iBlockNumber > numBlocks
         error('Bad block number.');
+    else
+        trials = Y.blocks{iBlockNumber};
     end
+elseif any(contains(fieldnames(Y), 'trials'))
+    trials = Y.trials;
 end
 
 % try to load images
@@ -175,7 +179,7 @@ img = imageset(answer{8}, answer(9));
 
 
 % Now try to run the thing
-results = run_etholog_single(answer{2}, 'Test', popupValues{answer{5}}, 'Trials', Y.blocks{iBlockNumber}, 'Threshold', logical(answer{4}), 'ExperimentTestType', answer{3}, 'Images', img);
+results = run_etholog_single(answer{2}, 'Test', popupValues{answer{5}}, 'Trials', trials, 'Threshold', logical(answer{4}), 'ExperimentTestType', answer{3}, 'Images', img);
 
 
 
