@@ -91,6 +91,20 @@ run_etholog_single('test','thr','Test','desk','Trials',blocks{1},'Threshold',fal
 
 
 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%
+%dan@bucky:~/work/cclab/ethosal$ cat ~/Documents/MATLAB/mylocal.m 
+ethDataRoot='/home/dan/work/cclab/ethdata/';
+ethImgRoot='/home/dan/work/cclab/cclab-images/';
+img=imageset(fullfile(ethImgRoot,'babies_match_V2'),{'params'});
+
+% for debug, machine must have Computer Vision Toolbox.
+img=imageset(fullfile(ethImgRoot,'babies_match_V2'),{'params'},'ShowName',true);
+blocks=generateThreshBlockProcImage(img.BalancedFileKeys, 40, 'Threshold', true,'NumBlocks',3);
+save(fullfile(ethDataRoot,'input','thr_modimg_40_0-40_B.mat'),'blocks');
+%%%%%%%%%%%%%%%%%%%%%%%%%
+
 blocks=generateThreshBlockProcImage(img.BalancedFileKeys, 5, 'Threshold', false, 'NumBlocks', 3);
 run_etholog_single('test','thr','Test','desk','Trials',blocks{1},'Threshold',true,'ExperimentTestType','Image','ImageFolder','/home/dan/work/cclab/images/eth/babies_match_V2')
 
@@ -99,3 +113,7 @@ run_etholog_single('test','thr','Test','desk','Trials',blocks{1},'Threshold',tru
 timg=imageset('/home/dan/work/cclab/images/eth/babies_match_V2', {'tparams'});
 blocks=generateThreshBlockGabor(timg.BalancedFileKeys, 30, [2,4,6,8],'TestTime',0.1,'NumBlocks', 3);
 run_etholog_single('test','thr','Test','desk','Trials',blocks{1},'Threshold',true,'ExperimentTestType','Gabor','Images',timg);
+
+
+
+
