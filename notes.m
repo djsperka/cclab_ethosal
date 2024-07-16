@@ -91,7 +91,7 @@ run_etholog_single('test','thr','Test','desk','Trials',blocks{1},'Threshold',fal
 
 
 
-blocks=generateThreshBlockProcImage(img.BalancedFileKeys, 30, 'Threshold', false, 'NumBlocks', 3);
+blocks=generateThreshBlockProcImage(img.BalancedFileKeys, 5, 'Threshold', false, 'NumBlocks', 3);
 run_etholog_single('test','thr','Test','desk','Trials',blocks{1},'Threshold',true,'ExperimentTestType','Image','ImageFolder','/home/dan/work/cclab/images/eth/babies_match_V2')
 
 
