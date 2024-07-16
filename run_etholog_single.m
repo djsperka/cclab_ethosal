@@ -38,7 +38,7 @@ function results = run_etholog_single(varargin)
             else
                 image_folder = '/data/cclab/images/Babies';
             end
-            output_folder = '/home/cclab/Desktop/ethosal/output';
+            output_folder = '/home/cclab/Desktop/cclab/ethdata/output';
             eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
             screenDimensions=[598, 336];
             screenDistance=920;
@@ -53,7 +53,7 @@ function results = run_etholog_single(varargin)
             else
                 image_folder = '/data/cclab/images/Babies';
             end
-            output_folder = '/home/cclab/Desktop/cclab/output';
+            output_folder = '/home/cclab/Desktop/cclab/ethdata/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
             screenDimensions=[];
             screenDistance=[];
