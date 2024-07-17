@@ -174,7 +174,7 @@ elseif any(contains(fieldnames(Y), 'trials'))
 end
 
 % try to load images
-img = imageset(answer{8}, answer(9));
+img = imageset(answer{8}, answer{9});
 
 
 
