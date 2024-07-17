@@ -8,6 +8,7 @@ classdef imageset
     properties
         Extensions
         Root
+        ParamsFunc
         Subfolders
         OnLoadFunc
         TextureParser
@@ -150,7 +151,7 @@ classdef imageset
             p = inputParser;
             %addRequired(p, 'Root', @(x) ischar(x) && isdir(x));
             addRequired(p, 'Root');
-            addOptional(p,'ParamsFunc','', @(x) isfile(fullfile(p.Results.Root,[x{:},'.m'])));
+            addOptional(p,'ParamsFunc','params', @(x) ischar(x));
             addParameter(p, 'Subfolders', {'H', {'natT', 'naturalT'}; 'L', 'texture'}, @(x) iscellstr(x) && size(x, 2)==2);
             addParameter(p, 'Extensions', {'.bmp', '.jpg', '.png'});
             addParameter(p, 'OnLoad', @deal, @(x) isa(x, 'function_handle'));  % check if isempty()
@@ -159,13 +160,17 @@ classdef imageset
             
             p.parse(varargin{:});
 
+            if ~isfile(fullfile(p.Results.Root,[p.Results.ParamsFunc,'.m']))
+                error('Cannot find params func for this imageset: %s', fullfile(p.Results.Root,[p.Results.ParamsFunc,'.m']));
+            end
             obj.Root = p.Results.Root;
+            obj.ParamsFunc = p.Results.ParamsFunc;
 
             % If a params func is used, load it and assign values
             if ~isempty(p.Results.ParamsFunc)
                 currentDir=pwd;
                 cd(p.Results.Root);
-                Y=eval(p.Results.ParamsFunc{:});
+                Y=eval(p.Results.ParamsFunc);
                 cd(currentDir);
             elseif isfile(fullfile(p.Results.Root,'params.m'))
                 currentDir=pwd;
