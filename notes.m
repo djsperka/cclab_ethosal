@@ -97,12 +97,19 @@ run_etholog_single('test','thr','Test','desk','Trials',blocks{1},'Threshold',fal
 %dan@bucky:~/work/cclab/ethosal$ cat ~/Documents/MATLAB/mylocal.m 
 ethDataRoot='/home/dan/work/cclab/ethdata/';
 ethImgRoot='/home/dan/work/cclab/cclab-images/';
-img=imageset(fullfile(ethImgRoot,'babies_match_V2'),{'params'});
+img=imageset(fullfile(ethImgRoot,'babies_match_V2'),'params');
 
 % for debug, machine must have Computer Vision Toolbox.
 img=imageset(fullfile(ethImgRoot,'babies_match_V2'),{'params'},'ShowName',true);
+
 blocks=generateThreshBlockProcImage(img.BalancedFileKeys, 40, 'Threshold', true,'NumBlocks',3);
-save(fullfile(ethDataRoot,'input','thr_modimg_40_0-40_B.mat'),'blocks');
+
+% save blocks and imageset name/paramsfunc. The names here matter! 
+S.blocks=blocks
+S.Name=img.Name
+S.ParamsFunc=img.ParamsFunc
+save(fullfile(ethDataRoot,'input','mimg_thr_5_00-40-B.mat'),'-struct','S');
+
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
 blocks=generateThreshBlockProcImage(img.BalancedFileKeys, 5, 'Threshold', false, 'NumBlocks', 3);

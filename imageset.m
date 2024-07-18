@@ -8,6 +8,7 @@ classdef imageset
     properties
         Extensions
         Root
+        Name
         ParamsFunc
         Subfolders
         OnLoadFunc
@@ -165,6 +166,10 @@ classdef imageset
             end
             obj.Root = p.Results.Root;
             obj.ParamsFunc = p.Results.ParamsFunc;
+            % llast folder of Root is the imageset name
+            c=split(strip(obj.Root,filesep),filesep);
+            obj.Name = c{end};
+
 
             % If a params func is used, load it and assign values
             if ~isempty(p.Results.ParamsFunc)
