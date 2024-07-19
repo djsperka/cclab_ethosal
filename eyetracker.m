@@ -163,9 +163,10 @@ classdef eyetracker < handle
             tf = IsInRect(x, y, rect);
         end
 
-        function [x, y] = eyepos(obj)
+        function [x, y, tf] = eyepos(obj)
             persistent eyeUsedIndex;
 
+            tf = true;
             if ~obj.DummyMode
                 if Eyelink('CurrentMode') ~= obj.EyelinkDefaults.IN_RECORD_MODE
                     exception = MException('eyetracker:eyepos', 'Tracker is not recording, call start_recording.');
@@ -191,11 +192,18 @@ classdef eyetracker < handle
 
             % now get the actual eye position
             if obj.DummyMode
+                tf = true;
                 [x, y] = GetMouse(obj.Window);
             else
-                evt = Eyelink('NewestFloatSample');
-                x = evt.gx(eyeUsedIndex);
-                y = evt.gy(eyeUsedIndex);
+                tf = (Eyelink('NewFloatSampleAvailable') > 0);
+                if (tf)
+                    evt = Eyelink('NewestFloatSample');
+                    x = evt.gx(eyeUsedIndex);
+                    y = evt.gy(eyeUsedIndex);
+                else
+                    x = nan;
+                    y = nan;
+                end
             end
 
         end
