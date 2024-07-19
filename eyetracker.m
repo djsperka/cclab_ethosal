@@ -159,14 +159,15 @@ classdef eyetracker < handle
             
         function [tf] = is_in_rect(obj, rect)
             %is_in_rect Is current eye pos in the rect? Returns 1/0.
-            [x, y] = obj.eyepos();
-            tf = IsInRect(x, y, rect);
+            [x, y, tf] = obj.eyepos();
+            if tf
+                tf = IsInRect(x, y, rect);
+            end
         end
 
         function [x, y, tf] = eyepos(obj)
             persistent eyeUsedIndex;
 
-            tf = true;
             if ~obj.DummyMode
                 if Eyelink('CurrentMode') ~= obj.EyelinkDefaults.IN_RECORD_MODE
                     exception = MException('eyetracker:eyepos', 'Tracker is not recording, call start_recording.');
@@ -217,9 +218,13 @@ classdef eyetracker < handle
                 throw(exception);
             end
             S = zeros(1, size(R,2));
-            [x, y] = obj.eyepos();
-            for i=1:size(R,2)
-                S(i) = IsInRect(x, y, R(:,i));
+            [x, y, tf] = obj.eyepos();
+            if tf
+                for i=1:size(R,2)
+                    S(i) = IsInRect(x, y, R(:,i));
+                end
+            else
+                S(:) = false;
             end
         end
 
