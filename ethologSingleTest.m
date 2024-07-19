@@ -547,7 +547,10 @@ function [results] = ethologSingleTest(varargin)
             case 'DRAW_B'
                 Screen('FillRect', windowIndex, bkgdColor);
                 if strcmp(bStimType, 'Gabor')
-                    paramsTemp = struct2array(GaborParams);
+                    % struct2array removed R2024a? 
+                    %paramsTemp = struct2array(GaborParams);
+                    paramsTemp1 = struct2cell(GaborParams);
+                    paramsTemp = [paramsTemp1{:}];
                     Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]', GaborOri, [], [], [], [], kPsychDontDoRotation, [paramsTemp;paramsTemp]');
                 else
                     Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]');
