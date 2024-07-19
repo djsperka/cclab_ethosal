@@ -726,6 +726,7 @@ function [results] = ethologSingleTest(varargin)
 
     % save data, again
     save(outputFilename, 'results');
+    fprintf('\n*** Results saved in output file %s\n', outputFilename);
 
     experimentElapsedTime = GetSecs - experimentStartTime;
     fprintf(1, 'This block took %.1f sec.\n', experimentElapsedTime);
