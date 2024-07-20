@@ -196,12 +196,13 @@ classdef eyetracker < handle
                 tf = true;
                 [x, y] = GetMouse(obj.Window);
             else
-                tf = (Eyelink('NewFloatSampleAvailable') > 0);
-                if (tf)
-                    evt = Eyelink('NewestFloatSample');
+                evt = Eyelink('NewestFloatSample');
+                if isstruct(evt)
+                    tf = true;
                     x = evt.gx(eyeUsedIndex);
                     y = evt.gy(eyeUsedIndex);
                 else
+                    tf = false;
                     x = nan;
                     y = nan;
                 end
