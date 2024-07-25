@@ -51,13 +51,13 @@ classdef OneShotMilestone < handle
 
 
         function would_pass = check(obj, f)
-            %check(f) Return index of milestone (not already passed) 
-            %where f>milestone. The result can be an empty vector, a scalar
-            %index, or a vector of indices. Only a check, call pass() to
-            %have the milestones recorded.
+            %check(f) Return true if a milestone (not already passed) 
+            %would be passed with the value given. The milestones are not
+            %marked as passed, however! Must call pass() for that. 
             %   Detailed explanation goes here
 
-            would_pass = find(~obj.MilestonesPassed & f > obj.Milestones);
+            passing_ind = find(~obj.MilestonesPassed & f > obj.Milestones);
+            would_pass = ~isempty(passing_ind);
 
         end
 
