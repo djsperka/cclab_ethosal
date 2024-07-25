@@ -25,6 +25,14 @@ function [results] = ethologSingleTest(varargin)
     p.addParameter('Rect', [], @(x) isempty(x) || (isvector(x) && length(x) == 4));
     p.addParameter('Bkgd', [.5 .5 .5], @(x) isrow(x) && length(x) == 3);
 
+    breakParams = {
+        .25, 'You''re done 1/4 of the trials in this block.';
+        .5, 'You''re halfway through this block!';
+        .75, 'That''s 3/4 the trials in this block. Almost done!'
+        }
+
+    p.addParameter('Breaks', true, @(x) islogical(x));
+
     % djs by default no cues are used. 
     p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
     p.addParameter('CueWidth', 2, @(x) isscalar(x));
@@ -180,6 +188,8 @@ function [results] = ethologSingleTest(varargin)
     % In general, nice to have a background texture laying around
     BkgdTex = images.texture(windowIndex, 'BKGD');
 
+    % For taking breaks. We check regardless of whether its been requested.
+    milestones = OneShotMilestone([breakParams{:,1}]);
 
 
     %% Initialize experimental parameters
@@ -430,23 +440,27 @@ function [results] = ethologSingleTest(varargin)
 
                     case 'Image'
 
+                        % For threshold, show bkgd/img(A), and bkgd/test(B).
+                        % For non-threshold, show img/img(A) and bkgd/img(B).
                         switch trial.StimTestType
                             case 1
                                 texturesA(1) = images.texture(windowIndex, trial.Stim1Key);
                                 if p.Results.Threshold
                                     texturesA(2) = BkgdTex;
+                                    texturesB = [images.texture(windowIndex, trial.StimTestKey), texturesA(2)];
                                 else
-                                    texturesA(2) = images.texture(windowIndex, trial.Stim2Key);
+                                  texturesA(2) = images.texture(windowIndex, trial.Stim2Key);
+                                  texturesB = [images.texture(windowIndex, trial.StimTestKey), BkgdTex];
                                 end
-                                texturesB = [images.texture(windowIndex, trial.StimTestKey), texturesA(2)];
                             case 2
                                 texturesA(2) = images.texture(windowIndex, trial.Stim2Key);
                                 if p.Results.Threshold
                                     texturesA(1) = BkgdTex;
+                                    texturesB = [texturesA(1), images.texture(windowIndex, trial.StimTestKey)];
                                 else
                                     texturesA(1) = images.texture(windowIndex, trial.Stim1Key);
+                                    texturesB = [BkgdTex, images.texture(windowIndex, trial.StimTestKey)];
                                 end
-                                texturesB = [texturesA(1), images.texture(windowIndex, trial.StimTestKey)];
                             otherwise
                                 error('StimTestType must be 1 or 2');
                         end
@@ -693,7 +707,12 @@ function [results] = ethologSingleTest(varargin)
                     if bPausePending
                         stateMgr.transitionTo('WAIT_PAUSE');
                     else
-                        stateMgr.transitionTo('WAIT_ITI');
+                        % check if its time to take a break
+                        if p.Results.Breaks && milestones.check(itrial/NumTrials)
+                            stateMgr.transitionTo('BREAK_TIME');
+                        else
+                            stateMgr.transitionTo('WAIT_ITI');
+                        end
                     end
                 end
 
@@ -704,6 +723,18 @@ function [results] = ethologSingleTest(varargin)
                 if stateMgr.timeInState() >= p.Results.ITI
                     stateMgr.transitionTo('START');
                 end
+            case 'BREAK_TIME'
+                % do nothing yet
+                stateMgr.transitionTo('WAIT_ITI');
+
+                % % figure out which break we're on
+                % ind = milestones.pass(itrial/NumTrials)
+                % if isempty(ind)
+                %     % This shouldn't happen! 
+                %     stateMgr.transitionTo('START');
+                % else
+                %     % draw text on screen
+
             case 'CLEAR_THEN_PAUSE'
                 Screen('Flip', windowIndex);
 
