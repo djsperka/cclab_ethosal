@@ -133,3 +133,11 @@ run_etholog_single('test','thr','Test','desk','Trials',blocks{1},'Threshold',tru
 
 
 
+%%%%%%%%%%%%%%%%%%
+% generate regular trials for mimg
+
+blocks=generateThreshBlockGabor(timg.BalancedFileKeys, 30, [2,4,6,8],'TestTime',0.1,'NumBlocks', 3);
+S.trials=blocks{1};
+S.imagesetName=img.Name;
+S.imagesetParamsFunc=img.ParamsFunc;
+save(fullfile(ethDataRoot,'input','mimg_exp_50img-20chg-A.mat'), '-struct', 'S');
