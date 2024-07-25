@@ -4,6 +4,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
     properties (Access = public)
         UIFigure                 matlab.ui.Figure
         GridLayout               matlab.ui.container.GridLayout
+        ShowImageNamesCheckBox   matlab.ui.control.CheckBox
         SelectBlockButton        matlab.ui.control.Button
         ExitButton               matlab.ui.control.Button
         RunButton                matlab.ui.control.Button
@@ -180,6 +181,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 elseif any(contains(fieldnames(app.Y), 'trials'))
                     app.fileNBlocks = 0;
                     app.fileBlockIndex = 0;
+                    app.isTrialsSelected = true;
                 else
                     app.isFileSelected = false;
                     app.fileName = '';
@@ -225,7 +227,12 @@ classdef ethodlg_exported < matlab.apps.AppBase
             try
                 imagesetPath = fullfile(app.pathImgRoot,app.imagesetName);
                 fprintf('Load images from %s using func [%s]\n', imagesetPath, app.imagesetParamsFunc);
-                img = imageset(imagesetPath, app.imagesetParamsFunc);
+
+                if app.ShowImageNamesCheckBox.Value
+                    img = imageset(imagesetPath, app.imagesetParamsFunc, 'ShowName', true);
+                else
+                    img = imageset(imagesetPath, app.imagesetParamsFunc);
+                end
 
                 % form id for output filename
 
@@ -239,7 +246,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
 
                 run_etholog_single(id, 'Test', app.LocationDropDown.Value, 'Trials', app.getSelectedTrials(), 'Threshold', app.ThresholdCheckBox.Value, 'ExperimentTestType', app.getTestType(), 'Images', img);
             catch ME
-                fprintf('Error running expt:\n%s\n', ME.message);
+                fprintf('Error running expt:\n%s\n%s\n', ME.message, ME.getReport());
             end
 
 %            run_etholog_single(answer{2}, 'Test', popupValues{answer{5}}, 'Trials', trials, 'Threshold', logical(answer{4}), 'ExperimentTestType', answer{3}, 'Images', img);
@@ -403,6 +410,12 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.SelectBlockButton.Layout.Row = 8;
             app.SelectBlockButton.Layout.Column = 3;
             app.SelectBlockButton.Text = 'Select Block';
+
+            % Create ShowImageNamesCheckBox
+            app.ShowImageNamesCheckBox = uicheckbox(app.GridLayout);
+            app.ShowImageNamesCheckBox.Text = 'Show Image Names (test only)';
+            app.ShowImageNamesCheckBox.Layout.Row = 3;
+            app.ShowImageNamesCheckBox.Layout.Column = 2;
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';
