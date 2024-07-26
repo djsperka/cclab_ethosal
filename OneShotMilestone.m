@@ -61,7 +61,7 @@ classdef OneShotMilestone < handle
 
         end
 
-        function passed = pass(obj, f)
+        function [passed, milestonesPassed] = pass(obj, f)
             %check(f) Return index of milestone (not already passed) 
             %where f>milestone. The result can be an empty vector, a scalar
             %index, or a vector of indices. Passed milestones are marked 
@@ -69,6 +69,7 @@ classdef OneShotMilestone < handle
             %   Detailed explanation goes here
 
             passed = find(~obj.MilestonesPassed & f > obj.Milestones);
+            milestonesPassed = obj.Milestones(passed);
             obj.MilestonesPassed(passed) = true;
 
         end
@@ -84,5 +85,6 @@ classdef OneShotMilestone < handle
                 error('reset expecting 0 or 1 arg')
             end
         end
+
     end
 end
