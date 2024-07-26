@@ -135,8 +135,19 @@ run_etholog_single('test','thr','Test','desk','Trials',blocks{1},'Threshold',tru
 
 %%%%%%%%%%%%%%%%%%
 % generate regular trials for mimg
+% 
+%
+% dan@bucky:~/work/cclab/ethosal$ cat /home/dan/work/cclab/cclab-images/babies_match_V2/mimg_params.m
+% function Y = mimg_params()
+%     Y.Subfolders={ ...
+%     'H','Nature/HistMatch0';'L','Texture/HistMatch0';'h','Nature/HistMatch25';'l','Texture/HistMatch25'
+%     };
+% end
 
-blocks=generateThreshBlockGabor(timg.BalancedFileKeys, 30, [2,4,6,8],'TestTime',0.1,'NumBlocks', 3);
+
+
+img=imageset(fullfile(ethImgRoot,'babies_match_V2'),'mimg_params');
+[blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(img.BalancedFileKeys, [25,25,25,25]',0,6,'FolderKeys',{'H';'L'},'TestKeys',{'h';'l'});
 S.trials=blocks{1};
 S.imagesetName=img.Name;
 S.imagesetParamsFunc=img.ParamsFunc;
