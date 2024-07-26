@@ -36,12 +36,14 @@ function [ratesNone, ratesAttended, fig] = anaeth(attendLeft, attendRight, atten
     % Salience effect plot
     figure;
     fig = gcf;
-    subplot(2,1,1);
+    if bHaveLR
+        subplot(2,1,1);
+    end
     Y=[ratesNone.dpHH, ratesNone.dpHL, ratesNone.dpLL, ratesNone.dpLH];
     X=categorical({'HH', 'HL', 'LL', 'LH'});
     X=reordercats(X, {'HH', 'HL', 'LL', 'LH'});
     bar(X,Y);
-    ylim([-3,3]);
+    ylim([-5,5]);
     title('Salience effect');
 
     % Congruence.
