@@ -189,8 +189,14 @@ function [results] = ethologSingleTest(varargin)
     BkgdTex = images.texture(windowIndex, 'BKGD');
 
     % For taking breaks. We check regardless of whether its been requested.
-    milestones = OneShotMilestone([breakParams{:,1}]);
+    % Use a text size that makes characters be about 1 degree on screen for
+    % short messages.
 
+    breakTimeSec = 10;
+    breakTimeMilestones = OneShotMilestone([breakParams{:,1}]);
+    resumeMilestones = OneShotMilestone([1:floor(breakTimeSec)]);
+    textSizeForMilestones = getTextSizePix(converter.deg2pix(1), windowIndex);
+    fprintf('Using text size %d for %f pixels\n', textSizeForMilestones, converter.deg2pix(1));
 
     %% Initialize experimental parameters
     
@@ -708,7 +714,7 @@ function [results] = ethologSingleTest(varargin)
                         stateMgr.transitionTo('WAIT_PAUSE');
                     else
                         % check if its time to take a break
-                        if p.Results.Breaks && milestones.check(itrial/NumTrials)
+                        if p.Results.Breaks && breakTimeMilestones.check(itrial/NumTrials)
                             stateMgr.transitionTo('BREAK_TIME');
                         else
                             stateMgr.transitionTo('WAIT_ITI');
@@ -724,17 +730,28 @@ function [results] = ethologSingleTest(varargin)
                     stateMgr.transitionTo('START');
                 end
             case 'BREAK_TIME'
-                % do nothing yet
-                stateMgr.transitionTo('WAIT_ITI');
-
-                % % figure out which break we're on
-                % ind = milestones.pass(itrial/NumTrials)
-                % if isempty(ind)
-                %     % This shouldn't happen! 
-                %     stateMgr.transitionTo('START');
-                % else
-                %     % draw text on screen
-
+                % figure out which break we're on
+                ind = breakTimeMilestones.pass(itrial/NumTrials)
+                if isempty(ind)
+                    % This shouldn't happen! The transition to this state
+                    % should have been preceded by milestones.check==true
+                    stateMgr.transitionTo('WAIT_ITI');
+                else
+                    % draw text on screen
+                    oldTextSize = Screen('TextSize', windowIndex, textSizeForMilestones);
+                    DrawFormattedText(windowIndex, breakParams{ind(1),2}, 'center','center',[1 1 1]);
+                    Screen('Flip', windowIndex);
+                    Screen('TextSize', windowIndex, oldTextSize);
+                    stateMgr.transitionTo('BREAK_TIME_WAIT');
+                    resumeMilestones.reset();   % this will be used for countdown
+                end
+            case 'BREAK_TIME_WAIT'
+                if stateMgr.timeInState() >= breakTimeSec
+                    stateMgr.transitionTo('START');
+                else
+                    if resumeMilestones.check(stateMgr.timeInState())
+                        
+                end
             case 'CLEAR_THEN_PAUSE'
                 Screen('Flip', windowIndex);
 
