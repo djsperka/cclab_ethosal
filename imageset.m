@@ -3,7 +3,17 @@ classdef imageset
     %   sense of the word). Pre- processing can be done with a
     %   user-provided function, and processing can be done prior to
     %   generating textures as well. 
-    %   Detailed explanation goes here
+    %   Root folder should contain a file with a single function that
+    %   defines the subfolders to be loaded. The function should be in a
+    %   file of the same name, and in the root folder of the imageset.
+    %   Here, 'root' folder is a folder which contains one or more
+    %   subfolders. The contents of each subfolder can be loaded and mapped
+    %   to a 'FolderKey'. The FolderKey is combined with the base filename
+    %   of the image and forms a key for the image like 'FolderKey'/'base
+    %   filename'. All images are read and saved unless the 'Lazy' flag is
+    %   set to true (it is false by default). This only works if all direct
+    %   access to the images themselves is done through the get_image
+    %   method, and not directly through the Images property. 
     
     properties
         Extensions
@@ -12,17 +22,21 @@ classdef imageset
         ParamsFunc
         Subfolders
         OnLoadFunc
-        TextureParser
-        Images
         IsBalanced
         BalancedFileKeys
         MissingKeys
         Bkgd
         IsUniform
         UniformOrFirstRect
-        ShowName
     end
-    
+
+    properties (Access = private)
+        TextureParser
+        Images
+        ShowName
+        Lazy
+    end
+
     methods (Static)
         function key = make_key(folder_key, file_key)
             if isempty(folder_key)
@@ -56,7 +70,6 @@ classdef imageset
 
         function [folder_key, file_key] = split_key(key)
             folder_key='';
-            file_key='';
             if contains(key, '/')
                 k = split(key, '/');
                 folder_key = k{1};
@@ -110,25 +123,28 @@ classdef imageset
             %each folder key. Returns unique filel keys found. If any 
             %unbalanced keys are found, they are returned in nonUniqueKeys.
             
-            isBalanced = false;
-            balancedFileKeys = {};
-            missingKeys = {};
             allKeys = obj.Images.keys;
-            allFileKeys = {};
+            allFileKeys = cell(length(allKeys),1);
             for i=1:length(allKeys)
                 [~,fil] = imageset.split_key(allKeys{i});
-                allFileKeys{end+1} = fil;
+                allFileKeys{i} = fil;
             end
             uniqueFileKeys = unique(allFileKeys);
             
             % now check each folder for each key. Each row in
             % obj.Subfolders refers to a subfolder (and a folder key)
+            m = cell(length(uniqueFileKeys) * size(obj.Subfolders, 1), 1);
+            mcount = 0;
+            b = cell(length(uniqueFileKeys), 1);            
+            bcount = 0;
+
             for ikey=1:length(uniqueFileKeys)
                 kfail = false;
                 for itype = 1:size(obj.Subfolders, 1)
                     k=imageset.make_key(obj.Subfolders{itype, 1}, uniqueFileKeys{ikey});
                     if ~obj.Images.isKey(k)
-                        missingKeys = vertcat(missingKeys, k);
+                        mcount = mcount + 1;
+                        m{mcount} = k;
                         kfail = true; 
                     end
                 end
@@ -136,11 +152,30 @@ classdef imageset
                 % if kfail is false, then each subfolder had an image 
                 % with that basename. 
                 if ~kfail 
-                    balancedFileKeys = vertcat(balancedFileKeys, uniqueFileKeys{ikey});
+                    bcount = bcount + 1;
+                    b{bcount} = uniqueFileKeys{ikey};
                 end
             end
+            balancedFileKeys = b(1:bcount);
+            missingKeys = m(i:mcount);
             isBalanced = isempty(missingKeys);
         end
+
+
+        function image = read_image_file(obj, filename, key)
+        %read_image_file Read image file. Apply OnLoadFunc (if defined),
+        %and also add text if ShowName is true.
+            if isempty(obj.OnLoadFunc)
+                image = imread(filename);
+            else
+                image = obj.OnLoadFunc(imread(filename));
+            end
+
+            if obj.ShowName
+                image = insertText(image, size(image, [1,2])/2, key,FontSize=floor(size(image,1)/6),AnchorPoint="center");
+            end
+        end
+
     end
         
     methods
@@ -158,6 +193,7 @@ classdef imageset
             addParameter(p, 'OnLoad', @deal, @(x) isa(x, 'function_handle'));  % check if isempty()
             addParameter(p, 'Bkgd', [.5; .5; .5], @(x) isnumeric(x) && iscolumn(x) && length(x)==3);
             addParameter(p, 'ShowName', false, @(x) islogical(x));
+            addParameter(p, 'Lazy', false, @(x) islogical(x));
             
             p.parse(varargin{:});
 
@@ -211,9 +247,14 @@ classdef imageset
             else
                 obj.ShowName = p.Results.ShowName;
             end
+            if isfield(Y,'Lazy')
+                obj.Lazy = Y.IsLazy;
+            else
+                obj.Lazy = p.Results.Lazy;
+            end
 
             if obj.ShowName
-                if exist('insertText')~=2
+                if exist('insertText', 'file')~=2
                     warning('Cannot use ShowName=true on this machine. Cannot find insertText() - must have Computer Vision Toolbox installed. Will continue without this setting.');
                     obj.ShowName = false;
                 end
@@ -236,7 +277,7 @@ classdef imageset
                 useSubFolderName = obj.Subfolders{i,2};
                 if iscell(obj.Subfolders{i,2})
                     z=cellfun(@(x) isfolder(fullfile(obj.Root, x)), obj.Subfolders{i,2});
-                    if length(find(z))==1
+                    if isscalar(find(z))
                         useSubFolderName = obj.Subfolders{i,2}{z};
                     else
                         exception = MException('imageset:imageset:BadInput', sprintf('No suitable subfolders found for key %s\n', obj.Subfolders{i,1}));
@@ -252,9 +293,16 @@ classdef imageset
 
             % check for uniform size, make background image, add with key
             % BKGD
-            [obj.IsUniform, obj.UniformOrFirstRect] = check_sizes(obj);
-            image = ones(obj.UniformOrFirstRect(4), obj.UniformOrFirstRect(3), 3).*reshape(obj.Bkgd, 1, 1, 3);
-            obj.Images('BKGD') = struct('fname', 'NO_FILENAME', 'image', image);
+
+            if ~obj.Lazy
+                [obj.IsUniform, obj.UniformOrFirstRect] = check_sizes(obj);
+                image = ones(obj.UniformOrFirstRect(4), obj.UniformOrFirstRect(3), 3).*reshape(obj.Bkgd, 1, 1, 3);
+                obj.Images('BKGD') = struct('fname', 'NO_FILENAME', 'image', image);
+            else
+                obj.IsUniform = false;
+                obj.UniformOrFirstRect = [];
+                obj.Images('BKGD') = struct('fname', 'NO_FILENAME', 'image', []);
+            end
         end
         
         function add_image(obj, filename, key)
@@ -263,16 +311,22 @@ classdef imageset
                 throw(exception);
             end
             try
-                if isempty(obj.OnLoadFunc)
-                    image = imread(filename);
-                else
-                    image = obj.OnLoadFunc(imread(filename));
-                end
+                % if isempty(obj.OnLoadFunc)
+                %     image = imread(filename);
+                % else
+                %     image = obj.OnLoadFunc(imread(filename));
+                % end
+                % 
+                % if obj.ShowName
+                %     image = insertText(image, size(image, [1,2])/2, key,FontSize=floor(size(image,1)/6),AnchorPoint="center");
+                % end
 
-                if obj.ShowName
-                    image = insertText(image, size(image, [1,2])/2, key,FontSize=floor(size(image,1)/6),AnchorPoint="center");
+                if ~obj.Lazy
+                    obj.Images(key) = struct('fname', filename, 'image', obj.read_image_file(filename, key));
+                else
+                    % when Lazy is set, do not load the image.
+                    obj.Images(key) = struct('fname', filename, 'image', []);
                 end
-                obj.Images(key) = struct('fname', filename, 'image', image);
             catch ME
                 fprintf('Error reading file %s\n', filename);
                 rethrow(ME);
@@ -321,9 +375,9 @@ classdef imageset
             % not, and whether preprocess func is cell or not. 
             if ~iscell(key)
                 if isempty(obj.TextureParser.Results.PreProcessFunc)
-                    textureID = Screen('MakeTexture', w, obj.Images(key).image);
+                    textureID = Screen('MakeTexture', w, obj.get_image(key));
                 else
-                    textureID = Screen('MakeTexture', w, obj.TextureParser.Results.PreProcessFunc(obj.Images(key).image));
+                    textureID = Screen('MakeTexture', w, obj.TextureParser.Results.PreProcessFunc(obj.get_image(key)));
                 end
             else
                 % if preprocessfunc is empty, use @deal
@@ -335,16 +389,16 @@ classdef imageset
                     ppfunc = @deal;
                 end
                 if isa(ppfunc, 'function_handle')
-                    textureID = cellfun(@(k) Screen('MakeTexture', w, ppfunc(obj.Images(k).image)), key);
+                    textureID = cellfun(@(k) Screen('MakeTexture', w, ppfunc(obj.get_image(k))), key);
                 else
-                    textureID = cellfun(@(k,f) Screen('MakeTexture', w, f(obj.Images(k).image)), key, ppfunc);
+                    textureID = cellfun(@(k,f) Screen('MakeTexture', w, f(obj.get_image(k))), key, ppfunc);
                 end              
             end
         end
         
         function r = rect(obj, k)
             key = obj.parse_key(k);
-            r = [0 0 size(obj.Images(key).image, 1:2)];
+            r = [0 0 size(obj.get_image(key), 1:2)];
         end
         
         function flip(obj, varargin)
@@ -386,6 +440,13 @@ classdef imageset
 
         function image = get_image(obj, k)
             key=obj.parse_key(k);
+            if isempty(obj.Images(key).image)
+                % read the image and replace the struct 
+                fname = obj.Images(key).fname;
+                fprintf('Lazy-loading image %s from %s\n', key, fname);
+                %obj.Images(key).image = obj.read_image_file(obj.Images(key).fname, key);
+                obj.Images(key) = struct('fname', fname, 'image', obj.read_image_file(fname, key));
+            end
             image = obj.Images(key).image;
         end
     end
