@@ -1,18 +1,26 @@
-function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(varargin)
+function [trialsOrBlocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(varargin)
 %generateEthBlocksSingleTest - Generate blocks for eth salience, using just
 %a single second stim.
 %   Detailed explanation goes here
 
-    blocks = [];
+    trialsOrBlocks = [];
     inputArgs = varargin;
     parsedResults = [];
     
     p=inputParser;  
     p.addRequired('FileKeys', @(x) iscellstr(x));
     
-    % LRNCounts is a 4xN matrix. First, second, third rows are change-left, 
-    % change-right, nochange-left, nochange-right.
-    p.addRequired('LRNCounts', @(x) isnumeric(x) && size(x, 1)==4);
+    % ImageCounts can be 4xN or 3xN. 
+    % Original usage was 4xN, where the rows represent the number of images
+    % used for change-left, change-right, nochange-left, nochange-right,
+    % respectively.
+    % If ImageCounts is 3xN, then the rows represent images used for
+    % change-left, change-right, and nochange. This is for expts where two
+    % TEST images are shown, and so while change-left and change-right are
+    % distinct, nochange trials have no left- or right- type, because two
+    % images are shown. 
+
+    p.addRequired('ImageCounts', @(x) isnumeric(x) && (size(x, 1)==4 || size(x,1)==3));
     p.addRequired('BaseContrast', @(x) isnumeric(x) && isscalar(x));
     p.addRequired('Delta', @(x) isnumeric(x) && isscalar(x));
     p.addOptional('FolderKeys', {'H'; 'L'},  @(x) iscellstr(x));
@@ -25,6 +33,7 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
     p.addOptional('TestTime', 0.4, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('RespTime', 2.0, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('GapTime', 0.2, @(x) isnumeric(x) && length(x)<3);
+    p.addOptional('NumBlocks', 1, @(x) isscalar(x) && x>0);
 
     p.parse(varargin{:});
     parsedResults = p.Results;
@@ -48,15 +57,12 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
     
     % Each column of LRNCounts should sum to the same value = the number of
     % images we will use.
-    sums = sum(p.Results.LRNCounts, 1);
+    sums = sum(p.Results.ImageCounts, 1);
     if ~all(sums==sums(1))
-        error('Each column of LRNCounts input should add to the same number.');
+        warning('The columns of ImageCounts do not add to the same number.');
     end
     nImages = sums(1);
     nTrials = nImages * nStimTypes;
-
-    % divvy up the images
-    fkeyInd = randperm(length(p.Results.FileKeys), nImages);
 
     varNames = {
         'StimPairType'          ,
@@ -89,51 +95,71 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
     varTypes = {'string','string','string','string','int32','int32','int32','double','double','double','double','double','double','double','double','double','double','logical','int32','double','double','double','double','double','int32'};
 
 
-    % Generate a trials struct (i.e. a block) for each COLUMN in LRNCounts
-    blocks=cell(1,size(p.Results.LRNCounts, 2));
+    % If there are 4 rows, expecting single-test-type trials. 
+    if size(p.Results.ImageCounts, 1) == 4
+        doSingleTestTypeTrials = true;
+    else
+        doSingleTestTypeTrials = false;
+    end
 
-    for iblock = 1:size(p.Results.LRNCounts, 2)
+    % Generate a trials struct (i.e. a block) for each COLUMN in
+    % ImageCounts. The images are randomized, but the order they are sorted
+    % into is reused on each block. 
 
-        switch iblock
-            case 1
-                % left
-                attendSideThisBlock = 1;
-            case 2
-                % right
-                attendSideThisBlock = 2;
-            case 3
-                % none
-                attendSideThisBlock = 0;
-            otherwise
-                error('I do not know what to do with more than 3 blocks.')
-        end
+    trialsOrBlocks=cell(1,size(p.Results.ImageCounts, 2));
+
+    for iblock = 1:size(p.Results.ImageCounts, 2)
+
+        % divvy up the images
+        fkeyInd = randperm(length(p.Results.FileKeys), nImages);
+
         t=table('Size', [nTrials, length(varNames)], 'VariableNames', varNames, 'VariableTypes', varTypes);
 
-        lrnCountsThisBlock = p.Results.LRNCounts(:,iblock);
-        for igroup=1:4
-            nThisGroup = lrnCountsThisBlock(igroup);
-            imageIndStart = sum(lrnCountsThisBlock(1:igroup-1))+1;
-            imageIndEnd = sum(lrnCountsThisBlock(1:igroup));
-            switch igroup
-                case 1
-                    % Left-change trials.
-                    stimChangeTypeThisGroup = 1;
-                    stimTestTypeThisGroup = 1;
-                case 2
-                    % Right-change trials.
-                    stimChangeTypeThisGroup = 2;
-                    stimTestTypeThisGroup = 2;
-                case 3
-                    % Left-nochange trials.
-                    stimChangeTypeThisGroup = 0;
-                    stimTestTypeThisGroup = 1;
-                case 4
-                    % Right-nochange trials.
-                    stimChangeTypeThisGroup = 0;
-                    stimTestTypeThisGroup = 2;
-                otherwise
-                    error('too many groups!');
-            end
+        imageCountsThisBlock = p.Results.ImageCounts(:,iblock);
+        for igroup=1:size(p.Results.ImageCounts, 1)
+            attendSideThisBlock = 0;    
+            imageIndStart = sum(imageCountsThisBlock(1:igroup-1))+1;
+            imageIndEnd = sum(imageCountsThisBlock(1:igroup));
+
+            if doSingleTestTypeTrials
+                switch igroup
+                    case 1
+                        % Left-change trials.
+                        stimChangeTypeThisGroup = 1;
+                        stimTestTypeThisGroup = 1;
+                    case 2
+                        % Right-change trials.
+                        stimChangeTypeThisGroup = 2;
+                        stimTestTypeThisGroup = 2;
+                    case 3
+                        % Left-nochange trials.
+                        stimChangeTypeThisGroup = 0;
+                        stimTestTypeThisGroup = 1;
+                    case 4
+                        % Right-nochange trials.
+                        stimChangeTypeThisGroup = 0;
+                        stimTestTypeThisGroup = 2;
+                    otherwise
+                        error('too many groups for single-test-image type trials (expect 4)!');
+                end
+            else
+                switch igroup
+                    case 1
+                        % Left-change trials.
+                        stimChangeTypeThisGroup = 1;
+                        stimTestTypeThisGroup = 1;
+                    case 2
+                        % Right-change trials.
+                        stimChangeTypeThisGroup = 2;
+                        stimTestTypeThisGroup = 2;
+                    case 3
+                        % Nochange trials.
+                        stimChangeTypeThisGroup = 0;
+                        stimTestTypeThisGroup = 0;
+                    otherwise
+                        error('too many groups for dual-test-image type trials (expect 3)!');
+                end                        
+            end                
 
             % ifkeyInd is an index into fkeyInd, which is itself an array 
             % returned from randperm. So, the input list of file keys  
@@ -157,6 +183,8 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
 
                 if doStimTestKey
                     t.StimTestKey(itrial) = getStimTestKey(t.StimPairType(itrial), p.Results.FolderKeys, p.Results.TestKeys, stimTestTypeThisGroup, stimChangeTypeThisGroup, imageKey);
+                else
+                    t.StimTestKey(itrial) = "N/A";
                 end
 
                 % HL
@@ -173,6 +201,8 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
     
                 if doStimTestKey
                     t.StimTestKey(itrial) = getStimTestKey(t.StimPairType(itrial), p.Results.FolderKeys, p.Results.TestKeys, stimTestTypeThisGroup, stimChangeTypeThisGroup, imageKey);
+                else
+                    t.StimTestKey(itrial) = "N/A";
                 end
 
                 % LH
@@ -189,6 +219,8 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
     
                 if doStimTestKey
                     t.StimTestKey(itrial) = getStimTestKey(t.StimPairType(itrial), p.Results.FolderKeys, p.Results.TestKeys, stimTestTypeThisGroup, stimChangeTypeThisGroup, imageKey);
+                else
+                    t.StimTestKey(itrial) = "N/A";
                 end
 
                 % LL
@@ -205,6 +237,8 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
 
                 if doStimTestKey
                     t.StimTestKey(itrial) = getStimTestKey(t.StimPairType(itrial), p.Results.FolderKeys, p.Results.TestKeys, stimTestTypeThisGroup, stimChangeTypeThisGroup, imageKey);
+                else
+                    t.StimTestKey(itrial) = "N/A";
                 end
             end
         end
@@ -223,7 +257,25 @@ function [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(vararg
         t.Started(:) = false;
 
         % randomize order of rows
-        blocks{iblock} = t(randperm(height(t)), :);
+        t = t(randperm(height(t)), :);
+
+        % checkif we need to break into blocks
+        if p.Results.NumBlocks > 1
+            % I want to make sure there's no rounding error on the last one, 
+            % so I force the last element to be the height.
+            endIndex = round(cumsum(ones(1, p.Results.NumBlocks)/p.Results.NumBlocks) * nTrials);
+            endIndex(p.Results.NumBlocks) = nTrials;    
+            blocks = cell(p.Results.NumBlocks, 1);
+            lastEnd = 0;
+            for ibl=1:p.Results.NumBlocks
+                blocks{ibl} = t(lastEnd+1:endIndex(ibl), :);
+                fprintf('Block %d has %d elements\n', ibl, height(blocks{ibl}));
+                lastEnd = endIndex(ibl);
+            end
+            trialsOrBlocks{iblock} = blocks;
+        else
+            trialsOrBlocks{iblock} = t;
+        end
 
     end
 
