@@ -746,12 +746,17 @@ function [results] = ethologSingleTest(varargin)
                     resumeMilestones.reset();   % this will be used for countdown
                 end
             case 'BREAK_TIME_WAIT'
-                if stateMgr.timeInState() >= breakTimeSec
-                    stateMgr.transitionTo('START');
-                else
-                    if resumeMilestones.check(stateMgr.timeInState())
-                        
-                end
+                stateMgr.transitionTo('WAIT_ITI');
+                %
+                % Need to make text/animation here.
+                %
+                %
+                % if stateMgr.timeInState() >= breakTimeSec
+                %     stateMgr.transitionTo('START');
+                % else
+                %     if resumeMilestones.check(stateMgr.timeInState())
+                % 
+                % end
             case 'CLEAR_THEN_PAUSE'
                 Screen('Flip', windowIndex);
 
