@@ -273,6 +273,31 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.checkRunButton();
             drawnow;
         end
+
+        % Selection changed function: TesttypeButtonGroup
+        function TesttypeButtonGroupSelectionChanged(app, event)
+            selectedButton = app.TesttypeButtonGroup.SelectedObject;
+            
+            % Test type changed, clear out file and imageset
+            if app.isImagesetSelected
+                app.isImagesetSelected = false;
+                app.imagesetName = '';
+                app.imagesetParamsFunc = '';
+            end
+
+            if app.isFileSelected
+                app.isFileSelected = false;
+                app.fileName = '';
+                app.filePath = '';
+                app.fileNBlocks = 0;
+                app.fileBlockIndex = 0;
+                app.isTrialsSelected = false;
+            end
+
+            app.updateFileBlocks();
+            app.checkRunButton();
+            drawnow;
+        end
     end
 
     % Component initialization
@@ -293,6 +318,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
 
             % Create TesttypeButtonGroup
             app.TesttypeButtonGroup = uibuttongroup(app.GridLayout);
+            app.TesttypeButtonGroup.SelectionChangedFcn = createCallbackFcn(app, @TesttypeButtonGroupSelectionChanged, true);
             app.TesttypeButtonGroup.Title = 'Test type';
             app.TesttypeButtonGroup.Layout.Row = [2 4];
             app.TesttypeButtonGroup.Layout.Column = 1;
