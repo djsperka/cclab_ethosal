@@ -152,3 +152,13 @@ S.trials=blocks{1};
 S.imagesetName=img.Name;
 S.imagesetParamsFunc=img.ParamsFunc;
 save(fullfile(ethDataRoot,'input','mimg_exp_50img-20chg-A.mat'), '-struct', 'S');
+
+
+% for gabor
+[blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(img.BalancedFileKeys, [33,33,33;33,33,33]',0,6,'FolderKeys',{'H';'L'}, 'NumBlocks', 2);
+S.imagesetName = img.Name
+S.imagesetParamsFunc = img.ParamsFunc
+S.blocks = blocks{1};
+save(fullfile(ethDataRoot,'input','gab_exp_33x3-A.mat'), '-struct', 'S');
+S.blocks = blocks{2};
+save(fullfile(ethDataRoot,'input','gab_exp_33x3-B.mat'), '-struct', 'S');
