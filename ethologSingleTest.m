@@ -25,13 +25,15 @@ function [results] = ethologSingleTest(varargin)
     p.addParameter('Rect', [], @(x) isempty(x) || (isvector(x) && length(x) == 4));
     p.addParameter('Bkgd', [.5 .5 .5], @(x) isrow(x) && length(x) == 3);
 
-    breakParams = {
+    defaultBreakParams = {
         .25, 'You''re done 1/4 of the trials in this block.';
         .5, 'You''re halfway through this block!';
         .75, 'That''s 3/4 the trials in this block. Almost done!'
-        }
+        };
 
     p.addParameter('Breaks', true, @(x) islogical(x));
+    p.addParameter('BreakParams', defaultBreakParams, @(x) iscell(x) && size(x,2)==2);
+    p.addParameter('BreakTime', 5, @(x) isscalar(x) && isnumeric(x));
 
     % djs by default no cues are used. 
     p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
@@ -192,9 +194,7 @@ function [results] = ethologSingleTest(varargin)
     % Use a text size that makes characters be about 1 degree on screen for
     % short messages.
 
-    breakTimeSec = 10;
-    breakTimeMilestones = OneShotMilestone([breakParams{:,1}]);
-    resumeMilestones = OneShotMilestone([1:floor(breakTimeSec)]);
+    breakTimeMilestones = OneShotMilestone([p.Results.BreakParams{:,1}]);
     textSizeForMilestones = getTextSizePix(converter.deg2pix(1), windowIndex);
     fprintf('Using text size %d for %f pixels\n', textSizeForMilestones, converter.deg2pix(1));
 
@@ -737,26 +737,19 @@ function [results] = ethologSingleTest(varargin)
                     % should have been preceded by milestones.check==true
                     stateMgr.transitionTo('WAIT_ITI');
                 else
+                    stateMgr.transitionTo('BREAK_TIME_WAIT');
+
                     % draw text on screen
                     oldTextSize = Screen('TextSize', windowIndex, textSizeForMilestones);
-                    DrawFormattedText(windowIndex, breakParams{ind(1),2}, 'center','center',[1 1 1]);
+                    DrawFormattedText(windowIndex, p.Results.BreakParams{ind(1),2}, 'center','center',[1 1 1]);
                     Screen('Flip', windowIndex);
                     Screen('TextSize', windowIndex, oldTextSize);
-                    stateMgr.transitionTo('BREAK_TIME_WAIT');
-                    resumeMilestones.reset();   % this will be used for countdown
                 end
             case 'BREAK_TIME_WAIT'
-                stateMgr.transitionTo('WAIT_ITI');
-                %
-                % Need to make text/animation here.
-                %
-                %
-                % if stateMgr.timeInState() >= breakTimeSec
-                %     stateMgr.transitionTo('START');
-                % else
-                %     if resumeMilestones.check(stateMgr.timeInState())
-                % 
-                % end
+                if stateMgr.timeInState() >= p.Results.BreakTime
+                    Screen('Flip', windowIndex);
+                    stateMgr.transitionTo('START');
+                end
             case 'CLEAR_THEN_PAUSE'
                 Screen('Flip', windowIndex);
 
