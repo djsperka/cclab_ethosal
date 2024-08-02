@@ -4,6 +4,8 @@ classdef ethodlg_exported < matlab.apps.AppBase
     properties (Access = public)
         UIFigure                 matlab.ui.Figure
         GridLayout               matlab.ui.container.GridLayout
+        ScrDistmmEditField       matlab.ui.control.EditField
+        ScrDistmmEditFieldLabel  matlab.ui.control.Label
         ShowImageNamesCheckBox   matlab.ui.control.CheckBox
         SelectBlockButton        matlab.ui.control.Button
         ExitButton               matlab.ui.control.Button
@@ -244,12 +246,15 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 end
                 id = [char(datetime('now','Format','yyyy-MM-dd-HHmm')), '_', app.SubjectIDEditField.Value, '_', blok];
 
+                % The value from screen distance comes to us as a char array
+                % 
+                fprintf('Screen distance (ignored) %d\n', str2num(app.ScrDistmmEditField.Value));
+
+
                 run_etholog_single(id, 'Test', app.LocationDropDown.Value, 'Trials', app.getSelectedTrials(), 'Threshold', app.ThresholdCheckBox.Value, 'ExperimentTestType', app.getTestType(), 'Images', img);
             catch ME
                 fprintf('Error running expt:\n%s\n%s\n', ME.message, ME.getReport());
             end
-
-%            run_etholog_single(answer{2}, 'Test', popupValues{answer{5}}, 'Trials', trials, 'Threshold', logical(answer{4}), 'ExperimentTestType', answer{3}, 'Images', img);
 
         end
 
@@ -442,6 +447,19 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.ShowImageNamesCheckBox.Text = 'Show Image Names (test only)';
             app.ShowImageNamesCheckBox.Layout.Row = 3;
             app.ShowImageNamesCheckBox.Layout.Column = 2;
+
+            % Create ScrDistmmEditFieldLabel
+            app.ScrDistmmEditFieldLabel = uilabel(app.GridLayout);
+            app.ScrDistmmEditFieldLabel.Layout.Row = 6;
+            app.ScrDistmmEditFieldLabel.Layout.Column = 1;
+            app.ScrDistmmEditFieldLabel.Text = 'Scr Dist (mm)';
+
+            % Create ScrDistmmEditField
+            app.ScrDistmmEditField = uieditfield(app.GridLayout, 'text');
+            app.ScrDistmmEditField.InputType = 'digits';
+            app.ScrDistmmEditField.Placeholder = '(default)';
+            app.ScrDistmmEditField.Layout.Row = 6;
+            app.ScrDistmmEditField.Layout.Column = 2;
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';
