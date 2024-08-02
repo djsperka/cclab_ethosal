@@ -146,12 +146,12 @@ run_etholog_single('test','thr','Test','desk','Trials',blocks{1},'Threshold',tru
 
 
 
-img=imageset(fullfile(ethImgRoot,'babies_match_V2'),'mimg_params');
-[blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(img.BalancedFileKeys, [25,25,25,25]',0,6,'FolderKeys',{'H';'L'},'TestKeys',{'h';'l'});
+img=imageset(fullfile(ethImgRoot,'babies_match_V2'),'mimg_params_20');
+[blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(img.BalancedFileKeys, [25,25,25,25]',0,6,'FolderKeys',{'H';'L'},'TestKeys',{'h';'l'}, 'NumBlocks', 2);
 S.trials=blocks{1};
 S.imagesetName=img.Name;
 S.imagesetParamsFunc=img.ParamsFunc;
-save(fullfile(ethDataRoot,'input','mimg_exp_50img-20chg-A.mat'), '-struct', 'S');
+save(fullfile(ethDataRoot,'input','mimg_exp_50img-20chg-D.mat'), '-struct', 'S');
 
 
 % for gabor

@@ -272,9 +272,9 @@ function [trialsOrBlocks, inputArgs, parsedResults] = generateEthBlocksSingleTes
                 fprintf('Block %d has %d elements\n', ibl, height(blocks{ibl}));
                 lastEnd = endIndex(ibl);
             end
-            trialsOrBlocks{iblock} = blocks;
+            trialsOrBlocks = blocks;
         else
-            trialsOrBlocks{iblock} = t;
+            trialsOrBlocks = t;
         end
 
     end
