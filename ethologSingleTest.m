@@ -11,9 +11,6 @@ function [results] = ethologSingleTest(varargin)
     p.addRequired('Trials', @(x) istable(x));
     p.addRequired('Images', @(x) isa(x, 'imageset'));
 
-    % Dimensions is the geometry relative to viewing. Two-element vector 
-    % [screenWidth, screenDistance] in real situations, for testing a
-    % single value is the Fovx. 
     p.addRequired('ScreenWH', @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
     p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
 
@@ -78,6 +75,9 @@ function [results] = ethologSingleTest(varargin)
     
     % make an annoying beep telling subject right/wrong response
     p.addParameter('Beep', false, @(x) islogical(x));
+
+    % visual feedback
+    p.addParameter('Feedback', true, @(x) islogical(x));
     
     % keyboard index is needed for experimenter controls during the expt.
     % See docs for details.
@@ -86,7 +86,7 @@ function [results] = ethologSingleTest(varargin)
     % Now parse the input arguments
     p.parse(varargin{:});
 
-    % fetch some stuff from the results
+    % Initializations based on results of parse.
     ourVerbosity = p.Results.Verbose;
     images = p.Results.Images;
 
@@ -122,8 +122,11 @@ function [results] = ethologSingleTest(varargin)
     end
     fprintf('\n*** Using output filename %s\n', outputFilename);
 
-
-
+    % feedback colors, and feedback animator
+    feedbackColorCorrect = [.5,.55,.5];
+    feedbackColorIncorrect = [.55,.5,.5];
+    feedbackStruct = struct('rect', [], 'color', [1,1,1], 'on', 0, 'ramp', p.Results.ITI/2, 'off', 0.9*p.Results.ITI, 'thick', 8);
+    feedbackAnimator = AnimMgr([0,p.Results.ITI], @visualFeedbackRectAnimator, feedbackStruct);
 
     %% Initialize PTB and associated things
     % PTB defaults
@@ -226,6 +229,7 @@ function [results] = ethologSingleTest(varargin)
     % for looking/not-looking
     fixWindowDiamPix = converter.deg2pix(p.Results.FixptWindowDiam);
     fixWindowRect = CenterRectOnPoint([0 0 fixWindowDiamPix fixWindowDiamPix], fixXYScr(1), fixXYScr(2));
+    fixFeedbackRect = CenterRectOnPoint(images.UniformOrFirstRect, fixXYScr(1), fixXYScr(2));
     
     
     % The number of trials to run.
@@ -674,33 +678,41 @@ function [results] = ethologSingleTest(varargin)
                 % save data
                 save(outputFilename, 'results');
 
-                % screen output update
-                if (ourVerbosity > -1)
-                    if results.iResp(itrial)==1
-                        sresp = 'LEFT CHANGE';
-                    elseif results.iResp(itrial)==2
-                        sresp = 'RIGHT CHANGE';
-                    elseif results.iResp(itrial)==0
-                        sresp = 'NO CHANGE';
-                    else
-                        sresp = 'NO RESPONSE';
-                    end
-                    if results.iResp(itrial) == results.StimChangeType(itrial)
-                        scorr = 'CORRECT';
-                    else
-                        scorr = 'INCORRECT';
-                    end
+                % screen output update, AND update struct for feedback
+                if results.iResp(itrial)==1
+                    sresp = 'LEFT CHANGE';
+                elseif results.iResp(itrial)==2
+                    sresp = 'RIGHT CHANGE';
+                elseif results.iResp(itrial)==0
+                    sresp = 'NO CHANGE';
+                else
+                    sresp = 'NO RESPONSE';
+                end
+                switch results.StimChangeType(itrial)
+                    case 0
+                        feedbackStruct.rect = fixFeedbackRect;
+                    case 1
+                        feedbackStruct.rect = stim1Rect;
+                    case 2
+                        feedbackStruct.rect = stim2Rect;
+                end
+                if results.iResp(itrial) == results.StimChangeType(itrial)
+                    scorr = 'CORRECT';
+                    feedbackStruct.color = feedbackColorCorrect;
+                else
+                    scorr = 'INCORRECT';
+                    feedbackStruct.color = feedbackColorIncorrect;
+                end
 
-                    if strcmp(bStimType, 'Image')
-                        fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
-                    elseif strcmp(bStimType, 'Gabor')
-                        if trial.StimTestType == trial.StimChangeType
-                            sChange = 'YES';
-                        else
-                            sChange = 'NO';
-                        end
-                        fprintf('etholog: trial: %3d\t%s\tchange? %s\tdelta %3.0f\tresponse: %s\tcorrect? %s\n', itrial, side, sChange, trial.Delta, sresp, scorr);
+                if strcmp(bStimType, 'Image')
+                    fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
+                elseif strcmp(bStimType, 'Gabor')
+                    if trial.StimTestType == trial.StimChangeType
+                        sChange = 'YES';
+                    else
+                        sChange = 'NO';
                     end
+                    fprintf('etholog: trial: %3d\t%s\tchange? %s\tdelta %3.0f\tresponse: %s\tcorrect? %s\n', itrial, side, sChange, trial.Delta, sresp, scorr);
                 end
                 
                 % increment trial
@@ -713,12 +725,8 @@ function [results] = ethologSingleTest(varargin)
                     if bPausePending
                         stateMgr.transitionTo('WAIT_PAUSE');
                     else
-                        % check if its time to take a break
-                        if p.Results.Breaks && breakTimeMilestones.check(itrial/NumTrials)
-                            stateMgr.transitionTo('BREAK_TIME');
-                        else
-                            stateMgr.transitionTo('WAIT_ITI');
-                        end
+                        stateMgr.transitionTo('WAIT_ITI');
+                        feedbackAnimator.start(feedbackStruct);
                     end
                 end
 
@@ -727,7 +735,15 @@ function [results] = ethologSingleTest(varargin)
                 
             case 'WAIT_ITI'
                 if stateMgr.timeInState() >= p.Results.ITI
-                    stateMgr.transitionTo('START');
+                    if p.Results.Breaks && breakTimeMilestones.check(itrial/NumTrials)
+                        stateMgr.transitionTo('BREAK_TIME');
+                    else
+                        stateMgr.transitionTo('START');
+                    end
+                else
+                    if feedbackAnimator.animate(windowIndex)
+                        Screen('Flip', windowIndex);
+                    end
                 end
             case 'BREAK_TIME'
                 % figure out which break we're on
