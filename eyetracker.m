@@ -159,11 +159,13 @@ classdef eyetracker < handle
             
         function [tf] = is_in_rect(obj, rect)
             %is_in_rect Is current eye pos in the rect? Returns 1/0.
-            [x, y] = obj.eyepos();
-            tf = IsInRect(x, y, rect);
+            [x, y, tf] = obj.eyepos();
+            if tf
+                tf = IsInRect(x, y, rect);
+            end
         end
 
-        function [x, y] = eyepos(obj)
+        function [x, y, tf] = eyepos(obj)
             persistent eyeUsedIndex;
 
             if ~obj.DummyMode
@@ -191,11 +193,19 @@ classdef eyetracker < handle
 
             % now get the actual eye position
             if obj.DummyMode
+                tf = true;
                 [x, y] = GetMouse(obj.Window);
             else
                 evt = Eyelink('NewestFloatSample');
-                x = evt.gx(eyeUsedIndex);
-                y = evt.gy(eyeUsedIndex);
+                if isstruct(evt)
+                    tf = true;
+                    x = evt.gx(eyeUsedIndex);
+                    y = evt.gy(eyeUsedIndex);
+                else
+                    tf = false;
+                    x = nan;
+                    y = nan;
+                end
             end
 
         end
@@ -209,9 +219,13 @@ classdef eyetracker < handle
                 throw(exception);
             end
             S = zeros(1, size(R,2));
-            [x, y] = obj.eyepos();
-            for i=1:size(R,2)
-                S(i) = IsInRect(x, y, R(:,i));
+            [x, y, tf] = obj.eyepos();
+            if tf
+                for i=1:size(R,2)
+                    S(i) = IsInRect(x, y, R(:,i));
+                end
+            else
+                S(:) = false;
             end
         end
 

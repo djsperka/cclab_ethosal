@@ -11,9 +11,6 @@ function [results] = ethologSingleTest(varargin)
     p.addRequired('Trials', @(x) istable(x));
     p.addRequired('Images', @(x) isa(x, 'imageset'));
 
-    % Dimensions is the geometry relative to viewing. Two-element vector 
-    % [screenWidth, screenDistance] in real situations, for testing a
-    % single value is the Fovx. 
     p.addRequired('ScreenWH', @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
     p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
 
@@ -24,6 +21,16 @@ function [results] = ethologSingleTest(varargin)
     p.addParameter('Screen', 0, @(x) isscalar(x));
     p.addParameter('Rect', [], @(x) isempty(x) || (isvector(x) && length(x) == 4));
     p.addParameter('Bkgd', [.5 .5 .5], @(x) isrow(x) && length(x) == 3);
+
+    defaultBreakParams = {
+        .25, 'You''re done 1/4 of the trials in this block.';
+        .5, 'You''re halfway through this block!';
+        .75, 'That''s 3/4 the trials in this block. Almost done!'
+        };
+
+    p.addParameter('Breaks', true, @(x) islogical(x));
+    p.addParameter('BreakParams', defaultBreakParams, @(x) iscell(x) && size(x,2)==2);
+    p.addParameter('BreakTime', 5, @(x) isscalar(x) && isnumeric(x));
 
     % djs by default no cues are used. 
     p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
@@ -68,6 +75,9 @@ function [results] = ethologSingleTest(varargin)
     
     % make an annoying beep telling subject right/wrong response
     p.addParameter('Beep', false, @(x) islogical(x));
+
+    % visual feedback
+    p.addParameter('Feedback', true, @(x) islogical(x));
     
     % keyboard index is needed for experimenter controls during the expt.
     % See docs for details.
@@ -76,7 +86,7 @@ function [results] = ethologSingleTest(varargin)
     % Now parse the input arguments
     p.parse(varargin{:});
 
-    % fetch some stuff from the results
+    % Initializations based on results of parse.
     ourVerbosity = p.Results.Verbose;
     images = p.Results.Images;
 
@@ -112,8 +122,11 @@ function [results] = ethologSingleTest(varargin)
     end
     fprintf('\n*** Using output filename %s\n', outputFilename);
 
-
-
+    % feedback colors, and feedback animator
+    feedbackColorCorrect = [.5,.55,.5];
+    feedbackColorIncorrect = [.55,.5,.5];
+    feedbackStruct = struct('rect', [], 'color', [1,1,1], 'on', 0, 'ramp', p.Results.ITI/2, 'off', 0.9*p.Results.ITI, 'thick', 8);
+    feedbackAnimator = AnimMgr([0,p.Results.ITI], @visualFeedbackRectAnimator, feedbackStruct);
 
     %% Initialize PTB and associated things
     % PTB defaults
@@ -180,7 +193,13 @@ function [results] = ethologSingleTest(varargin)
     % In general, nice to have a background texture laying around
     BkgdTex = images.texture(windowIndex, 'BKGD');
 
+    % For taking breaks. We check regardless of whether its been requested.
+    % Use a text size that makes characters be about 1 degree on screen for
+    % short messages.
 
+    breakTimeMilestones = OneShotMilestone([p.Results.BreakParams{:,1}]);
+    textSizeForMilestones = getTextSizePix(converter.deg2pix(1), windowIndex);
+    fprintf('Using text size %d for %f pixels\n', textSizeForMilestones, converter.deg2pix(1));
 
     %% Initialize experimental parameters
     
@@ -210,6 +229,7 @@ function [results] = ethologSingleTest(varargin)
     % for looking/not-looking
     fixWindowDiamPix = converter.deg2pix(p.Results.FixptWindowDiam);
     fixWindowRect = CenterRectOnPoint([0 0 fixWindowDiamPix fixWindowDiamPix], fixXYScr(1), fixXYScr(2));
+    fixFeedbackRect = CenterRectOnPoint(images.UniformOrFirstRect, fixXYScr(1), fixXYScr(2));
     
     
     % The number of trials to run.
@@ -430,23 +450,27 @@ function [results] = ethologSingleTest(varargin)
 
                     case 'Image'
 
+                        % For threshold, show bkgd/img(A), and bkgd/test(B).
+                        % For non-threshold, show img/img(A) and bkgd/img(B).
                         switch trial.StimTestType
                             case 1
                                 texturesA(1) = images.texture(windowIndex, trial.Stim1Key);
                                 if p.Results.Threshold
                                     texturesA(2) = BkgdTex;
+                                    texturesB = [images.texture(windowIndex, trial.StimTestKey), texturesA(2)];
                                 else
-                                    texturesA(2) = images.texture(windowIndex, trial.Stim2Key);
+                                  texturesA(2) = images.texture(windowIndex, trial.Stim2Key);
+                                  texturesB = [images.texture(windowIndex, trial.StimTestKey), BkgdTex];
                                 end
-                                texturesB = [images.texture(windowIndex, trial.StimTestKey), texturesA(2)];
                             case 2
                                 texturesA(2) = images.texture(windowIndex, trial.Stim2Key);
                                 if p.Results.Threshold
                                     texturesA(1) = BkgdTex;
+                                    texturesB = [texturesA(1), images.texture(windowIndex, trial.StimTestKey)];
                                 else
                                     texturesA(1) = images.texture(windowIndex, trial.Stim1Key);
+                                    texturesB = [BkgdTex, images.texture(windowIndex, trial.StimTestKey)];
                                 end
-                                texturesB = [texturesA(1), images.texture(windowIndex, trial.StimTestKey)];
                             otherwise
                                 error('StimTestType must be 1 or 2');
                         end
@@ -547,7 +571,10 @@ function [results] = ethologSingleTest(varargin)
             case 'DRAW_B'
                 Screen('FillRect', windowIndex, bkgdColor);
                 if strcmp(bStimType, 'Gabor')
-                    paramsTemp = struct2array(GaborParams);
+                    % struct2array removed R2024a? 
+                    %paramsTemp = struct2array(GaborParams);
+                    paramsTemp1 = struct2cell(GaborParams);
+                    paramsTemp = [paramsTemp1{:}];
                     Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]', GaborOri, [], [], [], [], kPsychDontDoRotation, [paramsTemp;paramsTemp]');
                 else
                     Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]');
@@ -651,33 +678,41 @@ function [results] = ethologSingleTest(varargin)
                 % save data
                 save(outputFilename, 'results');
 
-                % screen output update
-                if (ourVerbosity > -1)
-                    if results.iResp(itrial)==1
-                        sresp = 'LEFT CHANGE';
-                    elseif results.iResp(itrial)==2
-                        sresp = 'RIGHT CHANGE';
-                    elseif results.iResp(itrial)==0
-                        sresp = 'NO CHANGE';
-                    else
-                        sresp = 'NO RESPONSE';
-                    end
-                    if results.iResp(itrial) == results.StimChangeType(itrial)
-                        scorr = 'CORRECT';
-                    else
-                        scorr = 'INCORRECT';
-                    end
+                % screen output update, AND update struct for feedback
+                if results.iResp(itrial)==1
+                    sresp = 'LEFT CHANGE';
+                elseif results.iResp(itrial)==2
+                    sresp = 'RIGHT CHANGE';
+                elseif results.iResp(itrial)==0
+                    sresp = 'NO CHANGE';
+                else
+                    sresp = 'NO RESPONSE';
+                end
+                switch results.StimChangeType(itrial)
+                    case 0
+                        feedbackStruct.rect = fixFeedbackRect;
+                    case 1
+                        feedbackStruct.rect = stim1Rect;
+                    case 2
+                        feedbackStruct.rect = stim2Rect;
+                end
+                if results.iResp(itrial) == results.StimChangeType(itrial)
+                    scorr = 'CORRECT';
+                    feedbackStruct.color = feedbackColorCorrect;
+                else
+                    scorr = 'INCORRECT';
+                    feedbackStruct.color = feedbackColorIncorrect;
+                end
 
-                    if strcmp(bStimType, 'Image')
-                        fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
-                    elseif strcmp(bStimType, 'Gabor')
-                        if trial.StimTestType == trial.StimChangeType
-                            sChange = 'YES';
-                        else
-                            sChange = 'NO';
-                        end
-                        fprintf('etholog: trial: %3d\t%s\tchange? %s\tdelta %3.0f\tresponse: %s\tcorrect? %s\n', itrial, side, sChange, trial.Delta, sresp, scorr);
+                if strcmp(bStimType, 'Image')
+                    fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
+                elseif strcmp(bStimType, 'Gabor')
+                    if trial.StimTestType == trial.StimChangeType
+                        sChange = 'YES';
+                    else
+                        sChange = 'NO';
                     end
+                    fprintf('etholog: trial: %3d\t%s\tchange? %s\tdelta %3.0f\tresponse: %s\tcorrect? %s\n', itrial, side, sChange, trial.Delta, sresp, scorr);
                 end
                 
                 % increment trial
@@ -691,6 +726,7 @@ function [results] = ethologSingleTest(varargin)
                         stateMgr.transitionTo('WAIT_PAUSE');
                     else
                         stateMgr.transitionTo('WAIT_ITI');
+                        feedbackAnimator.start(feedbackStruct);
                     end
                 end
 
@@ -699,6 +735,35 @@ function [results] = ethologSingleTest(varargin)
                 
             case 'WAIT_ITI'
                 if stateMgr.timeInState() >= p.Results.ITI
+                    if p.Results.Breaks && breakTimeMilestones.check(itrial/NumTrials)
+                        stateMgr.transitionTo('BREAK_TIME');
+                    else
+                        stateMgr.transitionTo('START');
+                    end
+                else
+                    if feedbackAnimator.animate(windowIndex)
+                        Screen('Flip', windowIndex);
+                    end
+                end
+            case 'BREAK_TIME'
+                % figure out which break we're on
+                ind = breakTimeMilestones.pass(itrial/NumTrials)
+                if isempty(ind)
+                    % This shouldn't happen! The transition to this state
+                    % should have been preceded by milestones.check==true
+                    stateMgr.transitionTo('WAIT_ITI');
+                else
+                    stateMgr.transitionTo('BREAK_TIME_WAIT');
+
+                    % draw text on screen
+                    oldTextSize = Screen('TextSize', windowIndex, textSizeForMilestones);
+                    DrawFormattedText(windowIndex, p.Results.BreakParams{ind(1),2}, 'center','center',[1 1 1]);
+                    Screen('Flip', windowIndex);
+                    Screen('TextSize', windowIndex, oldTextSize);
+                end
+            case 'BREAK_TIME_WAIT'
+                if stateMgr.timeInState() >= p.Results.BreakTime
+                    Screen('Flip', windowIndex);
                     stateMgr.transitionTo('START');
                 end
             case 'CLEAR_THEN_PAUSE'
@@ -726,6 +791,7 @@ function [results] = ethologSingleTest(varargin)
 
     % save data, again
     save(outputFilename, 'results');
+    fprintf('\n*** Results saved in output file %s\n', outputFilename);
 
     experimentElapsedTime = GetSecs - experimentStartTime;
     fprintf(1, 'This block took %.1f sec.\n', experimentElapsedTime);

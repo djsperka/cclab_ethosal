@@ -2,12 +2,12 @@ function results = run_etholog_single(varargin)
 %run_etholog_single Run etholog for a specific block
 %   Detailed explanation goes here
 
-    blockTypes = {'left', 'right', 'none', 'thr', 'gabthr'};
     testingTypes = {'no-test', 'desk', 'booth'};
     p=inputParser;
     p.addRequired('ID', @(x) ischar(x));
-    p.addRequired('lrn', @(x) ismember(x,blockTypes));
     p.addParameter('Test', 'no-test', @(x) ismember(x, testingTypes));
+    p.addParameter('ScreenDistance', [], @(x) isscalar(x) && isnumeric(x)); % can be empty
+    p.addParameter('ScreenWH', [], @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Inside', false, @(x) islogical(x));
     p.addParameter('Trials', [], @(x) istable(x));
@@ -17,9 +17,6 @@ function results = run_etholog_single(varargin)
     p.addParameter('Images', [], @(x) isa(x, 'imageset'));
     p.parse(varargin{:});
 
-    blockIndex = find(ismember(blockTypes, lower(p.Results.lrn)));
-    blockType = blockTypes{blockIndex};
-
     switch(p.Results.Test)
         case 'desk'
             % Set these folders according to the current machine
@@ -28,7 +25,6 @@ function results = run_etholog_single(varargin)
             else
                 image_folder = '/home/dan/work/cclab/images/eth/Babies';
             end
-            input_folder = '/home/dan/work/cclab/ethdata/input';
             output_folder = '/home/dan/work/cclab/ethdata/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
             screenDimensions=[];
@@ -44,11 +40,17 @@ function results = run_etholog_single(varargin)
             else
                 image_folder = '/data/cclab/images/Babies';
             end
-            input_folder = '/home/cclab/Desktop/ethosal/input';
-            output_folder = '/home/cclab/Desktop/ethosal/output';
+            output_folder = '/home/cclab/Desktop/cclab/ethdata/output';
             eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
+
             screenDimensions=[598, 336];
+            if ~isempty(p.Results.ScreenWH)
+                screenDimensions = p.Results.ScreenWH;
+            end
             screenDistance=920;
+            if ~isempty(p.Results.ScreenDistance)
+                screenDistance = p.Results.ScreenDistance;
+            end
             screenNumber = 1;
             screenRect=[];
             % This is the keyboard in use at the booth
@@ -60,8 +62,7 @@ function results = run_etholog_single(varargin)
             else
                 image_folder = '/data/cclab/images/Babies';
             end
-            input_folder = '/home/cclab/Desktop/ethosal/input';
-            output_folder = '/home/cclab/Desktop/ethosal/output';
+            output_folder = '/home/cclab/Desktop/cclab/ethdata/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
             screenDimensions=[];
             screenDistance=[];
@@ -78,7 +79,7 @@ function results = run_etholog_single(varargin)
       
 
 
-    outputFilename = fullfile(output_folder, [p.Results.ID, '_', blockType, '.mat']);
+    outputFilename = fullfile(output_folder, [p.Results.ID, '.mat']);
     if isfile(outputFilename)
         warning('OutputFile %s already exists. Finding a suitable name...', outputFilename);
         [path, base, ext] = fileparts(outputFilename);
@@ -98,13 +99,7 @@ function results = run_etholog_single(varargin)
         img = p.Results.Images;
     end
     
-    % load trial blocks
-    if isempty(p.Results.Trials)
-        cc=load(fullfile(input_folder, 'contrast_60_single_a_lrn_12.mat'));
-        t=cc.blocks{blockIndex};
-    else
-        t=p.Results.Trials;
-    end
+    t=p.Results.Trials;
 
 
     % Millikey index (todo - test!)

@@ -169,13 +169,9 @@ if any(contains(fieldnames(Y), 'blocks'))
     end
 end
 
-% try to load images
-img = imageset(answer{8}, answer(9));
 
 
 
-% Now try to run the thing
 results = run_etholog_single(answer{2}, 'Test', popupValues{answer{5}}, 'Trials', Y.blocks{iBlockNumber}, 'Threshold', logical(answer{4}), 'ExperimentTestType', answer{3}, 'Images', img);
-
 
 
