@@ -6,6 +6,8 @@ function results = run_etholog_single(varargin)
     p=inputParser;
     p.addRequired('ID', @(x) ischar(x));
     p.addParameter('Test', 'no-test', @(x) ismember(x, testingTypes));
+    p.addParameter('ScreenDistance', [], @(x) isscalar(x) && isnumeric(x)); % can be empty
+    p.addParameter('ScreenWH', [], @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Inside', false, @(x) islogical(x));
     p.addParameter('Trials', [], @(x) istable(x));
@@ -40,8 +42,15 @@ function results = run_etholog_single(varargin)
             end
             output_folder = '/home/cclab/Desktop/cclab/ethdata/output';
             eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
+
             screenDimensions=[598, 336];
+            if ~isempty(p.Results.ScreenWH)
+                screenDimensions = p.Results.ScreenWH;
+            end
             screenDistance=920;
+            if ~isempty(p.Results.ScreenDistance)
+                screenDistance = p.Results.ScreenDistance;
+            end
             screenNumber = 1;
             screenRect=[];
             % This is the keyboard in use at the booth
