@@ -1,7 +1,39 @@
 # cclab_ethosal
 Ethological salience expt
 
+## setup
+
+The script *local_ethosal* should be copied to somewhere in your MATLAB path. The file in this repo named *local_ethosal_EDIT_AND_COPY.m* is a template. The key folders (this script just places variables with the paths in the current workspace) are
+
+- **ethDataRoot** - root folder for input and output data. There should be subfolders named 'input' and 'output'.
+- **ethImgRoot** - root folders for imagesets. The location of [cclab-images](https://github.com/djsperka/cclab-images.git) is a good choice.
+
+
 ## how to run
+
+The experiment itself is run by the function *ethologSingleTest*. A helper script *run_etholog_single* can be used, as well as a MATLAB dialog app. To run the dialog, run `local_ethosal_dlg` (the script `local_ethosal` should also be present and configured).
+
+Running the script *local_ethosal_dlg* opens this dialog:
+
+![ethosal dialog](ethosal_dlg.png "ethosal main dialog") 
+
+## analysis
+
+The script *analyze_ethdata_2* will load and analyze all the etholog data collected thus far. 
+
+For each subject, the results from each block are loaded and concatenated into a single table. That table is passed to the script *anaeth* and results are returned in a struct. The fields in that struct and their meanings include:
+
+- **ncorrectHH** - number of correct HH trials
+- **ncompletedHH** - number of completed HH trials
+- **drateHH** - detection rate for HH trials
+- **treactHH** -avg reaction time for (correct) HH trials
+- **dpHH** - dprime for HH trials
+- **cHH** - criterion 
+- **nincorrectHH0** - number of incorrect no-change HH trials
+- **ncompletedHH0** - number of completed no-change HH trials
+- **frateHH0** - false alarm rate for no-change HH trials
+
+These same 9 values are repeated for each of the 4 stimulus configurations: *HH*, *HL*, *LH*, and *LL*.
 
 ### Generate trials
 

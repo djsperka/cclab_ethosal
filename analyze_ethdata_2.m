@@ -3,7 +3,6 @@ N2=load(fullfile(ethDataRoot,'output','gabor-exp','2024-07-31-1352_Dan_gab_exp_3
 None=[N1.results;N2.results];
 [rg1,~,~] = anaeth(None);
 
-
 N1=load(fullfile(ethDataRoot,'output','gabor-exp','2024-07-30-1433_sitong_gab_exp_33x3-A_blk1.mat'));
 N2=load(fullfile(ethDataRoot,'output','gabor-exp','2024-07-30-1446_sitong_gab_exp_33x3-A_blk2.mat'));
 None=[N1.results;N2.results];
@@ -14,9 +13,7 @@ N2=load(fullfile(ethDataRoot,'output','gabor-exp','2024-08-01-1508_Brinda_gab_ex
 None=[N1.results;N2.results];
 [rg3,~,fig] = anaeth(None);
 
-
 %%%%%
-
 
 N1=load(fullfile(ethDataRoot,'output', 'image-exp', '2024-07-26-1032_dan_mimg_exp_50img-dlt25-A_blk1.mat'));
 N2=load(fullfile(ethDataRoot,'output', 'image-exp', '2024-07-26-1043_dan_mimg_exp_50img-dlt25-A_blk2.mat'));
