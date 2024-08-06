@@ -5,39 +5,23 @@ Ethological salience expt
 
 ### Generate trials
 
-Load imageset (need the list of file keys)
+In order to generate trials, you must load an imageset (or at least have a list of the file keys for the image set you will use). When loading, provide a params argument for the folder mapping you will use. See [here](#imageset) for more.
+
+The imageset used for ethosal is loaded differently, depending on the type of trial.
+
+#### Generate trials for contrast-changed images
 
 ```
->> imgbw = imageset('/path/to/images');
+>> local_ethosal
+>> [blocks, inputArgs, parsedResults] = generateEthBlocksImg(img.BalancedFileKeys, [40,40], 'FolderKeys',{'H';'L'},'TestKeys',{'h';'l'},NumBlocks=2);
+Block 1 has 320 elements
+Block 2 has 320 elements
+>> S.blocks=blocks;
+>> S.imagesetName=img.Name;
+>> S.imagesetParamsFunc=img.ParamsFunc;
+>> save(fullfile(ethDataRoot,'input','mimg_exp_40img-dlt20-x8-A.mat'), '-struct', 'S');
 ```
 
-The imageset folder can have a single matlab function called 'params()', in a single file named 'params.m'. 
-The function returns a struct that can set any of the parameters used by the imageset. If there are multiple 
-folders and keys, then this can be useful. 
-
-An alternate version of this function can be placed in the root folder. It must be a matlab function that returns a struct. See imageset for the properties. 
-
-The 'Subfolders' arg is a Nx2 cell array, where the first column are the folder keys, and the second column are the subfolders, 
-relative to the base folder, where images are found.
-
-For the processed images, the params file looks like this:
-
-```
-function Y = params()
-    Y.Subfolders={ ...
-    'F','Nature/HistMatch0';'G','Nature/HistMatch10';'H','Nature/HistMatch20';'I','Nature/HistMatch30';'J','Nature/HistMatch40';...
-    'O','Texture/HistMatch0';'P','Texture/HistMatch10';'Q','Texture/HistMatch20';'R','Texture/HistMatch30';'S','Texture/HistMatch40'
-    };
-end
-```
-
-The simpler imageset have a pair of folders. This is the Babies/ folder we used for the earlier black and white test:
-
-```
-function Y = params()
-    Y.Subfolders={ 'H','bw'; 'L','bw-texture'}; 
-end
-```
 
 
 Generate trials for contrast change
@@ -250,6 +234,53 @@ If the window is open, the value of w can be used for testing imagesets (see bel
 
 
 ### imageset
+
+An imageset is a class that represents a set of images in a folder. The folder may have subfolders where 
+the same set of images is repeated in each subfolder, with different processing. One folder may hold a full color image, 
+another may have a black and white version, another may have a texturized version of the same image, and so on.
+
+An imageset is loaded from a root folder. Images should be in subfolders under the root. A 'Subfolders' argument specifies the 
+subfolders to load, and what "folder key" to use for images in that folder. The full key for a given image is a string consisiting 
+of its "folder key", followed by a slash "/", followed by the image file base name. 
+
+The 'Subfolders' arg is a Nx2 cell array, where the first column are the folder keys, and the second column are the subfolders, 
+relative to the base folder, where images are found. This arg can be passed on the command line with `'Subfolders, { ... }, ...'`. 
+A more convenient method is to store a function in a file of the same name (e.g. params() in params.m) stored in the *root folder* 
+of the imageset. 
+
+The name of the params function is the second arg to imageset(). 
+
+When generating threshold trials using the processed images, the params file looks like this:
+
+```
+function Y = params()
+    Y.Subfolders={ ...
+    'F','Nature/HistMatch0';...
+    'G','Nature/HistMatch10';...
+    'H','Nature/HistMatch20';...
+    'I','Nature/HistMatch30';...
+    'J','Nature/HistMatch40';...
+    'O','Texture/HistMatch0';...
+    'P','Texture/HistMatch10';...
+    'Q','Texture/HistMatch20';...
+    'R','Texture/HistMatch30';...
+    'S','Texture/HistMatch40'
+    };
+end
+```
+
+
+
+The simpler imageset have a pair of folders. This is the Babies/ folder we used for the earlier black and white test:
+
+```
+function Y = params()
+    Y.Subfolders={ 'H','bw'; 'L','bw-texture'}; 
+end
+```
+
+
+
 
 This is an imageset loaded for bw images using CONTRAST as the changing property. The 'OnLoad' function is @deal, which does nothing. 
 
