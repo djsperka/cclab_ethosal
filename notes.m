@@ -107,10 +107,10 @@ img=imageset(fullfile(ethImgRoot,'babies_match_V2'),{'params'},'ShowName',true);
 blocks=generateThreshBlockProcImage(img.BalancedFileKeys, 40, 'Threshold', true,'NumBlocks',3);
 
 % save blocks and imageset name/paramsfunc. The names here matter! 
-S.blocks=blocks
-S.Name=img.Name
-S.ParamsFunc=img.ParamsFunc
-save(fullfile(ethDataRoot,'input','mimg_thr_5_00-40-B.mat'),'-struct','S');
+S.blocks=blocks;
+S.imagesetName=img.Name;
+S.imagesetParamsFunc=img.ParamsFunc;
+save(fullfile(ethDataRoot,'input','mimg_thr_40img_00-40-A.mat'),'-struct','S');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -155,10 +155,8 @@ save(fullfile(ethDataRoot,'input','mimg_exp_50img-dlt20-D.mat'), '-struct', 'S')
 
 
 % for gabor
-[blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(img.BalancedFileKeys, [33,33,33;33,33,33]',0,6,'FolderKeys',{'H';'L'}, 'NumBlocks', 2);
-S.imagesetName = img.Name
-S.imagesetParamsFunc = img.ParamsFunc
-S.blocks = blocks{1};
+[blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(img.BalancedFileKeys, [33,33,33]',0,6,'FolderKeys',{'H';'L'}, 'NumBlocks', 2);
+S.imagesetName = img.Name;
+S.imagesetParamsFunc = img.ParamsFunc;
+S.blocks = blocks;
 save(fullfile(ethDataRoot,'input','gab_exp_33x3-A.mat'), '-struct', 'S');
-S.blocks = blocks{2};
-save(fullfile(ethDataRoot,'input','gab_exp_33x3-B.mat'), '-struct', 'S');

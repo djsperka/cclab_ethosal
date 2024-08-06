@@ -15,86 +15,78 @@ In the example below, a trial where the change occurs on a side whose folder key
 
 The trials/blocks are now saved in a struct, with fields
 - imagesetName - name of the imageset, i.e. its base folder name
-- imaegsetParamsFunc - params func to pass when loading the imageset
+- imagesetParamsFunc - params func to pass when loading the imageset
 and one of the following
 - blocks: array of tables, each with a block of trials
 - trials: a single table of trials
 
 The filename expected by the GUI is *testtype*_*exptype*_*whatever*.mat, where *testtype* can be *mimg* or *gab*, and *exptype* can be *thr* or *exp*. And *whatever* can be any legal file name stuff. The extension *mat* is required.
 
-#### Generate trials for contrast-changed images
+#### Generate trials for contrast-changed modified images
+
+The first arg is the list of file keys that are 'balanced' - i.e. each image present in one of the subfolders is also present in each of the other subfolders. The list is a cell array of image keys - just the basename of the image files, no path and no extension.
+
+The second arg is the number of images for [left, right] trials. Each image is presented on 8 trials. There are 4 possible left-right pairings (HH, HL, LH, LL), and each pairing is presented on a change trial *and* a no-change trial. Thus, the number of trials will be `(left+right)*8`. Here, we generate 640 trials, and split them into 3 blocks.
 
 ```
 >> local_ethosal
->> [blocks, inputArgs, parsedResults] = generateEthBlocksImg(img.BalancedFileKeys, [40,40], 'FolderKeys',{'H';'L'},'TestKeys',{'h';'l'},NumBlocks=2);
-Block 1 has 320 elements
-Block 2 has 320 elements
+>> blocks = generateEthBlocksImg(img.BalancedFileKeys, [40,40], 'FolderKeys',{'H';'L'},'TestKeys',{'h';'l'},NumBlocks=3);
+Block 1 has 213 elements
+Block 2 has 214 elements
+Block 3 has 213 elements
 >> S.blocks=blocks;
 >> S.imagesetName=img.Name;
 >> S.imagesetParamsFunc=img.ParamsFunc;
 >> save(fullfile(ethDataRoot,'input','mimg_exp_40img-dlt20-x8-A.mat'), '-struct', 'S');
 ```
 
+#### Generate trials for modified images threshold
 
+In generateThresBlockProcImage, the deltas - the contrast changes - are hard-coded. Currently , the deltas are `[0;0;10;20;30;40]`. By treating 0 as a delta, we make 1/3 of all trials no-change trials. Trial multiplicity is determined by the number of images (second arg), high/low salience images (hard-coded folder keys 'H' for high salience and 'Q' for low salience - x2), left/right (x2), and the deltas (x6). 
 
-Generate trials for contrast change
+In the blocks structure, trials that change have StimChangeType = 1 (left change) or 2 (right change), and the value of 'Delta' is the contrast change.
+
 
 ```
->> baseContrast = .7;
->> deltas = [0, .1, .2, .3];
->> numberOfImages = 5; % number of trials = numberOfImages * length(deltas)
->> trials=generateThreshBlock(imgbw.BalancedFileKeys, numberOfImages, 'HL', baseContrast, deltas, 1);
+local_ethosal   % ethDataRoot, ethImgRoot
+img=imageset(fullfile(ethImgRoot,'babies_match_V2'),'params');
+blocks=generateThreshBlockProcImage(img.BalancedFileKeys, 40, 'Threshold', true,'NumBlocks',3);
+S.blocks=blocks;
+S.imagesetName=img.Name;
+S.imagesetParamsFunc=img.ParamsFunc;
+save(fullfile(ethDataRoot,'input','mimg_thr_40img_00-40-A.mat'),'-struct','S');
 ```
 
-Generate trials for luminance change
+#### Generate trials for gabor test
+
+There is a different script here, but most command line args are the same. 
+
+The second arg here are image counts for [change_left; change_right; change_none]. Images selected for each of these categories are presented in all 4 left-right pairings. Thus, the number of trials will be `(change_left+change_right+change_none)*4`.
 
 ```
-baseLumArg = 0;
-lumDeltas = [0 10 20];
-trials=generateThreshBlock(lumbw.BalancedFileKeys, numberOfImages, 'HL', baseLumArg, lumDeltas, 1);
+>> blocks = generateEthBlocksSingleTest(img.BalancedFileKeys, [33;33;33],0,6,'TestTime', 0.1, 'FolderKeys',{'H';'L'}, 'NumBlocks', 2);
+Block 1 has 198 elements
+Block 2 has 198 elements
+>> S.blocks=blocks;
+>> S.imagesetName=img.Name;
+>> S.imagesetParamsFunc=img.ParamsFunc;
+>> save(fullfile(ethDataRoot,'input','gab_exp_99img-dlt20-x8-A.mat'), '-struct', 'S');
 ```
 
-Generate trials for gabor threshold
+#### Generate trials for gabor threshold
+
+Each image is presented on each side (x2), both H and L salience (x2), change and no-change (x2), with each contrast change (third argument - here x4). For the example below, there are `30*2*2*2*4 = 960` trials.
 
 ```
-trials=generateThreshBlockGabor(img.BalancedFileKeys, 30, [2,4,6,8],'TestTime',0.1);
+timg=imageset(fullfile(ethImgRoot,'babies_match_V2'),'tparams');
+blocks=generateThreshBlockGabor(timg.BalancedFileKeys, 30, [2,4,6,8],'TestTime',0.1,'NumBlocks', 3);
+clear S
+S.blocks=blocks;
+S.imagesetName = timg.Name;
+S.imagesetParamsFunc = timg.ParamsFunc;
+save(fullfile(ethDataRoot,'input','gab_thr_30-2468-B.mat'),'-struct','S');
 ```
 
-Generate trials for processed images. 
-
-Several things are hard-coded in this script, including 
-
-```
-    deltas = [-20;-10;0;10;20];
-```
-
-The imageset uses a newfangled params.m file in its Root folder. That file
-maps the folders to folder keys. The images are divided into two groups, 
-'Texture' and 'Natural'. Each of those groups is further divided into a contrast
-reduced image. The folder names indicate the contrast change from the original.
-
-In this thresh test, we will change the contrasts both up and down from a 
-central base value. To accomplish this, the subfolders are mapped to a set of 
-characters so that their alphabetical order is also the order of increasing contrast.
-
-```
-function Y = params()
-    Y.Subfolders={ ...
-    'F','Nature/HistMatch0';'G','Nature/HistMatch10';'H','Nature/HistMatch20';'I','Nature/HistMatch30';'J','Nature/HistMatch40';...
-    'O','Texture/HistMatch0';'P','Texture/HistMatch10';'Q','Texture/HistMatch20';'R','Texture/HistMatch30';'S','Texture/HistMatch40'
-    };
-end
-```
-
-So, the letters F,G,H,I,J represent contrast differences -20,-10,0,10,20. Similarly for low salience images, 
-the letters O,P,Q,R,S represent -20,-10,0,10,20 (it wouldn't have worked with L as the center, then we'd have
-overlapped).
-
-Here's how to generate
-
-```
-trials=generateThreshBlockProcImage(img.BalancedFileKeys, 5)
-```
 
 
 ### About the keyboard index
