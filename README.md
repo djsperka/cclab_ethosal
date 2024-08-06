@@ -9,6 +9,19 @@ In order to generate trials, you must load an imageset (or at least have a list 
 
 The imageset used for ethosal is loaded differently, depending on the type of trial.
 
+For the modified-image trials (regular trials, not threshold), pass 'FolderKeys' and 'TestKeys' (each is 2x1 cell of characters, each of which is a 'Folder Key' in the imageset). When a trial is chosen as a change trial, StimTestKey is formed using the 'TestKey' in the same position as the FolderKey for the changing side. 
+
+In the example below, a trial where the change occurs on a side whose folder key is 'H' will have its StimTestKey formed using 'h' and that trial's ImageKey. 
+
+The trials/blocks are now saved in a struct, with fields
+- imagesetName - name of the imageset, i.e. its base folder name
+- imaegsetParamsFunc - params func to pass when loading the imageset
+and one of the following
+- blocks: array of tables, each with a block of trials
+- trials: a single table of trials
+
+The filename expected by the GUI is *testtype*_*exptype*_*whatever*.mat, where *testtype* can be *mimg* or *gab*, and *exptype* can be *thr* or *exp*. And *whatever* can be any legal file name stuff. The extension *mat* is required.
+
 #### Generate trials for contrast-changed images
 
 ```
