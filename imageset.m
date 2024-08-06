@@ -50,7 +50,7 @@ classdef imageset
 
         function [keys] = make_keys(folder_keys, file_keys)
             if ~iscell(folder_keys) || ~iscell(file_keys)
-                me = MException('imageset.make_keys.bad_input', 'Both args must be cell arrays.');
+                me = MException('imageset:bad_input', 'Both args must be cell arrays.');
                 throw(me);
             end
             keys = strcat(folder_keys, '/', file_keys);
