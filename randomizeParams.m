@@ -60,21 +60,6 @@ function [t] = randomizeParams(varargin)
         t{:,i} = A;
     end
     if ~isempty(p.Results.VariableNames)
-        p.Results.VariableNames
         t.Properties.VariableNames = p.Results.VariableNames;
     end
-%     t = array2table(pind);
-% 
-%     if ~isempty(p.Results.VariableNames)
-%         t.Properties.VariableNames = p.Results.VariableNames;
-%     end
-% 
-%     if ~isempty(p.Results.Replacements)
-%         for i=1:length(m)
-%             if ~isempty(p.Results.Replacements{i})
-%                 r = p.Results.Replacements{i};
-%                 t(:,i) = r(t{:,i});
-%             end
-%         end
-%     end
 end
