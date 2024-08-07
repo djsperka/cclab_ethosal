@@ -77,7 +77,7 @@ function [results] = ethologSingleTest(varargin)
     p.addParameter('Beep', false, @(x) islogical(x));
 
     % visual feedback
-    p.addParameter('Feedback', true, @(x) islogical(x));
+    p.addParameter('Feedback', false, @(x) islogical(x));
     
     % keyboard index is needed for experimenter controls during the expt.
     % See docs for details.
@@ -726,7 +726,9 @@ function [results] = ethologSingleTest(varargin)
                         stateMgr.transitionTo('WAIT_PAUSE');
                     else
                         stateMgr.transitionTo('WAIT_ITI');
-                        feedbackAnimator.start(feedbackStruct);
+                        if p.Results.Feedback
+                            feedbackAnimator.start(feedbackStruct);
+                        end
                     end
                 end
 
@@ -741,7 +743,7 @@ function [results] = ethologSingleTest(varargin)
                         stateMgr.transitionTo('START');
                     end
                 else
-                    if feedbackAnimator.animate(windowIndex)
+                    if p.Results.Feedback && feedbackAnimator.animate(windowIndex)
                         Screen('Flip', windowIndex);
                     end
                 end
