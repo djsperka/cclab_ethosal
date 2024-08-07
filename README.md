@@ -115,6 +115,8 @@ The filename expected by the GUI is *testtype*_*exptype*_*whatever*.mat, where *
 
 #### Generate trials for contrast-changed modified images
 
+The imageset loaded should have the *unchanged* and *changed* natural and texture images. The "FolderKeys" for these locations are passed as the 'FolderKeys' (for unchanged) and 'TestKeys' (for changed) arguments below.
+
 The first arg is the list of file keys that are 'balanced' - i.e. each image present in one of the subfolders is also present in each of the other subfolders. The list is a cell array of image keys - just the basename of the image files, no path and no extension.
 
 The second arg is the number of images for [left, right] trials. Each image is presented on 8 trials. There are 4 possible left-right pairings (HH, HL, LH, LL), and each pairing is presented on a change trial *and* a no-change trial. Thus, the number of trials will be `(left+right)*8`. Here, we generate 640 trials, and split them into 3 blocks.
