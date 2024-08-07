@@ -9,9 +9,9 @@ The script *local_ethosal* should be copied to somewhere in your MATLAB path. Th
 - **ethImgRoot** - root folders for imagesets. The location of [cclab-images](https://github.com/djsperka/cclab-images.git) is a good choice.
 
 
-## how to run
+## how to run an experiment
 
-The experiment itself is run by the function *ethologSingleTest*. A helper script *run_etholog_single* can be used, as well as a MATLAB dialog app. To run the dialog, run `local_ethosal_dlg` (the script `local_ethosal` should also be present and configured).
+A block of trials is run by the function *ethologSingleTest*. A MATLAB helper app will launch it. To run the dialog, run `local_ethosal_dlg` (the script `local_ethosal` should also be present and configured).
 
 Running the script *local_ethosal_dlg* opens this dialog:
 
@@ -31,7 +31,50 @@ Normally, you can click "Select Trials", and choose the trials file. The type of
 If the trials file has blocks, then you will be presented with a dialog to select  the block number to run.
 
 The data file created will be placed in **ethDataRoot**/output. The filename will be *yyyy-MM-dd-HHmm_subjectId_inputfile_blk#*, where *yyyy-MM-dd-HHmm* is the date/time the experiment was started, *subjectID* is from the dialog, and *inputfile* is the base name of the input (mat) file used. If a block is chosen, then *blk#* would indicate which block was run.
- 
+
+The **Run** button will not activate until the subject ID is not empty, and a file/block are selected. You cannot interact with the dialog while the experiment is running. 
+
+### Running multiple blocks
+
+When a subject must be run through multiple blocks in a data file, use the dialog to run the first block. After that block is done, click **Select block**, select the next block, click **OK**, and then you can hit **Run** again. A new data file will be created, its name will use the new block number.
+
+## Running a block of trials
+
+When a block of trials is launched, the stimulus screen will first display the PTB initialization screen, then switch to a gray background with some text written in the upper left corner. At this point, the MATLAB script is paused, waiting for the eye tracker to "exit setup". This is where the experimenter can calibrate the subject, adjusting camera if needed. The experiment waits until the experimenter hits the "Exit Setup" button on the tracker screen.
+
+When trials are running, the keyboard is taken over completely by MATLAB. Do not open other apps and use the keyboard in them! MATLAB, and the experiment, will intercept your keystrokes, and you might inadvertently pause or quit the block. 
+
+Control keys you can use during a block are:
+- <space> - the space bar toggles pause/unpause
+- **d** - when paused, this will initiate a drift correction. See below for details.
+- **s** - when paused, this will switch eye tracker to setup mode. You can recalibrate, adjust camera, etc. When finished, hit **Exit Setup** on tracker interface.
+
+### Eyetracking problems
+
+Recovering from eyetracking problems during data collection. Assuming you have already set up the system for a participant, and they've completed a calibration successfully. 
+
+Sometimes, over the course of a series of trials, the subject changes position slightly. This will cause the tracker to report eye poisition. Over time, this incorrect position "drifts", and may make it difficult for a subject to get within a fixation window. 
+
+Other times, the participant may move away from the chinrest. When they return, their head is in a slightly different location, and tracking is off. Or, the tracker picked up the wrong location as the pupil (e.g. a nostril!).
+
+If you are already paused, then the best choice is to hit **s** on the MATLAB machine. This changes the tracker to "Camera Setup", and you can fix the tracking problems. 
+
+Smaller tracking errors like a drift are more easily fixed with a *drift correction*. 
+
+Normally, a drift correction works like this:
+
+1. Experimenter PAUSE expt (space bar)
+2. Tell participant a drift correction is coming
+3. Experimenter hits**d** on keyboard (the matlab computer). 
+4. When participant fixates on the cross (eye position on tracker will probably NOT align with the center "+"), click "Accept Fixation". If the eye was stationary, the tracker will accept, then automatically adjust its calibration and re-start the expt (no need to un-pause with space bar - it is automatic)
+5. If the eye is not stationary when you hit "Accept Fixation", then nothing happens! You might notice a small pair or rectangles, red and green, which indicate when eye is moving (red) or stationary (green). The tracker requires that when you hit "Accept" that the eye is stationary. If it isn't, then nothing happens. That's OK - just try again. 
+
+
+If you are in a drift correction (expt was paused, and you hit **d**) but the tracker is badly misconfigured, you can hit **<ESC>**, and the tracker switches to "Camera Setup". You can take steps here to correct tracking problems, but when finished, **you MUST click on the tracker's "OUTPUT/RECORD" button!** The tracker exits setup and the drift correction, and the experiment resumes. 
+
+Important to note that when you enter "Camera Setup" via a *pause*/***s*** sequence, or at initial calibration, you must hit "Exit Setup" to proceed. If you enter "Camera Setup" via a *pause*/***d***/**<ESC>** sequence, then you must hit "Output/Record" to proceed.
+
+The sequence of clicks is crucial!
 
 ## analysis
 
