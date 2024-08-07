@@ -15,7 +15,23 @@ The experiment itself is run by the function *ethologSingleTest*. A helper scrip
 
 Running the script *local_ethosal_dlg* opens this dialog:
 
-![ethosal dialog](ethosal_dlg.png "ethosal main dialog") 
+![ethosal dialog](ethosal_dlg.png "ethosal main dialog")
+
+The items in the dialog and their meanings:
+
+- **Subject ID** - An identifier for the subject. Will be incorporated into output file.
+- **Test Type** - Will the *test* image be a contrast-modified image ("Image") or a gabor ("Gabor")?
+- **Threshold?** - if checked, will run threshold data of selected test type
+- **Show Image Names** -if checked, image keys will be printed with the images. For testing. Requires Computer Vision Toolbox.
+- **Location** - Select *Booth(test)* to run in EEG booth, but without eye tracking (for testing button box). Select Booth(subj) to run a subject in the booth. Select *Desk* to run on Dan's desk.
+- **Scr Dist (mm)** - Screen distance (eye to center of screen), in mm. (8/6/24 this is not used at present)
+
+Normally, you can click "Select Trials", and choose the trials file. The type of file you are presented with will depend on whether you've checked "Threshold", and which **Test type** you've selected.
+
+If the trials file has blocks, then you will be presented with a dialog to select  the block number to run.
+
+The data file created will be placed in **ethDataRoot**/output. The filename will be *yyyy-MM-dd-HHmm_subjectId_inputfile_blk#*, where *yyyy-MM-dd-HHmm* is the date/time the experiment was started, *subjectID* is from the dialog, and *inputfile* is the base name of the input (mat) file used. If a block is chosen, then *blk#* would indicate which block was run.
+ 
 
 ## analysis
 
