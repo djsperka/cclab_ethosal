@@ -31,7 +31,12 @@ classdef responder < handle
             %responder Construct a responder object for device with index.
             %   Detailed explanation goes here
             KbName('UnifyKeyNames');
-            obj.Responses = { KbName('1!'), 1; KbName('return'), 0; KbName('2@'), 2; KbName('3#'), 1; KbName('4$'), 2};
+            % This was the original setup - left and right-hand buttons were different. 
+            % obj.Responses = { KbName('1!'), 1; KbName('return'), 0; KbName('2@'), 2; KbName('3#'), 1; KbName('4$'), 2};
+            % New version (V2 - 8/22/2024) - center button is "no change",
+            % all other buttons are "change". Not asking if change is left
+            % or right.
+            obj.Responses = { KbName('1!'), 1; KbName('return'), 0; KbName('2@'), 1; KbName('3#'), 1; KbName('4$'), 1};
             obj.DevIndex = index;
             KbQueueCreate(obj.DevIndex);
         end
