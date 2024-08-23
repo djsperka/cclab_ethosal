@@ -129,10 +129,11 @@ classdef twotonebeeper < handle
         function delete(obj)
             %METHOD1 Summary of this method goes here
             %   Detailed explanation goes here
-            PsychPortAudio('Close', obj.PAHandle);
+            %PsychPortAudio('Close', obj.PAHandle);
             if (obj.IsUsingSnd)
-                Snd('Close', obj.PAHandle, 1);
+                Snd('Close', 1);
             end
+            PsychPortAudio('Close', obj.PAHandle);
         end
     end
 end
