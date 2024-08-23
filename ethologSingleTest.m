@@ -97,6 +97,11 @@ function [results] = ethologSingleTest(varargin)
     subjectResponseType = validatestring(p.Results.Response, responseTypes);
 
 
+    % issue WARNING and EXIT if test type is anything other than 'Image'
+    if ~strcmp(bStimType, 'Image')
+        error('Responses are not configured correctly for anything other than Image type');
+    end
+
     % These are applied to images when "A" texture is made (imageBaseFunc),
     % and when the "B" texture is made (imageChangeFunc). FYI - deal is a
     % function that just passes input to output, so is effectively a NO-OP.
@@ -625,7 +630,7 @@ function [results] = ethologSingleTest(varargin)
                     
                     % beep maybe
                     if p.Results.Beep
-                        if results.iResp(itrial) == trial.StimChangeType
+                        if results.iResp(itrial) == trial.StimChangeTF
                             beeper.correct();
                         elseif results.iResp(itrial) < 0
                             beeper.incorrect();
@@ -680,9 +685,7 @@ function [results] = ethologSingleTest(varargin)
 
                 % screen output update, AND update struct for feedback
                 if results.iResp(itrial)==1
-                    sresp = 'LEFT CHANGE';
-                elseif results.iResp(itrial)==2
-                    sresp = 'RIGHT CHANGE';
+                    sresp = 'CHANGE';
                 elseif results.iResp(itrial)==0
                     sresp = 'NO CHANGE';
                 else
@@ -696,7 +699,7 @@ function [results] = ethologSingleTest(varargin)
                     case 2
                         feedbackStruct.rect = stim2Rect;
                 end
-                if results.iResp(itrial) == results.StimChangeType(itrial)
+                if results.iResp(itrial) == results.StimChangeTF(itrial)
                     scorr = 'CORRECT';
                     feedbackStruct.color = feedbackColorCorrect;
                 else
