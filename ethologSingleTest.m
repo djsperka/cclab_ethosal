@@ -349,6 +349,7 @@ function [results] = ethologSingleTest(varargin)
 
                 % get a struct with just trial params.  
                 trial = table2struct(results(itrial, :));
+                results.trialOrder(itrial) = itrial;
 
                 % screen output update
                 if (ourVerbosity > -1)
@@ -397,7 +398,6 @@ function [results] = ethologSingleTest(varargin)
                         % The 'b' textures are shown in the test phase. StimTestType 
                         % is the stim (1=left, 2=right) which appears during test phase.
                         % The other stim is blank.
-                        iBaseContrast = trial.Base;
                         switch trial.StimChangeType
                             case 1
                                 iTestContrast = trial.Base + trial.Delta;
@@ -411,7 +411,6 @@ function [results] = ethologSingleTest(varargin)
                                 iChangeIndex = 1;
                                 iChangeStimKey = trial.Stim1Key;
                                 iNoChangeIndex = 2;
-                                iNoChangeStimKey = trial.Stim2Key;
                             case 2
                                 iChangeIndex = 2;
                                 iChangeStimKey = trial.Stim2Key;
@@ -717,11 +716,20 @@ function [results] = ethologSingleTest(varargin)
                     end
                     fprintf('etholog: trial: %3d\t%s\tchange? %s\tdelta %3.0f\tresponse: %s\tcorrect? %s\n', itrial, side, sChange, trial.Delta, sresp, scorr);
                 end
-                
+
+
+
+                % If the trial was NOT completed, append it to the end of
+                % the trial list for re-trying later.
+                if ~results.Started(itrial) || results.tResp(itrial) < 0 || results.iResp(itrial) < 0
+                    results = [results;struct2table(trial)];
+                    NumTrials = height(results);
+                    fprintf('etholog: Incomplete trial appended to end of trial list. Trial list now has %d trials.\n', NumTrials);
+                end
+
                 % increment trial
                 itrial = itrial + 1;
                 if itrial > NumTrials
-                    % do stuff for being all done like write output file
                     stateMgr.transitionTo('DONE');
                 else
                     % check if a pause is pending
@@ -752,7 +760,7 @@ function [results] = ethologSingleTest(varargin)
                 end
             case 'BREAK_TIME'
                 % figure out which break we're on
-                ind = breakTimeMilestones.pass(itrial/NumTrials)
+                ind = breakTimeMilestones.pass(itrial/NumTrials);
                 if isempty(ind)
                     % This shouldn't happen! The transition to this state
                     % should have been preceded by milestones.check==true
