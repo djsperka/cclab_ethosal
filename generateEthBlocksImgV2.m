@@ -106,7 +106,7 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
 
     % results
     tabTemp.Started = false(nTrials, 1);
-    tabTemp.trialIndex = zeros(nTrials, 1);
+    tabTemp.trialIndex = (1:nTrials)';
     tabTemp.Aon = generateColumn(nTrials, -1);
     tabTemp.Aoff = generateColumn(nTrials, -1);
     tabTemp.Bon = generateColumn(nTrials, -1);
@@ -141,7 +141,7 @@ function [A] = generateColumn(n, valueOrRange)
 % vector, it should be a range within which the values should vall - they
 % are drawn from a uniform distribtion.
 
-    if length(valueOrRange)==1
+    if isscalar(valueOrRange)
         A = valueOrRange * ones(n, 1);
     else
         A = valueOrRange(1) + (valueOrRange(2)-valueOrRange(1)) * rand(n, 1);
