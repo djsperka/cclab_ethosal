@@ -107,10 +107,10 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     % results
     tabTemp.Started = false(nTrials, 1);
     tabTemp.trialIndex = (1:nTrials)';
-    tabTemp.Aon = generateColumn(nTrials, -1);
-    tabTemp.Aoff = generateColumn(nTrials, -1);
-    tabTemp.Bon = generateColumn(nTrials, -1);
-    tabTemp.Boff = generateColumn(nTrials, -1);
+    tabTemp.tAon = generateColumn(nTrials, -1);
+    tabTemp.tAoff = generateColumn(nTrials, -1);
+    tabTemp.tBon = generateColumn(nTrials, -1);
+    tabTemp.tBoff = generateColumn(nTrials, -1);
     tabTemp.tResp = generateColumn(nTrials, -1);
     tabTemp.iResp = -1*ones(nTrials, 1);
 
