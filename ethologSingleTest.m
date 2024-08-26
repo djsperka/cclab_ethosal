@@ -349,7 +349,6 @@ function [results] = ethologSingleTest(varargin)
 
                 % get a struct with just trial params.  
                 trial = table2struct(results(itrial, :));
-                results.trialOrder(itrial) = itrial;
 
                 % screen output update
                 if (ourVerbosity > -1)
@@ -485,7 +484,6 @@ function [results] = ethologSingleTest(varargin)
                 
                 % results
                 results.Started(itrial) = true;
-                results.trialOrder(itrial) = itrial;
 
                 % start tracker recording
                 tracker.start_recording();
