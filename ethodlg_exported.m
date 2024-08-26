@@ -4,6 +4,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
     properties (Access = public)
         UIFigure                 matlab.ui.Figure
         GridLayout               matlab.ui.container.GridLayout
+        UseboothkbdCheckBox      matlab.ui.control.CheckBox
         ScrDistmmEditField       matlab.ui.control.EditField
         ScrDistmmEditFieldLabel  matlab.ui.control.Label
         ShowImageNamesCheckBox   matlab.ui.control.CheckBox
@@ -251,7 +252,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 fprintf('Screen distance (ignored) %d\n', str2num(app.ScrDistmmEditField.Value));
 
 
-                run_etholog_single(id, 'Test', app.LocationDropDown.Value, 'Trials', app.getSelectedTrials(), 'Threshold', app.ThresholdCheckBox.Value, 'ExperimentTestType', app.getTestType(), 'Images', img);
+                run_etholog_single(id, 'Test', app.LocationDropDown.Value, 'Trials', app.getSelectedTrials(), 'Threshold', app.ThresholdCheckBox.Value, 'ExperimentTestType', app.getTestType(), 'Images', img, 'Inside', app.UseboothkbdCheckBox.Value);
             catch ME
                 fprintf('Error running expt:\n%s\n%s\n', ME.message, ME.getReport());
             end
@@ -460,6 +461,12 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.ScrDistmmEditField.Placeholder = '(default)';
             app.ScrDistmmEditField.Layout.Row = 6;
             app.ScrDistmmEditField.Layout.Column = 2;
+
+            % Create UseboothkbdCheckBox
+            app.UseboothkbdCheckBox = uicheckbox(app.GridLayout);
+            app.UseboothkbdCheckBox.Text = 'Use booth kbd (test only)';
+            app.UseboothkbdCheckBox.Layout.Row = 4;
+            app.UseboothkbdCheckBox.Layout.Column = 2;
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';
