@@ -82,6 +82,7 @@ classdef twotonebeeper < handle
             else
 
                 obj.IsSoundFromFile = true;
+                obj.Duration = p.Results.Duration;
                 [soundTemp, fTemp] = audioread(p.Results.Correct);
                 if fTemp ~= obj.SampleRate
                     warning('Audio file (Correct) has sample rate (%d) different than default device rate (%d)', fTemp, obj.SampleRate);
@@ -109,27 +110,17 @@ classdef twotonebeeper < handle
         end
             
         function correct(obj)
-            if obj.IsSoundFromFile
-                dur = size(obj.SoundCorrect, 2)/obj.SampleRate
-            else
-                dur = obj.Duration;
-            end
-            obj.playsound(obj.SoundCorrect(1,:), obj.SoundCorrect(2,:), dur);
+            obj.playsound(obj.SoundCorrect(1,:), obj.SoundCorrect(2,:), obj.Duration);
         end
 
         function incorrect(obj)
-            if obj.IsSoundFromFile
-                dur = size(obj.SoundIncorrect, 2)/obj.SampleRate
-            else
-                dur = obj.Duration;
-            end
-            obj.playsound(obj.SoundIncorrect(1,:), obj.SoundIncorrect(2,:), dur);
+            obj.playsound(obj.SoundIncorrect(1,:), obj.SoundIncorrect(2,:), obj.Duration);
         end
 
         function delete(obj)
-            %METHOD1 Summary of this method goes here
-            %   Detailed explanation goes here
-            %PsychPortAudio('Close', obj.PAHandle);
+            %DELETE Destructor method runs when this object is deleted.
+            %   When this object is deleted, clear'd, or otherwise gets
+            %   cleaned up, this method will run. Close audio ports.
             if (obj.IsUsingSnd)
                 Snd('Close', 1);
             end
