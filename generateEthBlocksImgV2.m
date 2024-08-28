@@ -21,15 +21,24 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     parsedResults = p.Results;
     inputArgs = varargin;
 
+    % make convenience vars
+    FolderKeys = p.Results.FolderKeys;
+    TestKeys = p.Results.TestKeys;
+    FileKeys = p.Results.FileKeys;
+    nPairs = p.Results.NumPairs;
+
+    % Select the images that will be used
+    nImages = length(FileKeys);
+    imagePairs=reshape(randperm(nImages, nPairs*2), [nPairs,2]);
+    image1Keys = FileKeys(imagePairs(:,1));
+    image2Keys = FileKeys(imagePairs(:,2));
 
     replacements = cell(4,1);
     columnNames=cell(4,1);
 
-    nImages = length(p.Results.FileKeys);
-    nPairs = p.Results.NumPairs;
-    imagePairs = reshape(randperm(nImages, nPairs*2), nPairs, 2);
+    %% Prepare to randomize trials
 
-    % Now set up trials for left-change. 
+    % Which image pair to use on a given trial?
     replacements{1} = (1:nPairs)';
     columnNames{1} = 'ImagePairIndex';
 
@@ -54,42 +63,67 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     tabTemp = randomizeParams('VariableNames', columnNames, 'Replacements', replacements);
     nTrials = height(tabTemp);
 
-    i1=imagePairs(:,1);
-    i2=imagePairs(:,2);
-    % tabTemp.Stim1Key(logT1) = imageset.make_keys(tabTemp.Folder1Key(logT1), p.Results.FileKeys(i1(tabTemp.ImagePairIndex(logT1))));
-    % tabTemp.Stim2Key(logT2) = imageset.make_keys(tabTemp.Folder2Key(logT2), p.Results.FileKeys(i2(tabTemp.ImagePairIndex(logT2))));
-    tabTemp.Stim1Key = imageset.make_keys(tabTemp.Folder1Key, p.Results.FileKeys(i1(tabTemp.ImagePairIndex)));
-    tabTemp.Stim2Key = imageset.make_keys(tabTemp.Folder2Key, p.Results.FileKeys(i2(tabTemp.ImagePairIndex)));
+
+    % Now make File1Key and File2Key
+    tabTemp.File1Key = FileKeys(imagePairs(tabTemp.ImagePairIndex,1));
+    tabTemp.File2Key = FileKeys(imagePairs(tabTemp.ImagePairIndex,2));
+
+    tabTemp.StimA1Key = imageset.make_keys(tabTemp.Folder1Key, tabTemp.File1Key);
+    tabTemp.StimA2Key = imageset.make_keys(tabTemp.Folder2Key, tabTemp.File2Key);
 
     % StimChangeType
     tabTemp.StimChangeType = tabTemp.StimChangeTF.*tabTemp.StimTestType;
 
-    % make StimTestKey
-    % I can't figure out how to do this in a pretty way, so lets do it ugly
-    StimTestKey = cell(height(tabTemp), 1);
-    for i=1:height(tabTemp)
-        if tabTemp.StimChangeTF(i)
-            %fprintf('%d %d %d %s %s\n', tabTemp.StimTestType(i), tabTemp.ImagePairIndex(i), ...
-            %imagePairs(tabTemp.ImagePairIndex(i), tabTemp.StimTestType(i)), ...
-            %p.Results.TestKeys{tabTemp.StimTestType(i)}, ...
-            %p.Results.FileKeys{imagePairs(tabTemp.ImagePairIndex(i), tabTemp.StimTestType(i))});
-            if tabTemp.StimTestType(i) == 1
-                kk = strmatch(tabTemp.Folder1Key(i), p.Results.FolderKeys);
-            elseif tabTemp.StimTestType(i) == 2
-                kk = strmatch(tabTemp.Folder2Key(i), p.Results.FolderKeys);
-            end
-            StimTestKey(i) = imageset.make_key(p.Results.TestKeys(kk), p.Results.FileKeys(imagePairs(tabTemp.ImagePairIndex(i), tabTemp.StimTestType(i))));
-        else
-            if tabTemp.StimTestType(i) == 1
-                StimTestKey(i) = tabTemp.Stim1Key(i);
-            elseif tabTemp.StimTestType(i) == 2
-                StimTestKey(i) = tabTemp.Stim2Key(i);
-            else
-                error('Bad test key!');
-            end
-        end
-    end
-    tabTemp.StimTestKey = StimTestKey;
+    %% Now make B stim keys. 
+    % First, initialize all of them to 'BKGD'. 
+    StimB1Key=cell(size(tabTemp.StimA1Key));
+    [StimB1Key{:}] = deal('BKGD');
+    StimB2Key=cell(size(tabTemp.StimA1Key));
+    [StimB2Key{:}] = deal('BKGD');
+
+    % logical arrays for trials where stim1/Stim2 changes
+    ncL1 = tabTemp.StimTestType==1 & ~tabTemp.StimChangeTF;
+    ncL2 = tabTemp.StimTestType==2 & ~tabTemp.StimChangeTF;
+
+    % For no-change trials, the B key is same as A key.
+    StimB1Key(ncL1) = tabTemp.StimA1Key(ncL1);
+    StimB2Key(ncL2) = tabTemp.StimA2Key(ncL2);
+
+    % Make an index pointing to the correct index in FileKeys/TestKeys
+    [~,indA1] = ismember(tabTemp.Folder1Key, FolderKeys);
+    [~,indA2] = ismember(tabTemp.Folder2Key, FolderKeys);
+    tabTemp.indA1 = indA1;
+    tabTemp.indA2 = indA2;
+
+    % logical arrays for trials where stim1/Stim2 changes
+    L1 = tabTemp.StimTestType==1 & tabTemp.StimChangeTF;
+    L2 = tabTemp.StimTestType==2 & tabTemp.StimChangeTF;
+
+    % Make StimB keys
+    StimB1Key(L1) = imageset.make_keys(TestKeys(indA1(L1)), tabTemp.File1Key(L1));
+    StimB2Key(L2) = imageset.make_keys(TestKeys(indA2(L2)), tabTemp.File2Key(L2));
+    tabTemp.StimB1Key = StimB1Key;
+    tabTemp.StimB2Key = StimB2Key;
+
+    % Make life easier when analyzing data by assigning the "scientific"
+    % trial type HH,HL,LH,LL
+    folderKeyIndices = horzcat(indA1, indA2);
+    hl={'H','L'};
+
+    % logical arrays for trials stim1/Stim2 is test type (regardless of 
+    % whether it changes)
+    L1 = tabTemp.StimTestType==1;
+    L2 = tabTemp.StimTestType==2;
+
+    sciTrialType = cell(height(tabTemp), 1);
+    sciTrialType(L1) = strcat(hl(indA1(L1)), hl(indA2(L1)));
+    sciTrialType(L2) = strcat(hl(indA2(L2)), hl(indA1(L2)));
+    tabTemp.sciTrialType = sciTrialType;
+
+
+    
+    
+    trialsOrBlocks = tabTemp;
     
     % base value
     tabTemp.Base = generateColumn(nTrials, 100);

@@ -252,7 +252,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 fprintf('Screen distance (ignored) %d\n', str2num(app.ScrDistmmEditField.Value));
 
 
-                run_etholog_single(id, 'Test', app.LocationDropDown.Value, 'Trials', app.getSelectedTrials(), 'Threshold', app.ThresholdCheckBox.Value, 'ExperimentTestType', app.getTestType(), 'Images', img, 'Inside', app.UseboothkbdCheckBox.Value);
+                run_ethologV2(id, 'Test', app.LocationDropDown.Value, 'Trials', app.getSelectedTrials(), 'Threshold', app.ThresholdCheckBox.Value, 'ExperimentTestType', app.getTestType(), 'Images', img, 'Inside', app.UseboothkbdCheckBox.Value);
             catch ME
                 fprintf('Error running expt:\n%s\n%s\n', ME.message, ME.getReport());
             end

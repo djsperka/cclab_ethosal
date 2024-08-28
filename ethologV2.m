@@ -46,12 +46,11 @@ function [results] = ethologV2(varargin)
     % CImageTest is set. 
     p.addParameter('Threshold', false, @(x) islogical(x));
 
-    % Specify the test type as 'Contrast' (default - this is the original
-    % instance of the expt, where a base image is modified on the fly to 
-    % increase its contrast), 'Gabor', or 'Image')
+    % Specify the test type as 'Gabor', or 'Image'. Type 'Contrast' removed
+    % in this version. djs 8/28/2024
 
-    testTypes = {'Contrast', 'Gabor', 'Image'};
-    p.addParameter('ExperimentTestType', 'Contrast', @(x) any(validatestring(x, testTypes)));
+    testTypes = {'Gabor', 'Image'};
+    p.addParameter('ExperimentTestType', 'Image', @(x) any(validatestring(x, testTypes)));
 
     % These are for gabors. The Gabors are only used if GaborTest or 
     % GaborThresh is true,otherwise the parameters here are ignored.
@@ -98,17 +97,6 @@ function [results] = ethologV2(varargin)
     if ~strcmp(bStimType, 'Image')
         error('Responses are not configured correctly for anything other than Image type');
     end
-
-    % These are applied to images when "A" texture is made (imageBaseFunc),
-    % and when the "B" texture is made (imageChangeFunc). FYI - deal is a
-    % function that just passes input to output, so is effectively a NO-OP.
-    imageBaseFunc = @deal;
-    imageChangeFunc = @deal;
-    if strcmp(bStimType, 'Contrast')
-        imageBaseFunc = @imageset.contrast;
-        imageChangeFunc = @imageset.contrast;
-    end
-
 
     % Prepare output file name. Make sure an existing file does not get
     % clobbered.
@@ -371,59 +359,18 @@ function [results] = ethologV2(varargin)
 
 
                 % rects for the textures in trial
-                stim1Rect = CenterRectOnPoint(images.rect(trial.Stim1Key), stim1XYScr(1), stim1XYScr(2));
-                stim2Rect = CenterRectOnPoint(images.rect(trial.Stim2Key), stim2XYScr(1), stim2XYScr(2));
+                stim1Rect = CenterRectOnPoint(images.rect(trial.StimA1Key), stim1XYScr(1), stim1XYScr(2));
+                stim2Rect = CenterRectOnPoint(images.rect(trial.StimA2Key), stim2XYScr(1), stim2XYScr(2));
 
 
                 texturesA = [0,0];
                 texturesB = [0,0];
                 
                 switch bStimType
-                    case {'Contrast'}
-
-                        % This is the original version of the expt, where a
-                        % base image is modified with a processing
-                        % function, which here will adjust the contrast of
-                        % the base for the test image only. 
-
-                        texturesA = [ ...
-                            images.texture(windowIndex, trial.Stim1Key, @(x) imageBaseFunc(x, trial.Base)), ...
-                            images.texture(windowIndex, trial.Stim2Key, @(x) imageBaseFunc(x, trial.Base))
-                            ];
-
-                        % The 'b' textures are shown in the test phase. StimTestType 
-                        % is the stim (1=left, 2=right) which appears during test phase.
-                        % The other stim is blank.
-                        switch trial.StimChangeType
-                            case 1
-                                iTestContrast = trial.Base + trial.Delta;
-                            case 0
-                                iTestContrast = trial.Base;
-                            otherwise
-                                error('StimTestType is 1, StimChangeType must be 1 or 0');
-                        end
-                        switch trial.StimTestType
-                            case 1
-                                iChangeIndex = 1;
-                                iChangeStimKey = trial.Stim1Key;
-                                iNoChangeIndex = 2;
-                            case 2
-                                iChangeIndex = 2;
-                                iChangeStimKey = trial.Stim2Key;
-                                iNoChangeIndex = 1;
-                            otherwise
-                                error('StimTestType can only be 1 or 2');
-                        end
-                        texturesB(iChangeIndex) = images.texture(windowIndex, iChangeStimKey, @(x) imageChangeFunc(x, iTestContrast));
-                        if p.Results.Threshold
-                            texturesB(iNoChangeIndex) = BkgdTex;
-                        else
-                            texturesB(iNoChangeIndex) = texturesA(iNoChangeIndex);
-                        end
                     case 'Gabor'
                         texturesA = [ ...
-                            images.texture(windowIndex, trial.Stim1Key), ...
-                            images.texture(windowIndex, trial.Stim2Key)
+                            images.texture(windowIndex, trial.StimA1Key), ...
+                            images.texture(windowIndex, trial.StimA2Key)
                             ];
                         % For threshold gabor, place gabor at test site,
                         % bkgd on other side.
@@ -452,30 +399,9 @@ function [results] = ethologV2(varargin)
 
                         % For threshold, show bkgd/img(A), and bkgd/test(B).
                         % For non-threshold, show img/img(A) and bkgd/img(B).
-                        switch trial.StimTestType
-                            case 1
-                                texturesA(1) = images.texture(windowIndex, trial.Stim1Key);
-                                if p.Results.Threshold
-                                    texturesA(2) = BkgdTex;
-                                    texturesB = [images.texture(windowIndex, trial.StimTestKey), texturesA(2)];
-                                else
-                                  texturesA(2) = images.texture(windowIndex, trial.Stim2Key);
-                                  texturesB = [images.texture(windowIndex, trial.StimTestKey), BkgdTex];
-                                end
-                            case 2
-                                texturesA(2) = images.texture(windowIndex, trial.Stim2Key);
-                                if p.Results.Threshold
-                                    texturesA(1) = BkgdTex;
-                                    texturesB = [texturesA(1), images.texture(windowIndex, trial.StimTestKey)];
-                                else
-                                    texturesA(1) = images.texture(windowIndex, trial.Stim1Key);
-                                    texturesB = [BkgdTex, images.texture(windowIndex, trial.StimTestKey)];
-                                end
-                            otherwise
-                                error('StimTestType must be 1 or 2');
-                        end
-                    otherwise
-                        error('Unrecognized value for B stim type (%s)', bStimType);
+                        texturesA = [images.texture(windowIndex, trial.StimA1Key), images.texture(windowIndex, trial.StimA2Key)];
+                        texturesB = [images.texture(windowIndex, trial.StimB1Key), images.texture(windowIndex, trial.StimB2Key)];
+
                 end
                 stateMgr.transitionTo('DRAW_FIXPT');
                 
