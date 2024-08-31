@@ -28,6 +28,8 @@ classdef imageset
         Bkgd
         IsUniform
         UniformOrFirstRect
+        UseCircularMask
+        CircularMask
     end
 
     properties (Access = private)
@@ -191,6 +193,7 @@ classdef imageset
             addParameter(p, 'Subfolders', {'H', {'natT', 'naturalT'}; 'L', 'texture'}, @(x) iscellstr(x) && size(x, 2)==2);
             addParameter(p, 'Extensions', {'.bmp', '.jpg', '.png'});
             addParameter(p, 'OnLoad', @deal, @(x) isa(x, 'function_handle'));  % check if isempty()
+            addParameter(p, 'CircularMask', false, @(x) islogical(x));  % This and 'OnLoad' cannot happen at same time
             addParameter(p, 'Bkgd', [.5; .5; .5], @(x) isnumeric(x) && iscolumn(x) && length(x)==3);
             addParameter(p, 'ShowName', false, @(x) islogical(x));
             addParameter(p, 'Lazy', false, @(x) islogical(x));
@@ -252,7 +255,11 @@ classdef imageset
             else
                 obj.Lazy = p.Results.Lazy;
             end
-
+            if isfield(Y,'CircularMask')
+                obj.UseCircularMask = Y.CircularMask;
+            else
+                obj.UseCircularMask = p.Results.CircularMask;
+            end
             if obj.ShowName
                 if exist('insertText', 'file')~=2
                     warning('Cannot use ShowName=true on this machine. Cannot find insertText() - must have Computer Vision Toolbox installed. Will continue without this setting.');
@@ -302,6 +309,22 @@ classdef imageset
                 obj.IsUniform = false;
                 obj.UniformOrFirstRect = [];
                 obj.Images('BKGD') = struct('fname', 'NO_FILENAME', 'image', []);
+            end
+
+
+            if obj.UseCircularMask
+                if obj.IsUniform
+                    C = Ellipse(RectWidth(obj.UniformOrFirstRect)/2, RectHeight(obj.UniformOrFirstRect/2));
+                    % loop over all, replace image with masked image
+                    k = keys(obj.Images);
+                    for i=1:length(k)
+                        s = obj.Images(k{i});
+                        s.image(~C) = 128;
+                        obj.Images(k{i}) = s;
+                    end
+                else
+                    error('FIXME Cannot use circular mask with non uniform imageset');
+                end
             end
         end
         
@@ -429,7 +452,7 @@ classdef imageset
             Screen('FillRect', w, obj.Bkgd);
             Screen('DrawTextures', w, textures, [], textureRects');
             Screen('Flip', w);
-         end
+        end
 
 
         function fname = filename(obj, k)
