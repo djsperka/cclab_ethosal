@@ -6,7 +6,7 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     p.addRequired('FileKeys', @(x) iscellstr(x));    
     p.addRequired('NumPairs', @(x) isnumeric(x) && isvector(x) && length(x)<3);
     p.addOptional('FolderKeys', {'H'; 'L'},  @(x) iscellstr(x));
-    p.addOptional('TestKeys', {},  @(x) iscellstr(x));
+    p.addOptional('TestKeys', {'H'; 'L'},  @(x) iscellstr(x));
     p.addOptional('FixationTime', 0.5, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('MaxAcquisitionTime', 2.0, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('FixationBreakEarlyTime', 0.5, @(x) isnumeric(x) && length(x)<3);
@@ -17,6 +17,10 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     p.addOptional('GapTime', 0.2, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('NumBlocks', 1, @(x) isscalar(x) && x>0);
 
+    p.addOptional('Threshold', false, @(x) islogical(x));
+    p.addOptional('Side', 1, @(x) isscalar(x) && ismember(x,[1,2]));
+    p.addOptional('Base', 5, @(x) isnumeric(x));
+
     p.parse(varargin{:});
     parsedResults = p.Results;
     inputArgs = varargin;
@@ -25,6 +29,7 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     FolderKeys = p.Results.FolderKeys;
     TestKeys = p.Results.TestKeys;
     FileKeys = p.Results.FileKeys;
+    BaseOri = (2*randi([0 1],size(FolderKeys)))-1;
     nPairs = p.Results.NumPairs;
 
     % Select the images that will be used
@@ -33,8 +38,8 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     image1Keys = FileKeys(imagePairs(:,1));
     image2Keys = FileKeys(imagePairs(:,2));
 
-    replacements = cell(4,1);
-    columnNames=cell(4,1);
+    replacements = cell(6,1);
+    columnNames=cell(6,1);
 
     %% Prepare to randomize trials
 
@@ -52,11 +57,19 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
 
     % TestType? L=1, R=2
     replacements{4}=[1;2];
+    if p.Results.Threshold
+        replacements{4}=p.Results.Side;
+    end        
     columnNames{4} = 'StimTestType';
 
     % change/nochange test
     replacements{5} = [0;1];
     columnNames{5} = 'StimChangeTF';
+
+    % Base value (for rotations)
+    replacements{6} = p.Results.Base;
+    columnNames{6} = 'Base';
+
 
     % This generates trials with things distributed over the elements of
     % names/reps.
@@ -68,11 +81,25 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     tabTemp.File1Key = FileKeys(imagePairs(tabTemp.ImagePairIndex,1));
     tabTemp.File2Key = FileKeys(imagePairs(tabTemp.ImagePairIndex,2));
 
+    % StimA1Key and StimA2Key
     tabTemp.StimA1Key = imageset.make_keys(tabTemp.Folder1Key, tabTemp.File1Key);
     tabTemp.StimA2Key = imageset.make_keys(tabTemp.Folder2Key, tabTemp.File2Key);
 
+    % Fix if Threshold
+    if p.Results.Threshold
+        if p.Results.Side==1
+            tabTemp.StimA2Key(:) = {'BKGD'};
+        elseif p.Results.Side==2
+            tabTemp.StimA1Key(:) = {'BKGD'};
+        end
+    end
+
     % StimChangeType
     tabTemp.StimChangeType = tabTemp.StimChangeTF.*tabTemp.StimTestType;
+
+    % Initial orientation
+    tabTemp.Stim1Ori = (2*randi([0 1],nTrials, 1))-1;
+    tabTemp.Stim2Ori = (2*randi([0 1],nTrials, 1))-1;
 
     %% Now make B stim keys. 
     % First, initialize all of them to 'BKGD'. 
@@ -100,8 +127,12 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     L2 = tabTemp.StimTestType==2 & tabTemp.StimChangeTF;
 
     % Make StimB keys
-    StimB1Key(L1) = imageset.make_keys(TestKeys(indA1(L1)), tabTemp.File1Key(L1));
-    StimB2Key(L2) = imageset.make_keys(TestKeys(indA2(L2)), tabTemp.File2Key(L2));
+    if any(L1)
+        StimB1Key(L1) = imageset.make_keys(TestKeys(indA1(L1)), tabTemp.File1Key(L1));
+    end
+    if any(L2)
+        StimB2Key(L2) = imageset.make_keys(TestKeys(indA2(L2)), tabTemp.File2Key(L2));
+    end
     tabTemp.StimB1Key = StimB1Key;
     tabTemp.StimB2Key = StimB2Key;
 
@@ -116,8 +147,13 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     L2 = tabTemp.StimTestType==2;
 
     sciTrialType = cell(height(tabTemp), 1);
-    sciTrialType(L1) = strcat(hl(indA1(L1)), hl(indA2(L1)));
-    sciTrialType(L2) = strcat(hl(indA2(L2)), hl(indA1(L2)));
+
+    if ~p.Results.Threshold
+        sciTrialType(L1) = strcat(hl(indA1(L1)), hl(indA2(L1)));
+        sciTrialType(L2) = strcat(hl(indA2(L2)), hl(indA1(L2)));
+    else
+        sciTrialType(:) = {'THR'};
+    end
     tabTemp.sciTrialType = sciTrialType;
 
 
@@ -126,7 +162,7 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     trialsOrBlocks = tabTemp;
     
     % base value
-    tabTemp.Base = generateColumn(nTrials, 100);
+    %tabTemp.Base = generateColumn(nTrials, p.Results.Base);
 
     % etc
     tabTemp.FixationTime = generateColumn(nTrials, p.Results.FixationTime);

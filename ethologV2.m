@@ -49,7 +49,7 @@ function [results] = ethologV2(varargin)
     % Specify the test type as 'Gabor', or 'Image'. Type 'Contrast' removed
     % in this version. djs 8/28/2024
 
-    testTypes = {'Gabor', 'Image'};
+    testTypes = {'Gabor', 'Image', 'RotatedImage'};
     p.addParameter('ExperimentTestType', 'Image', @(x) any(validatestring(x, testTypes)));
 
     % These are for gabors. The Gabors are only used if GaborTest or 
@@ -94,8 +94,8 @@ function [results] = ethologV2(varargin)
 
 
     % issue WARNING and EXIT if test type is anything other than 'Image'
-    if ~strcmp(bStimType, 'Image')
-        error('Responses are not configured correctly for anything other than Image type');
+    if ~any(strcmp(bStimType, {'Image','RotatedImage'}))
+        error('Responses are not configured correctly for anything other than Image/RotatedImage type');
     end
 
     % Prepare output file name. Make sure an existing file does not get
@@ -345,7 +345,7 @@ function [results] = ethologV2(varargin)
                         case 0
                             side = 'none';
                     end
-                    if strcmp(bStimType, 'Image')
+                    if any(strcmp(bStimType, {'Image','RotatedImage'}))
                         fprintf('etholog: trial: %3d\t%s\tchange? %d\n', itrial, side, trial.StimChangeType);
                     elseif strcmp(bStimType, 'Gabor')
                         if trial.StimTestType == trial.StimChangeType
@@ -395,12 +395,28 @@ function [results] = ethologV2(varargin)
                         
                         GaborParams.contrast = trial.Delta;
 
-                    case 'Image'
+                    case {'Image','RotatedImage'}
 
-                        % For threshold, show bkgd/img(A), and bkgd/test(B).
-                        % For non-threshold, show img/img(A) and bkgd/img(B).
                         texturesA = [images.texture(windowIndex, trial.StimA1Key), images.texture(windowIndex, trial.StimA2Key)];
                         texturesB = [images.texture(windowIndex, trial.StimB1Key), images.texture(windowIndex, trial.StimB2Key)];
+
+                        % Rotated images must have fields 'Stim1Ori' and
+                        % 'Stim2Ori', which should be +-1. 
+                        % For either 1 or 2 stim, the initial rotation is 
+                        % Stim1Ori * Base
+                        % or 
+                        % Stim2Ori * Base
+                        % The changed stim will have its final rotation
+                        % (initial rotation) * -1
+
+                        rotationAnglesA = [trial.Stim1Ori * trial.Base, trial.Stim2Ori * trial.Base];
+                        rotationAnglesB = rotationAnglesA;
+                        switch trial.StimChangeType
+                            case 1
+                                rotationAnglesB(1)=rotationAnglesA(1) * -1;
+                            case 2
+                                rotationAnglesB(2)=rotationAnglesA(2) * -1;
+                        end
 
                 end
                 stateMgr.transitionTo('DRAW_FIXPT');
@@ -451,7 +467,12 @@ function [results] = ethologV2(varargin)
                 % draw textures, cues if used, and fixation cross on
                 % screen.
                 Screen('FillRect', windowIndex, bkgdColor);
-                Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]');
+                switch bStimType
+                    case {'Gabor','Images'}
+                        Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]');
+                    case 'RotatedImage'
+                        Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]', rotationAnglesA);
+                end             
                 if p.Results.UseCues
                     Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
                 end
@@ -501,6 +522,8 @@ function [results] = ethologV2(varargin)
                     paramsTemp1 = struct2cell(GaborParams);
                     paramsTemp = [paramsTemp1{:}];
                     Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]', GaborOri, [], [], [], [], kPsychDontDoRotation, [paramsTemp;paramsTemp]');
+                elseif strcmp(bStimType, 'RotatedImage')
+                    Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]', rotationAnglesB);
                 else
                     Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]');
                 end                    
@@ -628,6 +651,8 @@ function [results] = ethologV2(varargin)
                 end
 
                 if strcmp(bStimType, 'Image')
+                    fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
+                elseif strcmp(bStimType, 'RotatedImage')
                     fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
                 elseif strcmp(bStimType, 'Gabor')
                     if trial.StimTestType == trial.StimChangeType

@@ -25,6 +25,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
         SelectTrialsButton       matlab.ui.control.Button
         ThresholdCheckBox        matlab.ui.control.CheckBox
         TesttypeButtonGroup      matlab.ui.container.ButtonGroup
+        RotatedImageButton       matlab.ui.control.RadioButton
         GaborButton              matlab.ui.control.RadioButton
         ImageButton              matlab.ui.control.RadioButton
     end
@@ -94,6 +95,8 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 ttype = 'Gabor';
             elseif app.ImageButton.Value
                 ttype = 'Image';
+            elseif app.RotatedImageButton.Value
+                ttype = 'RotatedImage';
             else
                 ttype = 'Unknown';
             end
@@ -155,6 +158,8 @@ classdef ethodlg_exported < matlab.apps.AppBase
         function LoadTrialsPushed(app, event)
             if app.ImageButton.Value
                 ttype = 'mimg';
+            elseif app.RotatedImageButton.Value
+                ttype = 'rimg';
             elseif app.GaborButton.Value
                 ttype = 'gab';
             else
@@ -319,8 +324,8 @@ classdef ethodlg_exported < matlab.apps.AppBase
 
             % Create GridLayout
             app.GridLayout = uigridlayout(app.UIFigure);
-            app.GridLayout.ColumnWidth = {'25x', '50x', '25x'};
-            app.GridLayout.RowHeight = {24, 22, 24, 22, 33, 22, 22, 22, 23, 24, 24};
+            app.GridLayout.ColumnWidth = {'40x', '30x', '30x'};
+            app.GridLayout.RowHeight = {24, 22, 24, '45x', '30x', '15x', 22, 22, 23, 24, 24};
 
             % Create TesttypeButtonGroup
             app.TesttypeButtonGroup = uibuttongroup(app.GridLayout);
@@ -332,13 +337,18 @@ classdef ethodlg_exported < matlab.apps.AppBase
             % Create ImageButton
             app.ImageButton = uiradiobutton(app.TesttypeButtonGroup);
             app.ImageButton.Text = 'Image';
-            app.ImageButton.Position = [11 42 58 22];
+            app.ImageButton.Position = [11 64 58 22];
             app.ImageButton.Value = true;
 
             % Create GaborButton
             app.GaborButton = uiradiobutton(app.TesttypeButtonGroup);
             app.GaborButton.Text = 'Gabor';
-            app.GaborButton.Position = [11 20 65 22];
+            app.GaborButton.Position = [13 23 65 22];
+
+            % Create RotatedImageButton
+            app.RotatedImageButton = uiradiobutton(app.TesttypeButtonGroup);
+            app.RotatedImageButton.Text = 'Rotated Image';
+            app.RotatedImageButton.Position = [12 43 101 22];
 
             % Create ThresholdCheckBox
             app.ThresholdCheckBox = uicheckbox(app.GridLayout);
