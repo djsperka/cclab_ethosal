@@ -259,8 +259,8 @@ function [results] = ethologV2(varargin)
                         fprintf(1, 'Pending pause cancelled.\n');
                     elseif strcmp(stateMgr.Current, 'WAIT_PAUSE')
                         % we are currently paused. Resume by transitioning
-                        % to the START state. Current trial is NOT
-                        % repeated.
+                        % to the START state. The current trial, with index
+                        % 'itrial', is started.
                         stateMgr.transitionTo('START');
                         if (ourVerbosity > -1); fprintf('Resume after pause.\n'); end
                     else
@@ -295,7 +295,9 @@ function [results] = ethologV2(varargin)
                         BkgdTex = images.texture(windowIndex, 'BKGD');
                         fprintf('Regenerated background texture id %d\n', BkgdTex);
 
-                        stateMgr.transitionTo('TRIAL_COMPLETE');
+                        % djs 2024-09-04. 
+                        % This used to transition to TRIAL_COMPLETE. 
+                        stateMgr.transitionTo('START');
                     end
                 case KbName('s')
                     % this is for getting into camera setup. Should be able
@@ -317,8 +319,9 @@ function [results] = ethologV2(varargin)
                         BkgdTex = images.texture(windowIndex, 'BKGD');
                         fprintf('Regenerated background texture id %d\n', BkgdTex);
 
-                        
-                        stateMgr.transitionTo('TRIAL_COMPLETE');
+                        % djs 2024-09-04. 
+                        % This used to transition to TRIAL_COMPLETE. 
+                        stateMgr.transitionTo('START');
                     end
                 otherwise
                     if (ourVerbosity > -1); fprintf('Keys:\n<space> - toggle pause\n\n');end
