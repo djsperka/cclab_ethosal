@@ -258,7 +258,7 @@ function [results] = ethologV2(varargin)
                         bPausePending = false;
                         fprintf(1, 'Pending pause cancelled.\n');
                     elseif strcmp(stateMgr.Current, 'WAIT_PAUSE')
-                        % we are currently paused. Resume by transitioning
+                        % Resume from pause by transitioning
                         % to the START state. The current trial, with index
                         % 'itrial', is started.
                         stateMgr.transitionTo('START');
@@ -445,12 +445,16 @@ function [results] = ethologV2(varargin)
                 % no maximum here, could go forever
                 % djs - a pending pause is honored here. 
                 if bPausePending
+                    % reset trial to not-Started
+                    results.Started(itrial) = false;
                     stateMgr.transitionTo('CLEAR_THEN_PAUSE');
                 elseif tracker.is_in_rect(fixWindowRect)
                     stateMgr.transitionTo('WAIT_FIX');
                 end
             case 'WAIT_FIX'
                 if bPausePending
+                    % reset trial to not-Started
+                    results.Started(itrial) = false;
                     stateMgr.transitionTo('CLEAR_THEN_PAUSE');
                 elseif stateMgr.timeInState() > trial.FixationTime
                     stateMgr.transitionTo('DRAW_A');
