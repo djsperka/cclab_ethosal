@@ -37,6 +37,10 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
 
     %% Regular trials - not threshold
 
+    % The number of trials will be 16*nPairs
+    % where 16 = (left folder key)*(right folder
+    % key)*(StimTestType=1,2)*(StimChangeTF=0,1)
+
     if ~p.Results.Threshold
 
         replacements = cell(6,1);
@@ -146,6 +150,10 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
     else
 
         %% Threshold trials
+
+        % The number of trials will be 8*nImages*nBase
+        % where 8 = (folder key)*(StimTestType=1,2)*(StimChangeTF=0,1)
+        % and nBase is the number of Base values tested.
 
         replacements = cell(5,1);
         columnNames=cell(5,1); 
