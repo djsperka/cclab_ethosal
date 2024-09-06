@@ -187,8 +187,12 @@ function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(va
         replacements{5} = p.Results.Base;
         columnNames{5} = 'Base';
     
+        % randomize across params
         tabTemp = randomizeParams('VariableNames', columnNames, 'Replacements', replacements);
         nTrials = height(tabTemp);
+
+        % StimChangeType
+        tabTemp.StimChangeType = tabTemp.StimChangeTF.*tabTemp.StimTestType;
 
         % Log array for stim on left(1) and right(2).
         L1=tabTemp.StimTestType==1;
