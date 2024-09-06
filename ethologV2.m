@@ -38,8 +38,8 @@ function [results] = ethologV2(varargin)
     p.addParameter('FixptXY', [0,0], @(x) isvector(x) && length(x)==2);
     p.addParameter('FixptColor', [0,0,0], @(x) all(size(x) == [1 3]));  % color should be row vector on cmd line
     p.addParameter('FixptWindowDiam', 3, @(x) isscalar(x) && isnumeric(x));
-    p.addParameter('Stim1XY', [-10,0], @(x) isvector(x) && length(x)==2);
-    p.addParameter('Stim2XY', [10,0], @(x) isvector(x) && length(x)==2);
+    p.addParameter('Stim1XY', [-7,0], @(x) isvector(x) && length(x)==2);
+    p.addParameter('Stim2XY', [7,0], @(x) isvector(x) && length(x)==2);
 
     % for threshold tests - implies that "a" stim is a single stim, and "b"
     % stim will be in same position, depending on if GaborTest or
