@@ -425,14 +425,33 @@ classdef imageset
         end
         
         function flip(obj, varargin)
-            obj.TextureParser.parse(varargin{:});
-            w = obj.TextureParser.Results.Window;
-            Screen('FillRect', w, [.5 .5 .5]);
-            Screen('DrawTexture', w, obj.texture(varargin{:}));
-            Screen('Flip', w);
+            try
+                obj.TextureParser.parse(varargin{:});
+                w = obj.TextureParser.Results.Window;
+                if Screen('WindowKind', w)==1
+                    Screen('FillRect', w, [.5 .5 .5]);
+                    tex = obj.texture(varargin{:});
+                    Screen('DrawTexture', w, tex);
+                    Screen('Flip', w);
+                    Screen('Close', tex);
+                else
+                    warning('flip requires a valid window pointer');
+                end
+            catch ME
+                warning('Cannot parse args to flip().');
+                fprintf(2, '%s\n', getReport(ME));
+            end
         end
 
-        function mflip(obj, w, keys, funcs)
+        %function mflip(obj, w, keys, funcs)
+        function mflip(obj, varargin)
+            if nargin < 3
+                error('Not enough args: mflip(obj, w, keys[, funcs]).');
+            end
+            w = varargin{1};
+            keys = varargin{2};
+            bHaveFuncs = nargin>3;  % nargin counts obj arg regardless of how call is made
+
             screenRect=Screen('Rect', w);
 
             % warn if not uniform
@@ -444,14 +463,19 @@ classdef imageset
             % returned rects are in rows!
             divviedRects = ArrangeRects(length(keys), obj.UniformOrFirstRect, screenRect);
 
-            % Find the center of each rect, then center rect on that point
+            % Find the center of each rect, thenclear center rect on that point
             % for the image itself. Use columnar-rects for RectCenter
             [ctrX, ctrY] = RectCenter(divviedRects');
             textureRects = CenterRectOnPoint(obj.UniformOrFirstRect, ctrX', ctrY');
-            textures = cellfun(@(k,f) obj.texture(w,k,f), keys, funcs);
+            if bHaveFuncs
+                textures = cellfun(@(k,f) obj.texture(w,k,f), keys, varargin{3});
+            else
+                textures = cellfun(@(k) obj.texture(w,k), keys);
+            end
             Screen('FillRect', w, obj.Bkgd);
             Screen('DrawTextures', w, textures, [], textureRects');
             Screen('Flip', w);
+            Screen('Close', textures);
         end
 
 
