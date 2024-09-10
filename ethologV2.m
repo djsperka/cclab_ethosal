@@ -49,7 +49,7 @@ function [results] = ethologV2(varargin)
     % Specify the test type as 'Gabor', or 'Image'. Type 'Contrast' removed
     % in this version. djs 8/28/2024
 
-    testTypes = {'Gabor', 'Image', 'RotatedImage'};
+    testTypes = {'Gabor', 'Image', 'RotatedImage', 'Flip'};
     p.addParameter('ExperimentTestType', 'Image', @(x) any(validatestring(x, testTypes)));
 
     % These are for gabors. The Gabors are only used if GaborTest or 
@@ -94,8 +94,8 @@ function [results] = ethologV2(varargin)
 
 
     % issue WARNING and EXIT if test type is anything other than 'Image'
-    if ~any(strcmp(bStimType, {'Image','RotatedImage'}))
-        error('Responses are not configured correctly for anything other than Image/RotatedImage type');
+    if ~any(strcmp(bStimType, {'Image','RotatedImage','Flip'}))
+        error('Responses are not configured correctly for anything other than Image/RotatedImage/Flip type');
     end
 
     % Prepare output file name. Make sure an existing file does not get
@@ -348,7 +348,7 @@ function [results] = ethologV2(varargin)
                         case 0
                             side = 'none';
                     end
-                    if any(strcmp(bStimType, {'Image','RotatedImage'}))
+                    if any(strcmp(bStimType, {'Image','RotatedImage','Flip'}))
                         fprintf('etholog: trial: %3d\t%s\tchange? %d\n', itrial, side, trial.StimChangeType);
                     elseif strcmp(bStimType, 'Gabor')
                         if trial.StimTestType == trial.StimChangeType
@@ -398,6 +398,47 @@ function [results] = ethologV2(varargin)
                         
                         GaborParams.contrast = trial.Delta;
 
+                    case 'Flip'
+
+                        % A presentation will have images flipped if their
+                        % Ori (Stim1Ori, Stim2Ori) is negative. 
+                        funcPtr = @(x) flip(x,2);
+                        if trial.Stim1Ori < 0
+                            texturesA(1) = images.texture(windowIndex, trial.StimA1Key, funcPtr);
+                        else
+                            texturesA(1) = images.texture(windowIndex, trial.StimA1Key);
+                        end
+                        if trial.Stim2Ori < 0
+                            texturesA(2) = images.texture(windowIndex, trial.StimA2Key, funcPtr);
+                        else
+                            texturesA(2) = images.texture(windowIndex, trial.StimA2Key);
+                        end
+
+                        if trial.StimTestType==1
+                            texturesB(2) = images.texture(windowIndex, trial.StimB2Key);
+                            if trial.StimChangeTF
+                                itmp = -trial.Stim1Ori;
+                            else
+                                itmp = trial.Stim1Ori;
+                            end
+                            if itmp < 0
+                                texturesB(1) = images.texture(windowIndex, trial.StimB1Key, funcPtr);
+                            else
+                                texturesB(1) = images.texture(windowIndex, trial.StimB1Key);
+                            end
+                        elseif trial.StimTestType==2
+                            texturesB(1) = images.texture(windowIndex, trial.StimB1Key);
+                            if trial.StimChangeTF
+                                itmp = -trial.Stim2Ori;
+                            else
+                                itmp = trial.Stim2Ori;
+                            end
+                            if itmp < 0
+                                texturesB(2) = images.texture(windowIndex, trial.StimB2Key, funcPtr);
+                            else
+                                texturesB(2) = images.texture(windowIndex, trial.StimB2Key);
+                            end
+                        end
                     case {'Image','RotatedImage'}
 
                         texturesA = [images.texture(windowIndex, trial.StimA1Key), images.texture(windowIndex, trial.StimA2Key)];
@@ -475,7 +516,7 @@ function [results] = ethologV2(varargin)
                 % screen.
                 Screen('FillRect', windowIndex, bkgdColor);
                 switch bStimType
-                    case {'Gabor','Images'}
+                    case {'Gabor','Images','Flip'}
                         Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]');
                     case 'RotatedImage'
                         Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]', rotationAnglesA);
@@ -660,6 +701,8 @@ function [results] = ethologV2(varargin)
                 if strcmp(bStimType, 'Image')
                     fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
                 elseif strcmp(bStimType, 'RotatedImage')
+                    fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
+                elseif strcmp(bStimType, 'Flip')
                     fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
                 elseif strcmp(bStimType, 'Gabor')
                     if trial.StimTestType == trial.StimChangeType
