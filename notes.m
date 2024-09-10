@@ -160,3 +160,11 @@ S.imagesetName = img.Name;
 S.imagesetParamsFunc = img.ParamsFunc;
 S.blocks = blocks;
 save(fullfile(ethDataRoot,'input','gab_exp_33x3-A.mat'), '-struct', 'S');
+
+
+
+% 9/10/2024
+
+img=imageset(fullfile(ethImgRoot, 'baby2-cb'), 'params');
+[blocks,inputArgs,parsedResults,scriptName]=generateEthBlocksImgV2(img.BalancedFileKeys, 50, Base=4, NumBlocks=3);
+makeEthologInput(ethDataRoot,'rimg','exp','50img_r4',img,blocks,inputArgs,parsedResults,scriptName);
