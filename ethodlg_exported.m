@@ -4,30 +4,53 @@ classdef ethodlg_exported < matlab.apps.AppBase
     properties (Access = public)
         UIFigure                 matlab.ui.Figure
         GridLayout               matlab.ui.container.GridLayout
-        UseboothkbdCheckBox      matlab.ui.control.CheckBox
-        ScrDistmmEditField       matlab.ui.control.EditField
-        ScrDistmmEditFieldLabel  matlab.ui.control.Label
-        ShowImageNamesCheckBox   matlab.ui.control.CheckBox
-        SelectBlockButton        matlab.ui.control.Button
+        OverridesPanel           matlab.ui.container.Panel
+        GridLayout3              matlab.ui.container.GridLayout
+        RespTimesEditField       matlab.ui.control.NumericEditField
+        RespTimesEditFieldLabel  matlab.ui.control.Label
+        RespTimeOverride         matlab.ui.control.CheckBox
+        TestTimesEditField       matlab.ui.control.NumericEditField
+        TestTimesEditFieldLabel  matlab.ui.control.Label
+        TestTimeOverride         matlab.ui.control.CheckBox
+        GapTimesEditField        matlab.ui.control.NumericEditField
         ExitButton               matlab.ui.control.Button
-        RunButton                matlab.ui.control.Button
+        TesttypeDropDown         matlab.ui.control.DropDown
+        TesttypeDropDownLabel    matlab.ui.control.Label
+        GapTimesEditFieldLabel   matlab.ui.control.Label
+        GapTimeOverride          matlab.ui.control.CheckBox
+        SampTimesEditField       matlab.ui.control.NumericEditField
+        SampTimesEditFieldLabel  matlab.ui.control.Label
+        SampTimeOverride         matlab.ui.control.CheckBox
+        Stim2YEditField          matlab.ui.control.NumericEditField
+        Stim2XEditField          matlab.ui.control.NumericEditField
+        Stim2XYEditFieldLabel    matlab.ui.control.Label
+        Stim2XYOverride          matlab.ui.control.CheckBox
         SelectImagesButton       matlab.ui.control.Button
-        ImagesetNameLabel        matlab.ui.control.Label
-        ImagesetLabel            matlab.ui.control.Label
-        BlockSelectedLabel       matlab.ui.control.Label
-        LocationDropDown         matlab.ui.control.DropDown
-        LocationLabel            matlab.ui.control.Label
+        OptionsPanel             matlab.ui.container.Panel
+        GridLayout2              matlab.ui.container.GridLayout
+        AudFeedbackCheckBox      matlab.ui.control.CheckBox
+        UseboothkbdCheckBox      matlab.ui.control.CheckBox
+        ShowImageNamesCheckBox   matlab.ui.control.CheckBox
+        ThresholdCheckBox        matlab.ui.control.CheckBox
         SubjectIDEditField       matlab.ui.control.EditField
         SubjectIDEditFieldLabel  matlab.ui.control.Label
+        Stim1YEditField          matlab.ui.control.NumericEditField
+        Stim1XEditField          matlab.ui.control.NumericEditField
+        Stim1XYEditFieldLabel    matlab.ui.control.Label
+        Stim1XYOverride          matlab.ui.control.CheckBox
+        ImagesetNameLabel        matlab.ui.control.Label
+        ImagesetLabel            matlab.ui.control.Label
+        SelectBlockButton        matlab.ui.control.Button
+        BlockSelectedLabel       matlab.ui.control.Label
         BlockLabel               matlab.ui.control.Label
-        TrialsFileLabel          matlab.ui.control.Label
-        TrialsLabel              matlab.ui.control.Label
         SelectTrialsButton       matlab.ui.control.Button
-        ThresholdCheckBox        matlab.ui.control.CheckBox
-        TesttypeButtonGroup      matlab.ui.container.ButtonGroup
-        RotatedImageButton       matlab.ui.control.RadioButton
-        GaborButton              matlab.ui.control.RadioButton
-        ImageButton              matlab.ui.control.RadioButton
+        TrialsFileLabel          matlab.ui.control.Label
+        ScrDistmmEditField       matlab.ui.control.EditField
+        ScrDistmmEditFieldLabel  matlab.ui.control.Label
+        TrialsLabel              matlab.ui.control.Label
+        LocationDropDown         matlab.ui.control.DropDown
+        LocationLabel            matlab.ui.control.Label
+        RunButton                matlab.ui.control.Button
     end
 
     
@@ -83,7 +106,10 @@ classdef ethodlg_exported < matlab.apps.AppBase
                     end
                 else
                     trials = app.Y.trials;
-                end                        
+                end
+
+                % Apply overrides
+                    
             else
                 me = MException('ethodlg:nofile', 'Input blocks/trials file is not selected.');
                 throw(me);
@@ -91,15 +117,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
         end
         
         function ttype = getTestType(app)
-            if app.GaborButton.Value
-                ttype = 'Gabor';
-            elseif app.ImageButton.Value
-                ttype = 'Image';
-            elseif app.RotatedImageButton.Value
-                ttype = 'RotatedImage';
-            else
-                ttype = 'Unknown';
-            end
+            ttype = app.TesttypeDropDown.Value;
         end
         
         function isReady = checkRunButton(app)
@@ -150,22 +168,33 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.Y = [];
             app.isTrialsSelected = false;
             app.RunButton.Enable = false;
+
+            app.Stim1XEditField.Enable = false;
+            app.Stim1YEditField.Enable = false;
+            app.Stim2XEditField.Enable = false;
+            app.Stim2YEditField.Enable = false;
+            app.SampTimesEditField.Enable = false;
+            app.GapTimesEditField.Enable = false;
+            app.TestTimesEditField.Enable = false;
+            app.RespTimesEditField.Enable = false;
+
             updateFileBlocks(app);
 
         end
 
         % Button pushed function: SelectTrialsButton
         function LoadTrialsPushed(app, event)
-            if app.ImageButton.Value
-                ttype = 'mimg';
-            elseif app.RotatedImageButton.Value
-                ttype = 'rimg';
-            elseif app.GaborButton.Value
-                ttype = 'gab';
-            else
-                % should not happen with radio buttons
-                ttype = 'unk';
+            switch getTestType(app)
+                case 'Image'
+                    ttype = 'mimg';
+                case 'Rotate'
+                    ttype= 'rimg';
+                case 'Gabor'
+                    ttype = 'gab';
+                case 'Flip'
+                    ttype = 'rimg';
             end
+
             if app.ThresholdCheckBox.Value
                 etype = 'thr';
             else
@@ -204,6 +233,15 @@ classdef ethodlg_exported < matlab.apps.AppBase
                     app.isImagesetSelected = true;
                     app.imagesetName = app.Y.imagesetName;
                     app.imagesetParamsFunc = app.Y.imagesetParamsFunc;
+                end
+
+                % see if we can populate override fields
+                if any(contains(fieldnames(app.Y), 'genFuncParserResults'))
+                    r=app.Y.genFuncParserResults;
+                    app.SampTimesEditField.Value = r.SampTime;
+                    app.GapTimesEditField.Value = r.GapTime;
+                    app.TestTimesEditField.Value = r.TestTime;
+                    app.RespTimesEditField.Value = r.RespTime;
                 end
                     
             end
@@ -254,10 +292,46 @@ classdef ethodlg_exported < matlab.apps.AppBase
 
                 % The value from screen distance comes to us as a char array
                 % 
-                fprintf('Screen distance (ignored) %d\n', str2num(app.ScrDistmmEditField.Value));
+                fprintf('Screen distance (ignored) %d\n', str2double(app.ScrDistmmEditField.Value));
 
+                % get trials, overrides if any
+                trials = app.getSelectedTrials();
+                if app.RespTimeOverride.Value
+                    trials.RespTime(:) = app.RespTimesEditField.Value;
+                end
+                if app.SampTimeOverride.Value
+                    trials.SampTime(:) = app.SampTimesEditField.Value;
+                end
+                if app.TestTimeOverride.Value
+                    trials.TestTime(:) = app.TestTimesEditField.Value;
+                end
+                if app.GapTimeOverride.Value
+                    trials.GapTime(:) = app.GapTimesEditField.Value;
+                end
 
-                run_ethologV2(id, 'Test', app.LocationDropDown.Value, 'Trials', app.getSelectedTrials(), 'Threshold', app.ThresholdCheckBox.Value, 'ExperimentTestType', app.getTestType(), 'Images', img, 'Inside', app.UseboothkbdCheckBox.Value);
+                % Form arguments cell array
+                args = {
+                    id, 'Test', app.LocationDropDown.Value, ...
+                    'Trials', trials, ...
+                    'Threshold', app.ThresholdCheckBox.Value, ...
+                    'ExperimentTestType', app.getTestType(), ... 
+                    'Images', img, ... 
+                    'Inside', app.UseboothkbdCheckBox.Value
+                    };
+
+                if app.Stim1XYOverride.Value
+                    args{end+1} = 'Stim1XY';
+                    args{end+1} = [app.Stim1XEditField.Value, app.Stim1YEditField.Value];
+                end
+
+                if app.Stim2XYOverride.Value
+                    args{end+1} = 'Stim2XY';
+                    args{end+1} = [app.Stim2XEditField.Value, app.Stim2YEditField.Value];
+                end
+
+                %run_ethologV2(id, 'Test', app.LocationDropDown.Value, 'Trials', app.getSelectedTrials(), 'Threshold', app.ThresholdCheckBox.Value, 'ExperimentTestType', app.getTestType(), 'Images', img, 'Inside', app.UseboothkbdCheckBox.Value);
+                run_ethologV2(args{:});
+
             catch ME
                 fprintf('Error running expt:\n%s\n%s\n', ME.message, ME.getReport());
             end
@@ -285,29 +359,42 @@ classdef ethodlg_exported < matlab.apps.AppBase
             drawnow;
         end
 
-        % Selection changed function: TesttypeButtonGroup
-        function TesttypeButtonGroupSelectionChanged(app, event)
-            selectedButton = app.TesttypeButtonGroup.SelectedObject;
-            
-            % Test type changed, clear out file and imageset
-            if app.isImagesetSelected
-                app.isImagesetSelected = false;
-                app.imagesetName = '';
-                app.imagesetParamsFunc = '';
-            end
+        % Value changed function: Stim1XYOverride
+        function Stim1XYOverrideValueChanged(app, event)
+            value = app.Stim1XYOverride.Value;
+            app.Stim1XEditField.Enable = value;            
+            app.Stim1YEditField.Enable = value;
+        end
 
-            if app.isFileSelected
-                app.isFileSelected = false;
-                app.fileName = '';
-                app.filePath = '';
-                app.fileNBlocks = 0;
-                app.fileBlockIndex = 0;
-                app.isTrialsSelected = false;
-            end
+        % Value changed function: Stim2XYOverride
+        function Stim2XYOverrideValueChanged(app, event)
+            value = app.Stim2XYOverride.Value;
+            app.Stim2XEditField.Enable = value;            
+            app.Stim2YEditField.Enable = value;            
+        end
 
-            app.updateFileBlocks();
-            app.checkRunButton();
-            drawnow;
+        % Value changed function: SampTimeOverride
+        function SampTimeOverrideValueChanged(app, event)
+            value = app.SampTimeOverride.Value;
+            app.SampTimesEditField.Enable = value;
+        end
+
+        % Value changed function: GapTimeOverride
+        function GapTimeOverrideValueChanged(app, event)
+            value = app.GapTimeOverride.Value;
+            app.GapTimesEditField.Enable = value;
+        end
+
+        % Value changed function: TestTimeOverride
+        function TestTimeOverrideValueChanged(app, event)
+            value = app.TestTimeOverride.Value;
+            app.TestTimesEditField.Enable = value;
+        end
+
+        % Value changed function: RespTimeOverride
+        function RespTimeOverrideValueChanged(app, event)
+            value = app.RespTimeOverride.Value;
+            app.RespTimesEditField.Enable = value;
         end
     end
 
@@ -319,66 +406,13 @@ classdef ethodlg_exported < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 401 393];
+            app.UIFigure.Position = [100 100 493 517];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create GridLayout
             app.GridLayout = uigridlayout(app.UIFigure);
-            app.GridLayout.ColumnWidth = {'40x', '30x', '30x'};
-            app.GridLayout.RowHeight = {24, 22, 24, '45x', '30x', '15x', 22, 22, 23, 24, 24};
-
-            % Create TesttypeButtonGroup
-            app.TesttypeButtonGroup = uibuttongroup(app.GridLayout);
-            app.TesttypeButtonGroup.SelectionChangedFcn = createCallbackFcn(app, @TesttypeButtonGroupSelectionChanged, true);
-            app.TesttypeButtonGroup.Title = 'Test type';
-            app.TesttypeButtonGroup.Layout.Row = [2 4];
-            app.TesttypeButtonGroup.Layout.Column = 1;
-
-            % Create ImageButton
-            app.ImageButton = uiradiobutton(app.TesttypeButtonGroup);
-            app.ImageButton.Text = 'Image';
-            app.ImageButton.Position = [11 64 58 22];
-            app.ImageButton.Value = true;
-
-            % Create GaborButton
-            app.GaborButton = uiradiobutton(app.TesttypeButtonGroup);
-            app.GaborButton.Text = 'Gabor';
-            app.GaborButton.Position = [13 23 65 22];
-
-            % Create RotatedImageButton
-            app.RotatedImageButton = uiradiobutton(app.TesttypeButtonGroup);
-            app.RotatedImageButton.Text = 'Rotated Image';
-            app.RotatedImageButton.Position = [12 43 101 22];
-
-            % Create ThresholdCheckBox
-            app.ThresholdCheckBox = uicheckbox(app.GridLayout);
-            app.ThresholdCheckBox.Text = 'Threshold?';
-            app.ThresholdCheckBox.Layout.Row = 2;
-            app.ThresholdCheckBox.Layout.Column = 2;
-
-            % Create SelectTrialsButton
-            app.SelectTrialsButton = uibutton(app.GridLayout, 'push');
-            app.SelectTrialsButton.ButtonPushedFcn = createCallbackFcn(app, @LoadTrialsPushed, true);
-            app.SelectTrialsButton.Layout.Row = 7;
-            app.SelectTrialsButton.Layout.Column = 3;
-            app.SelectTrialsButton.Text = 'Select Trials';
-
-            % Create TrialsLabel
-            app.TrialsLabel = uilabel(app.GridLayout);
-            app.TrialsLabel.Layout.Row = 7;
-            app.TrialsLabel.Layout.Column = 1;
-            app.TrialsLabel.Text = 'Trials:';
-
-            % Create TrialsFileLabel
-            app.TrialsFileLabel = uilabel(app.GridLayout);
-            app.TrialsFileLabel.Layout.Row = 7;
-            app.TrialsFileLabel.Layout.Column = 2;
-
-            % Create BlockLabel
-            app.BlockLabel = uilabel(app.GridLayout);
-            app.BlockLabel.Layout.Row = 8;
-            app.BlockLabel.Layout.Column = 1;
-            app.BlockLabel.Text = 'Block:';
+            app.GridLayout.ColumnWidth = {'20x', '30x', '30x', '20x'};
+            app.GridLayout.RowHeight = {24, 22, 24, 22, 22, 22, 22, 23, '1x'};
 
             % Create SubjectIDEditFieldLabel
             app.SubjectIDEditFieldLabel = uilabel(app.GridLayout);
@@ -393,9 +427,72 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.SubjectIDEditField.Layout.Row = 1;
             app.SubjectIDEditField.Layout.Column = 2;
 
+            % Create OptionsPanel
+            app.OptionsPanel = uipanel(app.GridLayout);
+            app.OptionsPanel.Title = 'Options';
+            app.OptionsPanel.Layout.Row = [1 5];
+            app.OptionsPanel.Layout.Column = 3;
+
+            % Create GridLayout2
+            app.GridLayout2 = uigridlayout(app.OptionsPanel);
+            app.GridLayout2.ColumnWidth = {'1x'};
+            app.GridLayout2.RowHeight = {'fit', 'fit', 'fit', 'fit'};
+
+            % Create ThresholdCheckBox
+            app.ThresholdCheckBox = uicheckbox(app.GridLayout2);
+            app.ThresholdCheckBox.Text = 'Threshold?';
+            app.ThresholdCheckBox.Layout.Row = 1;
+            app.ThresholdCheckBox.Layout.Column = 1;
+
+            % Create ShowImageNamesCheckBox
+            app.ShowImageNamesCheckBox = uicheckbox(app.GridLayout2);
+            app.ShowImageNamesCheckBox.Text = 'Show Img Names';
+            app.ShowImageNamesCheckBox.Layout.Row = 2;
+            app.ShowImageNamesCheckBox.Layout.Column = 1;
+
+            % Create UseboothkbdCheckBox
+            app.UseboothkbdCheckBox = uicheckbox(app.GridLayout2);
+            app.UseboothkbdCheckBox.Text = 'Use booth kbd';
+            app.UseboothkbdCheckBox.Layout.Row = 3;
+            app.UseboothkbdCheckBox.Layout.Column = 1;
+
+            % Create AudFeedbackCheckBox
+            app.AudFeedbackCheckBox = uicheckbox(app.GridLayout2);
+            app.AudFeedbackCheckBox.Text = 'Aud Feedback';
+            app.AudFeedbackCheckBox.Layout.Row = 4;
+            app.AudFeedbackCheckBox.Layout.Column = 1;
+
+            % Create RunButton
+            app.RunButton = uibutton(app.GridLayout, 'push');
+            app.RunButton.ButtonPushedFcn = createCallbackFcn(app, @RunButtonPushed, true);
+            app.RunButton.Layout.Row = 1;
+            app.RunButton.Layout.Column = 4;
+            app.RunButton.Text = 'Run';
+
+            % Create TesttypeDropDownLabel
+            app.TesttypeDropDownLabel = uilabel(app.GridLayout);
+            app.TesttypeDropDownLabel.Layout.Row = 2;
+            app.TesttypeDropDownLabel.Layout.Column = 1;
+            app.TesttypeDropDownLabel.Text = 'Test type:';
+
+            % Create TesttypeDropDown
+            app.TesttypeDropDown = uidropdown(app.GridLayout);
+            app.TesttypeDropDown.Items = {'Image', 'Rotate', 'Gabor', 'Flip'};
+            app.TesttypeDropDown.ItemsData = {'Image', 'Rotate', 'Gabor', 'Flip', 'ERR'};
+            app.TesttypeDropDown.Layout.Row = 2;
+            app.TesttypeDropDown.Layout.Column = 2;
+            app.TesttypeDropDown.Value = 'Image';
+
+            % Create ExitButton
+            app.ExitButton = uibutton(app.GridLayout, 'push');
+            app.ExitButton.ButtonPushedFcn = createCallbackFcn(app, @ExitButtonPushed, true);
+            app.ExitButton.Layout.Row = 2;
+            app.ExitButton.Layout.Column = 4;
+            app.ExitButton.Text = 'Exit';
+
             % Create LocationLabel
             app.LocationLabel = uilabel(app.GridLayout);
-            app.LocationLabel.Layout.Row = 5;
+            app.LocationLabel.Layout.Row = 3;
             app.LocationLabel.Layout.Column = 1;
             app.LocationLabel.Text = 'Location:';
 
@@ -403,65 +500,13 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.LocationDropDown = uidropdown(app.GridLayout);
             app.LocationDropDown.Items = {'Booth (test)', 'Booth (subj)', 'Desk'};
             app.LocationDropDown.ItemsData = {'booth', 'no-test', 'desk', 'ERR'};
-            app.LocationDropDown.Layout.Row = 5;
+            app.LocationDropDown.Layout.Row = 3;
             app.LocationDropDown.Layout.Column = 2;
             app.LocationDropDown.Value = 'booth';
 
-            % Create BlockSelectedLabel
-            app.BlockSelectedLabel = uilabel(app.GridLayout);
-            app.BlockSelectedLabel.Layout.Row = 8;
-            app.BlockSelectedLabel.Layout.Column = 2;
-            app.BlockSelectedLabel.Text = 'Label3';
-
-            % Create ImagesetLabel
-            app.ImagesetLabel = uilabel(app.GridLayout);
-            app.ImagesetLabel.Layout.Row = 9;
-            app.ImagesetLabel.Layout.Column = 1;
-            app.ImagesetLabel.Text = 'Imageset';
-
-            % Create ImagesetNameLabel
-            app.ImagesetNameLabel = uilabel(app.GridLayout);
-            app.ImagesetNameLabel.Layout.Row = 9;
-            app.ImagesetNameLabel.Layout.Column = 2;
-            app.ImagesetNameLabel.Text = 'Label4';
-
-            % Create SelectImagesButton
-            app.SelectImagesButton = uibutton(app.GridLayout, 'push');
-            app.SelectImagesButton.ButtonPushedFcn = createCallbackFcn(app, @SelectImagesButtonPushed, true);
-            app.SelectImagesButton.Layout.Row = 9;
-            app.SelectImagesButton.Layout.Column = 3;
-            app.SelectImagesButton.Text = 'Select Images';
-
-            % Create RunButton
-            app.RunButton = uibutton(app.GridLayout, 'push');
-            app.RunButton.ButtonPushedFcn = createCallbackFcn(app, @RunButtonPushed, true);
-            app.RunButton.Layout.Row = 11;
-            app.RunButton.Layout.Column = 2;
-            app.RunButton.Text = 'Run';
-
-            % Create ExitButton
-            app.ExitButton = uibutton(app.GridLayout, 'push');
-            app.ExitButton.ButtonPushedFcn = createCallbackFcn(app, @ExitButtonPushed, true);
-            app.ExitButton.Layout.Row = 11;
-            app.ExitButton.Layout.Column = 3;
-            app.ExitButton.Text = 'Exit';
-
-            % Create SelectBlockButton
-            app.SelectBlockButton = uibutton(app.GridLayout, 'push');
-            app.SelectBlockButton.ButtonPushedFcn = createCallbackFcn(app, @SelectBlockButtonPushed, true);
-            app.SelectBlockButton.Layout.Row = 8;
-            app.SelectBlockButton.Layout.Column = 3;
-            app.SelectBlockButton.Text = 'Select Block';
-
-            % Create ShowImageNamesCheckBox
-            app.ShowImageNamesCheckBox = uicheckbox(app.GridLayout);
-            app.ShowImageNamesCheckBox.Text = 'Show Image Names (test only)';
-            app.ShowImageNamesCheckBox.Layout.Row = 3;
-            app.ShowImageNamesCheckBox.Layout.Column = 2;
-
             % Create ScrDistmmEditFieldLabel
             app.ScrDistmmEditFieldLabel = uilabel(app.GridLayout);
-            app.ScrDistmmEditFieldLabel.Layout.Row = 6;
+            app.ScrDistmmEditFieldLabel.Layout.Row = 4;
             app.ScrDistmmEditFieldLabel.Layout.Column = 1;
             app.ScrDistmmEditFieldLabel.Text = 'Scr Dist (mm)';
 
@@ -469,14 +514,215 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.ScrDistmmEditField = uieditfield(app.GridLayout, 'text');
             app.ScrDistmmEditField.InputType = 'digits';
             app.ScrDistmmEditField.Placeholder = '(default)';
-            app.ScrDistmmEditField.Layout.Row = 6;
+            app.ScrDistmmEditField.Layout.Row = 4;
             app.ScrDistmmEditField.Layout.Column = 2;
 
-            % Create UseboothkbdCheckBox
-            app.UseboothkbdCheckBox = uicheckbox(app.GridLayout);
-            app.UseboothkbdCheckBox.Text = 'Use booth kbd (test only)';
-            app.UseboothkbdCheckBox.Layout.Row = 4;
-            app.UseboothkbdCheckBox.Layout.Column = 2;
+            % Create TrialsLabel
+            app.TrialsLabel = uilabel(app.GridLayout);
+            app.TrialsLabel.Layout.Row = 6;
+            app.TrialsLabel.Layout.Column = 1;
+            app.TrialsLabel.Text = 'Trials:';
+
+            % Create TrialsFileLabel
+            app.TrialsFileLabel = uilabel(app.GridLayout);
+            app.TrialsFileLabel.Layout.Row = 6;
+            app.TrialsFileLabel.Layout.Column = [2 3];
+
+            % Create SelectTrialsButton
+            app.SelectTrialsButton = uibutton(app.GridLayout, 'push');
+            app.SelectTrialsButton.ButtonPushedFcn = createCallbackFcn(app, @LoadTrialsPushed, true);
+            app.SelectTrialsButton.Layout.Row = 6;
+            app.SelectTrialsButton.Layout.Column = 4;
+            app.SelectTrialsButton.Text = 'Select Trials';
+
+            % Create BlockLabel
+            app.BlockLabel = uilabel(app.GridLayout);
+            app.BlockLabel.Layout.Row = 7;
+            app.BlockLabel.Layout.Column = 1;
+            app.BlockLabel.Text = 'Block:';
+
+            % Create BlockSelectedLabel
+            app.BlockSelectedLabel = uilabel(app.GridLayout);
+            app.BlockSelectedLabel.Layout.Row = 7;
+            app.BlockSelectedLabel.Layout.Column = [2 3];
+            app.BlockSelectedLabel.Text = 'Label3';
+
+            % Create SelectBlockButton
+            app.SelectBlockButton = uibutton(app.GridLayout, 'push');
+            app.SelectBlockButton.ButtonPushedFcn = createCallbackFcn(app, @SelectBlockButtonPushed, true);
+            app.SelectBlockButton.Layout.Row = 7;
+            app.SelectBlockButton.Layout.Column = 4;
+            app.SelectBlockButton.Text = 'Select Block';
+
+            % Create ImagesetLabel
+            app.ImagesetLabel = uilabel(app.GridLayout);
+            app.ImagesetLabel.Layout.Row = 8;
+            app.ImagesetLabel.Layout.Column = 1;
+            app.ImagesetLabel.Text = 'Imageset';
+
+            % Create ImagesetNameLabel
+            app.ImagesetNameLabel = uilabel(app.GridLayout);
+            app.ImagesetNameLabel.Layout.Row = 8;
+            app.ImagesetNameLabel.Layout.Column = [2 3];
+            app.ImagesetNameLabel.Text = 'Label4';
+
+            % Create SelectImagesButton
+            app.SelectImagesButton = uibutton(app.GridLayout, 'push');
+            app.SelectImagesButton.ButtonPushedFcn = createCallbackFcn(app, @SelectImagesButtonPushed, true);
+            app.SelectImagesButton.Layout.Row = 8;
+            app.SelectImagesButton.Layout.Column = 4;
+            app.SelectImagesButton.Text = 'Select Images';
+
+            % Create OverridesPanel
+            app.OverridesPanel = uipanel(app.GridLayout);
+            app.OverridesPanel.Title = 'Overrides';
+            app.OverridesPanel.Layout.Row = 9;
+            app.OverridesPanel.Layout.Column = [1 3];
+
+            % Create GridLayout3
+            app.GridLayout3 = uigridlayout(app.OverridesPanel);
+            app.GridLayout3.ColumnWidth = {'1x', '3x', '3x', '3x'};
+            app.GridLayout3.RowHeight = {22.02, 22.02, 'fit', 'fit', 'fit', 'fit'};
+
+            % Create Stim1XYOverride
+            app.Stim1XYOverride = uicheckbox(app.GridLayout3);
+            app.Stim1XYOverride.ValueChangedFcn = createCallbackFcn(app, @Stim1XYOverrideValueChanged, true);
+            app.Stim1XYOverride.Text = '';
+            app.Stim1XYOverride.Layout.Row = 1;
+            app.Stim1XYOverride.Layout.Column = 1;
+
+            % Create Stim1XYEditFieldLabel
+            app.Stim1XYEditFieldLabel = uilabel(app.GridLayout3);
+            app.Stim1XYEditFieldLabel.HorizontalAlignment = 'right';
+            app.Stim1XYEditFieldLabel.Layout.Row = 1;
+            app.Stim1XYEditFieldLabel.Layout.Column = 2;
+            app.Stim1XYEditFieldLabel.Text = 'Stim1  X,Y';
+
+            % Create Stim1XEditField
+            app.Stim1XEditField = uieditfield(app.GridLayout3, 'numeric');
+            app.Stim1XEditField.AllowEmpty = 'on';
+            app.Stim1XEditField.Layout.Row = 1;
+            app.Stim1XEditField.Layout.Column = 3;
+            app.Stim1XEditField.Value = [];
+
+            % Create Stim1YEditField
+            app.Stim1YEditField = uieditfield(app.GridLayout3, 'numeric');
+            app.Stim1YEditField.AllowEmpty = 'on';
+            app.Stim1YEditField.Layout.Row = 1;
+            app.Stim1YEditField.Layout.Column = 4;
+            app.Stim1YEditField.Value = [];
+
+            % Create Stim2XYOverride
+            app.Stim2XYOverride = uicheckbox(app.GridLayout3);
+            app.Stim2XYOverride.ValueChangedFcn = createCallbackFcn(app, @Stim2XYOverrideValueChanged, true);
+            app.Stim2XYOverride.Text = '';
+            app.Stim2XYOverride.Layout.Row = 2;
+            app.Stim2XYOverride.Layout.Column = 1;
+
+            % Create Stim2XYEditFieldLabel
+            app.Stim2XYEditFieldLabel = uilabel(app.GridLayout3);
+            app.Stim2XYEditFieldLabel.HorizontalAlignment = 'right';
+            app.Stim2XYEditFieldLabel.Layout.Row = 2;
+            app.Stim2XYEditFieldLabel.Layout.Column = 2;
+            app.Stim2XYEditFieldLabel.Text = 'Stim2 X,Y';
+
+            % Create Stim2XEditField
+            app.Stim2XEditField = uieditfield(app.GridLayout3, 'numeric');
+            app.Stim2XEditField.AllowEmpty = 'on';
+            app.Stim2XEditField.Layout.Row = 2;
+            app.Stim2XEditField.Layout.Column = 3;
+            app.Stim2XEditField.Value = [];
+
+            % Create Stim2YEditField
+            app.Stim2YEditField = uieditfield(app.GridLayout3, 'numeric');
+            app.Stim2YEditField.AllowEmpty = 'on';
+            app.Stim2YEditField.Layout.Row = 2;
+            app.Stim2YEditField.Layout.Column = 4;
+            app.Stim2YEditField.Value = [];
+
+            % Create SampTimeOverride
+            app.SampTimeOverride = uicheckbox(app.GridLayout3);
+            app.SampTimeOverride.ValueChangedFcn = createCallbackFcn(app, @SampTimeOverrideValueChanged, true);
+            app.SampTimeOverride.Text = '';
+            app.SampTimeOverride.Layout.Row = 3;
+            app.SampTimeOverride.Layout.Column = 1;
+
+            % Create SampTimesEditFieldLabel
+            app.SampTimesEditFieldLabel = uilabel(app.GridLayout3);
+            app.SampTimesEditFieldLabel.HorizontalAlignment = 'right';
+            app.SampTimesEditFieldLabel.Layout.Row = 3;
+            app.SampTimesEditFieldLabel.Layout.Column = 2;
+            app.SampTimesEditFieldLabel.Text = 'Samp Time(s)';
+
+            % Create SampTimesEditField
+            app.SampTimesEditField = uieditfield(app.GridLayout3, 'numeric');
+            app.SampTimesEditField.AllowEmpty = 'on';
+            app.SampTimesEditField.Layout.Row = 3;
+            app.SampTimesEditField.Layout.Column = 3;
+            app.SampTimesEditField.Value = [];
+
+            % Create GapTimeOverride
+            app.GapTimeOverride = uicheckbox(app.GridLayout3);
+            app.GapTimeOverride.ValueChangedFcn = createCallbackFcn(app, @GapTimeOverrideValueChanged, true);
+            app.GapTimeOverride.Text = '';
+            app.GapTimeOverride.Layout.Row = 4;
+            app.GapTimeOverride.Layout.Column = 1;
+
+            % Create GapTimesEditFieldLabel
+            app.GapTimesEditFieldLabel = uilabel(app.GridLayout3);
+            app.GapTimesEditFieldLabel.HorizontalAlignment = 'right';
+            app.GapTimesEditFieldLabel.Layout.Row = 4;
+            app.GapTimesEditFieldLabel.Layout.Column = 2;
+            app.GapTimesEditFieldLabel.Text = 'Gap Time (s)';
+
+            % Create GapTimesEditField
+            app.GapTimesEditField = uieditfield(app.GridLayout3, 'numeric');
+            app.GapTimesEditField.AllowEmpty = 'on';
+            app.GapTimesEditField.Layout.Row = 4;
+            app.GapTimesEditField.Layout.Column = 3;
+            app.GapTimesEditField.Value = [];
+
+            % Create TestTimeOverride
+            app.TestTimeOverride = uicheckbox(app.GridLayout3);
+            app.TestTimeOverride.ValueChangedFcn = createCallbackFcn(app, @TestTimeOverrideValueChanged, true);
+            app.TestTimeOverride.Text = '';
+            app.TestTimeOverride.Layout.Row = 5;
+            app.TestTimeOverride.Layout.Column = 1;
+
+            % Create TestTimesEditFieldLabel
+            app.TestTimesEditFieldLabel = uilabel(app.GridLayout3);
+            app.TestTimesEditFieldLabel.HorizontalAlignment = 'right';
+            app.TestTimesEditFieldLabel.Layout.Row = 5;
+            app.TestTimesEditFieldLabel.Layout.Column = 2;
+            app.TestTimesEditFieldLabel.Text = 'Test Time(s)';
+
+            % Create TestTimesEditField
+            app.TestTimesEditField = uieditfield(app.GridLayout3, 'numeric');
+            app.TestTimesEditField.AllowEmpty = 'on';
+            app.TestTimesEditField.Layout.Row = 5;
+            app.TestTimesEditField.Layout.Column = 3;
+            app.TestTimesEditField.Value = [];
+
+            % Create RespTimeOverride
+            app.RespTimeOverride = uicheckbox(app.GridLayout3);
+            app.RespTimeOverride.ValueChangedFcn = createCallbackFcn(app, @RespTimeOverrideValueChanged, true);
+            app.RespTimeOverride.Text = '';
+            app.RespTimeOverride.Layout.Row = 6;
+            app.RespTimeOverride.Layout.Column = 1;
+
+            % Create RespTimesEditFieldLabel
+            app.RespTimesEditFieldLabel = uilabel(app.GridLayout3);
+            app.RespTimesEditFieldLabel.HorizontalAlignment = 'right';
+            app.RespTimesEditFieldLabel.Layout.Row = 6;
+            app.RespTimesEditFieldLabel.Layout.Column = 2;
+            app.RespTimesEditFieldLabel.Text = 'Resp Time (s)';
+
+            % Create RespTimesEditField
+            app.RespTimesEditField = uieditfield(app.GridLayout3, 'numeric');
+            app.RespTimesEditField.AllowEmpty = 'on';
+            app.RespTimesEditField.Layout.Row = 6;
+            app.RespTimesEditField.Layout.Column = 3;
+            app.RespTimesEditField.Value = [];
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';
