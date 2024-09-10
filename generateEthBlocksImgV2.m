@@ -1,6 +1,8 @@
-function [trialsOrBlocks, inputArgs, parsedResults]  = generateEthBlocksImgV2(varargin)
+function [trialsOrBlocks, inputArgs, parsedResults, myname]  = generateEthBlocksImgV2(varargin)
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
+
+    myname = mfilename;
 
     p=inputParser;  
     p.addRequired('FileKeys', @(x) iscellstr(x));    
