@@ -15,14 +15,14 @@ A block of trials is run by the function *ethologSingleTest*. A MATLAB helper ap
 
 Running the script *local_ethosal_dlg* opens this dialog:
 
-![ethosal dialog](ethosal_dlg.png "ethosal main dialog")
+![ethosal dialog](ethosal_dlgV2.png "ethosal main dialog")
 
 The items in the dialog and their meanings:
 
 - **Subject ID** - An identifier for the subject. Will be incorporated into output file.
-- **Test Type** - Will the *test* image be a contrast-modified image ("Image") or a gabor ("Gabor")?
+- **Test Type** - Will the *test* image be a rotated img, flipped img, modified img or a gabor?
 - **Threshold?** - if checked, will run threshold data of selected test type
-- **Show Image Names** -if checked, image keys will be printed with the images. For testing. Requires Computer Vision Toolbox.
+- **Show Image Names** -if checked, image keys will be displayed on top of the images. For testing. Requires Computer Vision Toolbox.
 - **Location** - Select *Booth(test)* to run in EEG booth, but without eye tracking (for testing button box). Select Booth(subj) to run a subject in the booth. Select *Desk* to run on Dan's desk.
 - **Scr Dist (mm)** - Screen distance (eye to center of screen), in mm. (8/6/24 this is not used at present)
 
@@ -33,6 +33,18 @@ If the trials file has blocks, then you will be presented with a dialog to selec
 The data file created will be placed in **ethDataRoot**/output. The filename will be *yyyy-MM-dd-HHmm_subjectId_inputfile_blk#*, where *yyyy-MM-dd-HHmm* is the date/time the experiment was started, *subjectID* is from the dialog, and *inputfile* is the base name of the input (mat) file used. If a block is chosen, then *blk#* would indicate which block was run.
 
 The **Run** button will not activate until the subject ID is not empty, and a file/block are selected. You cannot interact with the dialog while the experiment is running. 
+
+### Overriding trial settings
+
+Stim position and trial timing values can be modified. To change the configured values, first check the 
+checkbox to the right of the value, and specify the value. All timing values are in seconds, and the 
+stim position x,y values are in degrees. When you click *Run*, only the values next to **checked** boxes are used. 
+Any other values, even if visible, are ignored.
+
+The initial values shown in the dialog are those which are available at run time. 
+(9/11/2024) The stim x,y positions are not known at this point: all stim size,position,color qualities
+are specified on the command line, not in the trials file. The current default values for the stim are 
+```Stim1XY = [-7,0]; Stim2XY = [7,0];```. 
 
 ### Running multiple blocks
 
@@ -70,7 +82,7 @@ Normally, a drift correction works like this:
 5. If the eye is not stationary when you hit "Accept Fixation", then nothing happens! You might notice a small pair or rectangles, red and green, which indicate when eye is moving (red) or stationary (green). The tracker requires that when you hit "Accept" that the eye is stationary. If it isn't, then nothing happens. That's OK - just try again. 
 
 
-If you are in a drift correction (expt was paused, and you hit **d**) but the tracker is badly misconfigured, you can hit **<ESC>**, and the tracker switches to "Camera Setup". You can take steps here to correct tracking problems, but when finished, **you MUST click on the tracker's "OUTPUT/RECORD" button!** The tracker exits setup and the drift correction, and the experiment resumes. 
+If you are in a drift correction (expt was paused, and you hit **d**) but the tracker is badly misconfigured, you can hit **ESC**, and the tracker switches to "Camera Setup". You can take steps here to correct tracking problems, but when finished, **you MUST click on the tracker's "OUTPUT/RECORD" button!** The tracker exits setup and the drift correction, and the experiment resumes. 
 
 Important to note that when you enter "Camera Setup" via a *pause*/***s*** sequence, or at initial calibration, you must hit "Exit Setup" to proceed. If you enter "Camera Setup" via a *pause*/***d***/**<ESC>** sequence, then you must hit "Output/Record" to proceed.
 
