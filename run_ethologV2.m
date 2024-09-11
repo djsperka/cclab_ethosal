@@ -1,4 +1,4 @@
-function results = run_etholog_single(varargin)
+function results = run_ethologV2(varargin)
 %run_etholog_single Run etholog for a specific block
 %   Detailed explanation goes here
 
@@ -15,6 +15,7 @@ function results = run_etholog_single(varargin)
     p.addParameter('ExperimentTestType', 'Image', @(x) ischar(x));
     p.addParameter('ImageFolder','', @(x) ischar(x));
     p.addParameter('Images', [], @(x) isa(x, 'imageset'));
+    p.addParameter('Beep', false, @(x) islogical(x));
     p.addParameter('Stim1XY', [], @(x) isvector(x) && length(x)==2);
     p.addParameter('Stim2XY', [], @(x) isvector(x) && length(x)==2);
 
@@ -24,10 +25,10 @@ function results = run_etholog_single(varargin)
     switch(p.Results.Test)
         case 'desk'
             % Set these folders according to the current machine
-            if length(p.Results.ImageFolder) > 0
-                image_folder = p.Results.ImageFolder;
-            else
+            if isempty(p.Results.ImageFolder)
                 image_folder = '/home/dan/work/cclab/images/eth/Babies';
+            else
+                image_folder = p.Results.ImageFolder;
             end
             output_folder = '/home/dan/work/cclab/ethdata/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
@@ -143,6 +144,7 @@ function results = run_etholog_single(varargin)
         'EyelinkDummyMode', eyelinkDummyMode, ...
         'SkipSyncTests', 1, ...
         'Threshold', p.Results.Threshold, ...
+        'Beep', p.Results.Beep, ...
         'ExperimentTestType', p.Results.ExperimentTestType
         };
 

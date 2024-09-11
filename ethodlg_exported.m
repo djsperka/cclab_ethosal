@@ -13,9 +13,6 @@ classdef ethodlg_exported < matlab.apps.AppBase
         TestTimesEditFieldLabel  matlab.ui.control.Label
         TestTimeOverride         matlab.ui.control.CheckBox
         GapTimesEditField        matlab.ui.control.NumericEditField
-        ExitButton               matlab.ui.control.Button
-        TesttypeDropDown         matlab.ui.control.DropDown
-        TesttypeDropDownLabel    matlab.ui.control.Label
         GapTimesEditFieldLabel   matlab.ui.control.Label
         GapTimeOverride          matlab.ui.control.CheckBox
         SampTimesEditField       matlab.ui.control.NumericEditField
@@ -25,7 +22,27 @@ classdef ethodlg_exported < matlab.apps.AppBase
         Stim2XEditField          matlab.ui.control.NumericEditField
         Stim2XYEditFieldLabel    matlab.ui.control.Label
         Stim2XYOverride          matlab.ui.control.CheckBox
+        Stim1YEditField          matlab.ui.control.NumericEditField
+        Stim1XEditField          matlab.ui.control.NumericEditField
+        Stim1XYEditFieldLabel    matlab.ui.control.Label
+        Stim1XYOverride          matlab.ui.control.CheckBox
         SelectImagesButton       matlab.ui.control.Button
+        ImagesetNameLabel        matlab.ui.control.Label
+        ImagesetLabel            matlab.ui.control.Label
+        SelectBlockButton        matlab.ui.control.Button
+        BlockSelectedLabel       matlab.ui.control.Label
+        BlockLabel               matlab.ui.control.Label
+        SelectTrialsButton       matlab.ui.control.Button
+        TrialsFileLabel          matlab.ui.control.Label
+        TrialsLabel              matlab.ui.control.Label
+        ScrDistmmEditField       matlab.ui.control.EditField
+        ScrDistmmEditFieldLabel  matlab.ui.control.Label
+        LocationDropDown         matlab.ui.control.DropDown
+        LocationLabel            matlab.ui.control.Label
+        ExitButton               matlab.ui.control.Button
+        TesttypeDropDown         matlab.ui.control.DropDown
+        TesttypeDropDownLabel    matlab.ui.control.Label
+        RunButton                matlab.ui.control.Button
         OptionsPanel             matlab.ui.container.Panel
         GridLayout2              matlab.ui.container.GridLayout
         AudFeedbackCheckBox      matlab.ui.control.CheckBox
@@ -34,23 +51,6 @@ classdef ethodlg_exported < matlab.apps.AppBase
         ThresholdCheckBox        matlab.ui.control.CheckBox
         SubjectIDEditField       matlab.ui.control.EditField
         SubjectIDEditFieldLabel  matlab.ui.control.Label
-        Stim1YEditField          matlab.ui.control.NumericEditField
-        Stim1XEditField          matlab.ui.control.NumericEditField
-        Stim1XYEditFieldLabel    matlab.ui.control.Label
-        Stim1XYOverride          matlab.ui.control.CheckBox
-        ImagesetNameLabel        matlab.ui.control.Label
-        ImagesetLabel            matlab.ui.control.Label
-        SelectBlockButton        matlab.ui.control.Button
-        BlockSelectedLabel       matlab.ui.control.Label
-        BlockLabel               matlab.ui.control.Label
-        SelectTrialsButton       matlab.ui.control.Button
-        TrialsFileLabel          matlab.ui.control.Label
-        ScrDistmmEditField       matlab.ui.control.EditField
-        ScrDistmmEditFieldLabel  matlab.ui.control.Label
-        TrialsLabel              matlab.ui.control.Label
-        LocationDropDown         matlab.ui.control.DropDown
-        LocationLabel            matlab.ui.control.Label
-        RunButton                matlab.ui.control.Button
     end
 
     
@@ -314,6 +314,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
                     id, 'Test', app.LocationDropDown.Value, ...
                     'Trials', trials, ...
                     'Threshold', app.ThresholdCheckBox.Value, ...
+                    'Beep', app.AudFeedbackCheckBox.Value, ...
                     'ExperimentTestType', app.getTestType(), ... 
                     'Images', img, ... 
                     'Inside', app.UseboothkbdCheckBox.Value
