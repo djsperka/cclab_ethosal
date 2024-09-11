@@ -137,6 +137,7 @@ makeEthologInput(folder, ttype, etype, extra, img, blocksOrTrials, genFuncInputA
 The folder arg is an output folder. It should be the root of data
 files. A subfolder named 'input' is used for the *mat* files created by
 this script. The args are:
+
 - ttype: test type, one of 'gab','mimg','rimg','rot'
 - etype: exp type, one of 'thr' or 'exp'
 - extra: becomes part of filename, ttype_etype_extra.mat
