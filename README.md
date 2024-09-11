@@ -123,6 +123,29 @@ and one of the following
 - blocks: array of tables, each with a block of trials
 - trials: a single table of trials
 
+Update: As of 9/8/2024 the struct has additional fields
+- genFuncArgs - arguments input to the trial gen function
+- genFuncParserResults - parser results from trial gen function
+- genFuncName - name of the trial gen function
+
+There is also a script, **makeEthologInput**, which will package up the blocks/trials into a mat file.
+
+```
+makeEthologInput(folder, ttype, etype, extra, img, blocksOrTrials, genFuncInputArgs, genFuncParserResults, genFuncName)
+```    
+
+The folder arg is an output folder. It should be the root of data
+files. A subfolder named 'input' is used for the *mat* files created by
+this script. The args are:
+- ttype: test type, one of 'gab','mimg','rimg','rot'
+- etype: exp type, one of 'thr' or 'exp'
+- extra: becomes part of filename, ttype_etype_extra.mat
+- img: imageset used
+- blocksOrTrials: trials table or cell array of tables (i.e. blocks)
+- inputArgs: args passed to the generator function
+- parsedResults: results from the inputParser in the gen function
+- scriptName: name of the script that generated the trials
+
 The filename expected by the GUI is *testtype*_*exptype*_*whatever*.mat, where *testtype* can be *mimg* or *gab*, and *exptype* can be *thr* or *exp*. And *whatever* can be any legal file name stuff. The extension *mat* is required.
 
 #### Generate trials for contrast-changed modified images
