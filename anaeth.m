@@ -48,7 +48,7 @@ function [ratesNone, ratesAttended, fig] = anaeth(varargin)
     logsNone = ethlogs(attendNone);
     ratesNone = ethratesNone(attendNone, logsNone);
 
-    printRates(ratesNone, 'NEUTRAL');
+    %printRates(ratesNone, 'NEUTRAL');
 
     % Salience effect plot
     if doPlot
@@ -381,9 +381,7 @@ function rates = ethratesNone(A, logs)
     % rates.frateLHHL0 = rates.nincorrectLHHL0/rates.ncompletedLHHL0;
 
     % dprime values;
-    fprintf('min %f max %f\n', min(0.99, rates.drateHH), max(0.01, rates.frateHH0));
     [rates.dpHH, rates.cHH] = dprime_simple(min(0.99, rates.drateHH), max(0.01, rates.frateHH0));
-    fprintf('Done\n');
     [rates.dpHL, rates.cHL] = dprime_simple(min(0.99, rates.drateHL), max(0.01, rates.frateHL0));
     [rates.dpLH, rates.cLH] = dprime_simple(min(0.99, rates.drateLH), max(0.01, rates.frateLH0));
     [rates.dpLL, rates.cLL] = dprime_simple(min(0.99, rates.drateLL), max(0.01, rates.frateLL0));

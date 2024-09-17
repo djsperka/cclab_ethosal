@@ -19,7 +19,7 @@ function [rates, logs] = anaethV2(results)
     logs = ethlogs(results);
     rates = ethratesNone(results, logs);
 
-    printRates(rates, 'NEUTRAL');
+    %printRates(rates, 'NEUTRAL');
 
     % % Salience effect plot
     % figure;
