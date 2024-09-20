@@ -199,9 +199,11 @@ classdef imageset
             
             p.parse(varargin{:});
 
-            if ~isfile(fullfile(p.Results.Root,[p.Results.ParamsFunc,'.m']))
-                error('Cannot find params func for this imageset: %s', fullfile(p.Results.Root,[p.Results.ParamsFunc,'.m']));
-            end
+
+            % Test params func arg.
+            % if ~isfile(fullfile(p.Results.Root,[p.Results.ParamsFunc,'.m']))
+            %     error('Cannot find params func for this imageset: %s', fullfile(p.Results.Root,[p.Results.ParamsFunc,'.m']));
+            % end
             obj.Root = p.Results.Root;
             obj.ParamsFunc = p.Results.ParamsFunc;
             % llast folder of Root is the imageset name
@@ -209,12 +211,24 @@ classdef imageset
             obj.Name = c{end};
 
 
-            % If a params func is used, load it and assign values
+            % If a params func is used, load it and assign values. 
+            % If the filename looks at all like a pathname, then we assume
+            % the intention is to run the script in that location.
+            % If no params func argument given, look for a 'params.m' file
+            % in the root folder.
             if ~isempty(p.Results.ParamsFunc)
-                currentDir=pwd;
-                cd(p.Results.Root);
-                Y=eval(p.Results.ParamsFunc);
-                cd(currentDir);
+                [path, base, ext] = fileparts(p.Results.ParamsFunc);
+                if isempty(path)
+                    currentDir=pwd;
+                    cd(p.Results.Root);
+                    Y=eval(base);
+                    cd(currentDir);
+                else
+                    currentDir=pwd;
+                    cd(path);
+                    Y=eval(base);
+                    cd(currentDir);
+                end
             elseif isfile(fullfile(p.Results.Root,'params.m'))
                 currentDir=pwd;
                 cd(p.Results.Root);
