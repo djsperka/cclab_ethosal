@@ -1,6 +1,9 @@
-function [trialsOrBlocks, inputArgs, parsedResults, myname]  = generateEthBlocksImgV2(varargin)
-%UNTITLED3 Summary of this function goes here
-%   Detailed explanation goes here
+function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksImgV2(varargin)
+%generateEthBlocksImgV2 Generate trial sets for ethological salience expt
+%'ethologV2'.
+%   [blocks,inputArgs,parsedResults,scriptName] = ...
+%          generateEthBlocksImgV2(img.BalancedFileKeys, ...
+%                                 [20,30,0;20,0,30], Base=4, NumBlocks=2);
 
     myname = mfilename;
 
@@ -13,7 +16,7 @@ function [trialsOrBlocks, inputArgs, parsedResults, myname]  = generateEthBlocks
     % elements are the number of pairs for "both", "left", and "right". If
     % any of them is zero then no trials of that type will be generated. 
 
-    p.addRequired('Num', @(x) isnumeric(x) && isvector(x) && length(x)<=3);
+    p.addRequired('Num', @(x) isnumeric(x) && size(x, 2)<=3);
     p.addOptional('FolderKeys', {'H'; 'L'},  @(x) iscellstr(x));
     p.addOptional('TestKeys', {'H'; 'L'},  @(x) iscellstr(x));
     p.addOptional('FixationTime', 0.5, @(x) isnumeric(x) && length(x)<3);
@@ -47,145 +50,170 @@ function [trialsOrBlocks, inputArgs, parsedResults, myname]  = generateEthBlocks
     % where 16 = (left folder key)*(right folder
     % key)*(StimTestType=1,2)*(StimChangeTF=0,1)
 
+    allTrialSets = cell(size(p.Results.Num, 1), 1);
     if ~p.Results.Threshold
 
         tabTemp = [];
 
-        % Set up image pairs.
-        allPairs = sum(p.Results.Num);
+        % If there are multiple rows in p.Results.Num, then each row
+        % denotes a block. Each block should use the same set of image
+        % pairs, however, so multiple blocks can be generated here. 
+        % 
+        % The sum along each row of p.Results.Num must be the same! 
+
+        numSums = sum(p.Results.Num, 2);
+        if ~all(numSums(1)==numSums)
+            error('All rows of Num must add up to same number.');
+        end
+        
+
+        % Set up image pairs. The array 'imagePairs' has two columns, and
+        % the one row for each image pair needed - that's the same as the
+        % sum across each row of p.Results.Num.
+
+        allPairs = numSums(1);
         imagePairs=reshape(randperm(nFileKeys, allPairs*2), [allPairs,2]);
-        C = cumsum(p.Results.Num);
 
-        for i = 1:length(p.Results.Num)
+        for itrialset = 1 : size(p.Results.Num, 1)
 
-            if p.Results.Num(i) > 0
-
-                replacements = cell(6,1);
-                columnNames=cell(6,1);
-            
-                % Select the images that will be used
-                rep = (C(i)-p.Results.Num(i)+1 : C(i))';
-                replacements{1} = rep;
-                columnNames{1} = 'ImagePairIndex';
-            
-                % Folder1Key
-                replacements{2}=p.Results.FolderKeys;
-                columnNames{2} = 'Folder1Key';
-            
-                % Folder2Key
-                replacements{3}=p.Results.FolderKeys;
-                columnNames{3} = 'Folder2Key';
-            
-                % TestType? L=1, R=2
-                % First element of p.Results.Num is the number that will
-                % have both left&right test. Second element is left-only,
-                % third element is righ-only. Remember that TestType==1
-                % means left test, TestType==2 means right test.
-
-                switch (i)
-                    case 1
-                        replacements{4}=[1;2];
-                    case 2
-                        replacements{4}=[1];
-                    case 3
-                        replacements{4}=[2];
-                end        
-                columnNames{4} = 'StimTestType';
-            
-                % change/nochange test
-                replacements{5} = [0;1];
-                columnNames{5} = 'StimChangeTF';
-            
-                % Base value (for rotations)
-                replacements{6} = p.Results.Base;
-                columnNames{6} = 'Base';
-            
-            
-                % This generates trials with things distributed over the elements of
-                % names/reps.
-                tab1 = randomizeParams('VariableNames', columnNames, 'Replacements', replacements);
-                nTrials = height(tab1);
-            
-            
-                % Now make File1Key and File2Key
-                tab1.File1Key = FileKeys(imagePairs(tab1.ImagePairIndex,1));
-                tab1.File2Key = FileKeys(imagePairs(tab1.ImagePairIndex,2));
-            
-                % StimA1Key and StimA2Key
-                tab1.StimA1Key = imageset.make_keys(tab1.Folder1Key, tab1.File1Key);
-                tab1.StimA2Key = imageset.make_keys(tab1.Folder2Key, tab1.File2Key);
-            
-                % StimChangeType
-                tab1.StimChangeType = tab1.StimChangeTF.*tab1.StimTestType;
-            
-                % Initial orientation
-                tab1.Stim1Ori = (2*randi([0 1],nTrials, 1))-1;
-                tab1.Stim2Ori = (2*randi([0 1],nTrials, 1))-1;
-            
-                %% Now make B stim keys. 
-                % First, initialize all of them to 'BKGD'. 
-                StimB1Key=cell(size(tab1.StimA1Key));
-                [StimB1Key{:}] = deal('BKGD');
-                StimB2Key=cell(size(tab1.StimA1Key));
-                [StimB2Key{:}] = deal('BKGD');
-            
-                % logical arrays for trials where stim1/Stim2 changes
-                ncL1 = tab1.StimTestType==1 & ~tab1.StimChangeTF;
-                ncL2 = tab1.StimTestType==2 & ~tab1.StimChangeTF;
-            
-                % For no-change trials, the B key is same as A key.
-                StimB1Key(ncL1) = tab1.StimA1Key(ncL1);
-                StimB2Key(ncL2) = tab1.StimA2Key(ncL2);
-            
-                % Make an index pointing to the correct index in FileKeys/TestKeys
-                [~,indA1] = ismember(tab1.Folder1Key, FolderKeys);
-                [~,indA2] = ismember(tab1.Folder2Key, FolderKeys);
-                tab1.indA1 = indA1;
-                tab1.indA2 = indA2;
-            
-                % logical arrays for trials where stim1/Stim2 changes
-                L1 = tab1.StimTestType==1 & tab1.StimChangeTF;
-                L2 = tab1.StimTestType==2 & tab1.StimChangeTF;
-            
-                % Make StimB keys
-                if any(L1)
-                    StimB1Key(L1) = imageset.make_keys(TestKeys(indA1(L1)), tab1.File1Key(L1));
-                end
-                if any(L2)
-                    StimB2Key(L2) = imageset.make_keys(TestKeys(indA2(L2)), tab1.File2Key(L2));
-                end
-                tab1.StimB1Key = StimB1Key;
-                tab1.StimB2Key = StimB2Key;
-            
-                % Make life easier when analyzing data by assigning the "scientific"
-                % trial type HH,HL,LH,LL
-                folderKeyIndices = horzcat(indA1, indA2);
-                hl={'H','L'};
-            
-                % logical arrays for trials stim1/Stim2 is test type (regardless of 
-                % whether it changes)
-                L1 = tab1.StimTestType==1;
-                L2 = tab1.StimTestType==2;
-            
-                sciTrialType = cell(height(tab1), 1);
-            
-                sciTrialType(L1) = strcat(hl(indA1(L1)), hl(indA2(L1)));
-                sciTrialType(L2) = strcat(hl(indA2(L2)), hl(indA1(L2)));
-                tab1.sciTrialType = sciTrialType;
+            C = cumsum(p.Results.Num(itrialset, :));
+            thisSetNums = p.Results.Num(itrialset, :);
+            thisSetTable = [];
+            for i = 1:length(thisSetNums)
     
-                tabTemp = [tabTemp; tab1];
-
-                fprintf('i=%d: N=%d, %d trials generated\n', i, p.Results.Num(i), height(tab1));
+                if thisSetNums(i) > 0
+    
+                    replacements = cell(6,1);
+                    columnNames=cell(6,1);
+                
+                    % Select the images that will be used
+                    rep = (C(i)-thisSetNums(i)+1 : C(i))';
+                    replacements{1} = rep;
+                    columnNames{1} = 'ImagePairIndex';
+                
+                    % Folder1Key
+                    replacements{2}=p.Results.FolderKeys;
+                    columnNames{2} = 'Folder1Key';
+                
+                    % Folder2Key
+                    replacements{3}=p.Results.FolderKeys;
+                    columnNames{3} = 'Folder2Key';
+                
+                    % TestType? L=1, R=2
+                    % First element of thisBlockNums is the number that will
+                    % have both left&right test. Second element is left-only,
+                    % third element is righ-only. Remember that TestType==1
+                    % means left test, TestType==2 means right test.
+    
+                    switch (i)
+                        case 1
+                            replacements{4}=[1;2];
+                        case 2
+                            replacements{4}=[1];
+                        case 3
+                            replacements{4}=[2];
+                    end        
+                    columnNames{4} = 'StimTestType';
+                
+                    % change/nochange test
+                    replacements{5} = [0;1];
+                    columnNames{5} = 'StimChangeTF';
+                
+                    % Base value (for rotations)
+                    replacements{6} = p.Results.Base;
+                    columnNames{6} = 'Base';
+                
+                
+                    % This generates trials with things distributed over the elements of
+                    % names/reps.
+                    tab1 = randomizeParams('VariableNames', columnNames, 'Replacements', replacements);
+                    nTrials = height(tab1);
+                
+                
+                    % Now make File1Key and File2Key
+                    tab1.File1Key = FileKeys(imagePairs(tab1.ImagePairIndex,1));
+                    tab1.File2Key = FileKeys(imagePairs(tab1.ImagePairIndex,2));
+                
+                    % StimA1Key and StimA2Key
+                    tab1.StimA1Key = imageset.make_keys(tab1.Folder1Key, tab1.File1Key);
+                    tab1.StimA2Key = imageset.make_keys(tab1.Folder2Key, tab1.File2Key);
+                
+                    % StimChangeType
+                    tab1.StimChangeType = tab1.StimChangeTF.*tab1.StimTestType;
+                
+                    % Initial orientation
+                    tab1.Stim1Ori = (2*randi([0 1],nTrials, 1))-1;
+                    tab1.Stim2Ori = (2*randi([0 1],nTrials, 1))-1;
+                
+                    %% Now make B stim keys. 
+                    % First, initialize all of them to 'BKGD'. 
+                    StimB1Key=cell(size(tab1.StimA1Key));
+                    [StimB1Key{:}] = deal('BKGD');
+                    StimB2Key=cell(size(tab1.StimA1Key));
+                    [StimB2Key{:}] = deal('BKGD');
+                
+                    % logical arrays for trials where stim1/Stim2 changes
+                    ncL1 = tab1.StimTestType==1 & ~tab1.StimChangeTF;
+                    ncL2 = tab1.StimTestType==2 & ~tab1.StimChangeTF;
+                
+                    % For no-change trials, the B key is same as A key.
+                    StimB1Key(ncL1) = tab1.StimA1Key(ncL1);
+                    StimB2Key(ncL2) = tab1.StimA2Key(ncL2);
+                
+                    % Make an index pointing to the correct index in FileKeys/TestKeys
+                    [~,indA1] = ismember(tab1.Folder1Key, FolderKeys);
+                    [~,indA2] = ismember(tab1.Folder2Key, FolderKeys);
+                    tab1.indA1 = indA1;
+                    tab1.indA2 = indA2;
+                
+                    % logical arrays for trials where stim1/Stim2 changes
+                    L1 = tab1.StimTestType==1 & tab1.StimChangeTF;
+                    L2 = tab1.StimTestType==2 & tab1.StimChangeTF;
+                
+                    % Make StimB keys
+                    if any(L1)
+                        StimB1Key(L1) = imageset.make_keys(TestKeys(indA1(L1)), tab1.File1Key(L1));
+                    end
+                    if any(L2)
+                        StimB2Key(L2) = imageset.make_keys(TestKeys(indA2(L2)), tab1.File2Key(L2));
+                    end
+                    tab1.StimB1Key = StimB1Key;
+                    tab1.StimB2Key = StimB2Key;
+                
+                    % Make life easier when analyzing data by assigning the "scientific"
+                    % trial type HH,HL,LH,LL
+                    folderKeyIndices = horzcat(indA1, indA2);
+                    hl={'H','L'};
+                
+                    % logical arrays for trials stim1/Stim2 is test type (regardless of 
+                    % whether it changes)
+                    L1 = tab1.StimTestType==1;
+                    L2 = tab1.StimTestType==2;
+                
+                    sciTrialType = cell(height(tab1), 1);
+                
+                    sciTrialType(L1) = strcat(hl(indA1(L1)), hl(indA2(L1)));
+                    sciTrialType(L2) = strcat(hl(indA2(L2)), hl(indA1(L2)));
+                    tab1.sciTrialType = sciTrialType;
+        
+                    thisSetTable = [thisSetTable; tab1];
+    
+                    fprintf('i=%d: N=%d, %d trials generated\n', i, thisSetNums(i), height(tab1));
+                end
             end
-        end
 
-        % Now if there were multiple sets used - we will re-randomize the
-        % order of trials.
-        if length(p.Results.Num) > 1
-            tabTemp = tabTemp(randperm(height(tabTemp)), :);
-        end
+            % Now if there were multiple sets used - we will re-randomize the
+            % order of trials.
+            if length(thisSetNums) > 1
+                thisSetTable = thisSetTable(randperm(height(thisSetTable)), :);
+            end
 
+            allTrialSets{itrialset} = thisSetTable;
+
+        end
     else
+
+        warning('Threshold trials expect single set (Num should have one row)');
 
         %% Threshold trials
 
@@ -256,51 +284,60 @@ function [trialsOrBlocks, inputArgs, parsedResults, myname]  = generateEthBlocks
         tabTemp.Stim1Ori = Stim1Ori;
         tabTemp.Stim2Ori = Stim2Ori;
 
+        allTrialSets{1} = tabTemp;
+
     end
+
+
+    % Now finish off columns in all the generated trial sets. Break each
+    % set into blocks if requested. 
+
+    for itrialset = 1:size(allTrialSets, 1)
+
+        tabTemp = allTrialSets{itrialset};
+        nTrials = height(tabTemp);
+        fprintf('trial set %d: %d trials\n', itrialset, nTrials);
     
-    nTrials = height(tabTemp);
-
-    % base value
-    %tabTemp.Base = generateColumn(nTrials, p.Results.Base);
-
-    % etc
-    tabTemp.FixationTime = generateColumn(nTrials, p.Results.FixationTime);
-    tabTemp.MaxAcquisitionTime = generateColumn(nTrials, p.Results.MaxAcquisitionTime);
-    tabTemp.FixationBreakEarlyTime = generateColumn(nTrials, p.Results.FixationBreakEarlyTime);
-    tabTemp.FixationBreakLateTime = generateColumn(nTrials, p.Results.FixationBreakLateTime);
-    tabTemp.SampTime = generateColumn(nTrials, p.Results.SampTime);
-    tabTemp.GapTime = generateColumn(nTrials, p.Results.GapTime);
-    tabTemp.RespTime = generateColumn(nTrials, p.Results.RespTime);
-    tabTemp.TestTime = generateColumn(nTrials, p.Results.TestTime);
-
-    % results
-    tabTemp.Started = false(nTrials, 1);
-    tabTemp.trialIndex = (1:nTrials)';
-    tabTemp.tAon = generateColumn(nTrials, -1);
-    tabTemp.tAoff = generateColumn(nTrials, -1);
-    tabTemp.tBon = generateColumn(nTrials, -1);
-    tabTemp.tBoff = generateColumn(nTrials, -1);
-    tabTemp.tResp = generateColumn(nTrials, -1);
-    tabTemp.iResp = -1*ones(nTrials, 1);
-
-
-    % checkif we need to break into blocks
-    if p.Results.NumBlocks > 1
-        % I want to make sure there's no rounding error on the last one, 
-        % so I force the last element to be the height.
-        endIndex = round(cumsum(ones(1, p.Results.NumBlocks)/p.Results.NumBlocks) * nTrials);
-        endIndex(p.Results.NumBlocks) = nTrials;    
-        blocks = cell(p.Results.NumBlocks, 1);
-        lastEnd = 0;
-        for iblock=1:p.Results.NumBlocks
-            blocks{iblock} = tabTemp(lastEnd+1:endIndex(iblock), :);
-            fprintf('Block %d has %d elements\n', iblock, height(blocks{iblock}));
-            lastEnd = endIndex(iblock);
+        % etc
+        tabTemp.FixationTime = generateColumn(nTrials, p.Results.FixationTime);
+        tabTemp.MaxAcquisitionTime = generateColumn(nTrials, p.Results.MaxAcquisitionTime);
+        tabTemp.FixationBreakEarlyTime = generateColumn(nTrials, p.Results.FixationBreakEarlyTime);
+        tabTemp.FixationBreakLateTime = generateColumn(nTrials, p.Results.FixationBreakLateTime);
+        tabTemp.SampTime = generateColumn(nTrials, p.Results.SampTime);
+        tabTemp.GapTime = generateColumn(nTrials, p.Results.GapTime);
+        tabTemp.RespTime = generateColumn(nTrials, p.Results.RespTime);
+        tabTemp.TestTime = generateColumn(nTrials, p.Results.TestTime);
+    
+        % results
+        tabTemp.Started = false(nTrials, 1);
+        tabTemp.trialIndex = (1:nTrials)';
+        tabTemp.tAon = generateColumn(nTrials, -1);
+        tabTemp.tAoff = generateColumn(nTrials, -1);
+        tabTemp.tBon = generateColumn(nTrials, -1);
+        tabTemp.tBoff = generateColumn(nTrials, -1);
+        tabTemp.tResp = generateColumn(nTrials, -1);
+        tabTemp.iResp = -1*ones(nTrials, 1);
+    
+    
+        % checkif we need to break into blocks
+        if p.Results.NumBlocks > 1
+            % I want to make sure there's no rounding error on the last one, 
+            % so I force the last element to be the height.
+            endIndex = round(cumsum(ones(1, p.Results.NumBlocks)/p.Results.NumBlocks) * nTrials);
+            endIndex(p.Results.NumBlocks) = nTrials;    
+            blocks = cell(p.Results.NumBlocks, 1);
+            lastEnd = 0;
+            for iblock=1:p.Results.NumBlocks
+                blocks{iblock} = tabTemp(lastEnd+1:endIndex(iblock), :);
+                fprintf('Block %d has %d elements\n', iblock, height(blocks{iblock}));
+                lastEnd = endIndex(iblock);
+            end
+            allTrialSets{itrialset} = blocks;
+        else
+            allTrialSets{itrialset} = tabTemp;
         end
-        trialsOrBlocks = blocks;
-    else
-        trialsOrBlocks = tabTemp;
     end
+
 end
 
 
