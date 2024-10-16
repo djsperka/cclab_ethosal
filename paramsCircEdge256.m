@@ -1,4 +1,4 @@
-function Y = testparams1()
+function Y = paramsCircEdge256()
     Y.Subfolders={ ...
     'H','nat';'L','tex'
     };
