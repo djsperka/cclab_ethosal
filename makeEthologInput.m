@@ -6,7 +6,7 @@ function [filename] = makeEthologInput(varargin)
 %   The folder arg is an output folder. It should be the root of data
 %   files. A subfolder named 'input' is used for the *.mat files created by
 %   this script. The args are:
-%   ttype - test type, one of 'gab','mimg','rimg','rot'
+%   ttype - test type, one of 'gab','mimg','rimg' (use rimg for flip)
 %   etype - exp type, one of 'thr' or 'exp'
 %   extra - becomes part of filename, ttype_etype_extra.mat
 %   img - imageset used
@@ -14,6 +14,15 @@ function [filename] = makeEthologInput(varargin)
 %   inputArgs - args passed to the generator function
 %   parsedResults - results from the inputParser in the gen function
 %   scriptName - name of the script that generated the trials
+%   
+%   Example: flip dataset, generated with this:
+%
+%   >> [blocks,inputArgs,parsedResults,scriptName]=generateEthBlocksImgV2(img.BalancedFileKeys, [20,30,0], Base=4, NumBlocks=2);
+%   
+%   is packaged with this:
+%   
+%   >> makeEthologInput(ethDataRoot,'rimg','exp','50img_20_30left',img,blocks,inputArgs,parsedResults,scriptName)
+%
 
     % make defaults for everything
     okTtypes={'gab','mimg','rimg'};
