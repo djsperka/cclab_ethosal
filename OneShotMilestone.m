@@ -1,6 +1,6 @@
 classdef OneShotMilestone < handle
     %OneShotMilestone Class to find when a monotonically increasing value
-    %passes one of a set of milestones. 
+    %equals or passes one of a set of milestones. 
     %   Useful for this: you want to show a message to the user at the 1/4,
     %   1/2, and 3/4 marks of a block of trials. Create a OneShotMilestone 
     %   with [0.25, 0.5, 0.75]) as its lone arg. As your trials progress,
@@ -56,7 +56,7 @@ classdef OneShotMilestone < handle
             %marked as passed, however! Must call pass() for that. 
             %   Detailed explanation goes here
 
-            passing_ind = find(~obj.MilestonesPassed & f > obj.Milestones);
+            passing_ind = find(~obj.MilestonesPassed & f >= obj.Milestones);
             would_pass = ~isempty(passing_ind);
 
         end
@@ -68,7 +68,7 @@ classdef OneShotMilestone < handle
             %and will not be passed again before a reset().
             %   Detailed explanation goes here
 
-            passed = find(~obj.MilestonesPassed & f > obj.Milestones);
+            passed = find(~obj.MilestonesPassed & f >= obj.Milestones);
             milestonesPassed = obj.Milestones(passed);
             obj.MilestonesPassed(passed) = true;
 
