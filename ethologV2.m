@@ -27,7 +27,9 @@ function [results] = ethologV2(varargin)
 
     p.addParameter('Breaks', true, @(x) islogical(x));
     p.addParameter('BreakParams', defaultBreakParams, @(x) iscell(x) && size(x,2)==2);
-    p.addParameter('BreakTime', 5, @(x) isscalar(x) && isnumeric(x));
+    p.addParameter('BreakTime', 3, @(x) isscalar(x) && isnumeric(x));
+
+    p.addParameter('StatusBreaks', 40, @(x) isnumeric(x) && isscalar(x));
 
     % djs by default no cues are used. 
     p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
@@ -112,6 +114,19 @@ function [results] = ethologV2(varargin)
     end
     fprintf('\n*** Using output filename %s\n', outputFilename);
 
+    % The number of trials. This number WILL NOT CHANGE, though more trials
+    % may be appended to the array (when a trial is incomplete, e.g.)
+    NumTrials = height(p.Results.Trials);
+
+    % All trial parameters are contained in results. Also put
+    % results/timestamps/responses/etc in same table.
+    results = p.Results.Trials;
+    itrial = 1;
+
+    % useful for getting progress
+    completeTrials=@(x) sum(x.Started & x.tResp>0 & x.iResp>-1);
+    correctTrials=@(x) sum(x.Started & x.tResp>0 & x.iResp==x.StimChangeTF);
+
     % feedback colors, and feedback animator
     feedbackColorCorrect = [.5,.55,.5];
     feedbackColorIncorrect = [.55,.5,.5];
@@ -188,6 +203,10 @@ function [results] = ethologV2(varargin)
     % short messages.
 
     breakTimeMilestones = OneShotMilestone([p.Results.BreakParams{:,1}]);
+    statusMilestones = [];
+    if p.Results.StatusBreaks > 0
+        statusMilestones = OneShotMilestone(p.Results.StatusBreaks:p.Results.StatusBreaks:NumTrials);
+    end
     textSizeForMilestones = getTextSizePix(converter.deg2pix(1), windowIndex);
     fprintf('Using text size %d for %f pixels\n', textSizeForMilestones, converter.deg2pix(1));
 
@@ -220,15 +239,6 @@ function [results] = ethologV2(varargin)
     fixWindowDiamPix = converter.deg2pix(p.Results.FixptWindowDiam);
     fixWindowRect = CenterRectOnPoint([0 0 fixWindowDiamPix fixWindowDiamPix], fixXYScr(1), fixXYScr(2));
     fixFeedbackRect = CenterRectOnPoint(images.UniformOrFirstRect, fixXYScr(1), fixXYScr(2));
-    
-    
-    % The number of trials to run.
-    NumTrials = height(p.Results.Trials);
-    itrial = 1;
-
-    % All trial parameters are contained in results. Also put
-    % results/timestamps/responses/etc in same table.
-    results = p.Results.Trials;
 
     % start kbd queue now
     KbQueueStart(p.Results.KeyboardIndex);
@@ -719,13 +729,12 @@ function [results] = ethologV2(varargin)
                 % the trial list for re-trying later.
                 if ~results.Started(itrial) || results.tResp(itrial) < 0 || results.iResp(itrial) < 0
                     results = [results;struct2table(trial)];
-                    NumTrials = height(results);
-                    fprintf('etholog: Incomplete trial appended to end of trial list. Trial list now has %d trials.\n', NumTrials);
+                    fprintf('etholog: Incomplete trial appended to end of trial list. Trial list now has %d trials.\n', height(results));
                 end
 
                 % increment trial
                 itrial = itrial + 1;
-                if itrial > NumTrials
+                if itrial > height(results)
                     stateMgr.transitionTo('DONE');
                 else
                     % check if a pause is pending
@@ -744,8 +753,10 @@ function [results] = ethologV2(varargin)
                 
             case 'WAIT_ITI'
                 if stateMgr.timeInState() >= p.Results.ITI
-                    if p.Results.Breaks && breakTimeMilestones.check(itrial/NumTrials)
+                    if p.Results.Breaks && breakTimeMilestones.check(itrial/height(results))
                         stateMgr.transitionTo('BREAK_TIME');
+                    elseif p.Results.StatusBreaks > 0 && statusMilestones.check(completeTrials(results))
+                        stateMgr.transitionTo('STATUS_BREAK_TIME');
                     else
                         stateMgr.transitionTo('START');
                     end
@@ -756,7 +767,7 @@ function [results] = ethologV2(varargin)
                 end
             case 'BREAK_TIME'
                 % figure out which break we're on
-                ind = breakTimeMilestones.pass(itrial/NumTrials);
+                ind = breakTimeMilestones.pass(itrial/height(results));
                 if isempty(ind)
                     % This shouldn't happen! The transition to this state
                     % should have been preceded by milestones.check==true
@@ -770,6 +781,21 @@ function [results] = ethologV2(varargin)
                     Screen('Flip', windowIndex);
                     Screen('TextSize', windowIndex, oldTextSize);
                 end
+            case 'STATUS_BREAK_TIME'
+                [ind, passed] = statusMilestones.pass(completeTrials(results));
+                c0 = completeTrials(results);
+                c1 = correctTrials(results);
+                rate = c1/c0;
+                s = sprintf('%d/%d complete trials, %.0f%% correct', c0, NumTrials, rate*100);
+
+                % draw text on screen
+                oldTextSize = Screen('TextSize', windowIndex, textSizeForMilestones);
+                DrawFormattedText(windowIndex, s, 'center','center',[1 1 1]);
+                Screen('Flip', windowIndex);
+                Screen('TextSize', windowIndex, oldTextSize);
+
+                % compute detection rate for the last N completed trials
+                stateMgr.transitionTo('BREAK_TIME_WAIT');
             case 'BREAK_TIME_WAIT'
                 if stateMgr.timeInState() >= p.Results.BreakTime
                     Screen('Flip', windowIndex);
