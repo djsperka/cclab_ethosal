@@ -203,12 +203,19 @@ function rates = ethratesNone(A, logs)
     rates.frateHL0 = rates.nincorrectHL0/rates.ncompletedHL0;
 
     % dprime values;
-    %fprintf('min %f max %f\n', min(0.99, rates.drateHH), max(0.01, rates.frateHH0));
-    [rates.dpHH, rates.cHH] = dprime_simple(min(0.99, rates.drateHH), max(0.01, rates.frateHH0));
-    %fprintf('Done\n');
-    [rates.dpHL, rates.cHL] = dprime_simple(min(0.99, rates.drateHL), max(0.01, rates.frateHL0));
-    [rates.dpLH, rates.cLH] = dprime_simple(min(0.99, rates.drateLH), max(0.01, rates.frateLH0));
-    [rates.dpLL, rates.cLL] = dprime_simple(min(0.99, rates.drateLL), max(0.01, rates.frateLL0));
+    % see https://stats.stackexchange.com/questions/134779/d-prime-with-100-hit-rate-probability-and-0-false-alarm-probability
+    % and the paper referenced: http://www.jessicagrahn.com/uploads/6/0/8/5/6085172/stanislawtodorovdprim1999.pdf
+    loglinearDP=@(n1,n2,n3,n4) dprime_simple((n1+0.5)/(n2+1), (n3+0.5)/(n4+1));
+    [rates.dpHH, rates.cHH] = loglinearDP(rates.ncorrectHH, rates.ncompletedHH, rates.nincorrectHH0, rates.ncompletedHH0);
+    [rates.dpHL, rates.cHL] = loglinearDP(rates.ncorrectHL, rates.ncompletedHL, rates.nincorrectHL0, rates.ncompletedHL0);
+    [rates.dpLH, rates.cLH] = loglinearDP(rates.ncorrectLH, rates.ncompletedLH, rates.nincorrectLH0, rates.ncompletedLH0);
+    [rates.dpLL, rates.cLL] = loglinearDP(rates.ncorrectLL, rates.ncompletedLL, rates.nincorrectLL0, rates.ncompletedLL0);
+
+    % Original code used. It was a hack. 
+    % [rates.dpHH, rates.cHH] = dprime_simple(min(0.99, rates.drateHH), max(0.01, rates.frateHH0));
+    % [rates.dpHL, rates.cHL] = dprime_simple(min(0.99, rates.drateHL), max(0.01, rates.frateHL0));
+    % [rates.dpLH, rates.cLH] = dprime_simple(min(0.99, rates.drateLH), max(0.01, rates.frateLH0));
+    % [rates.dpLL, rates.cLL] = dprime_simple(min(0.99, rates.drateLL), max(0.01, rates.frateLL0));
 
 end
 
