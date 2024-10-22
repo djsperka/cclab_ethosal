@@ -3,7 +3,7 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
 %'ethologV2'.
 %   [blocks,inputArgs,parsedResults,scriptName] = ...
 %          generateEthBlocksImgV2(img.BalancedFileKeys, ...
-%                                 [20,30,0;20,0,30], Base=4, NumBlocks=2);
+%                                 [20,30,0;20,0,30;30,0,0], Base=4, NumBlocks=2);
 
     myname = mfilename;
 
@@ -63,7 +63,7 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
 
         numSums = sum(p.Results.Num, 2);
         if ~all(numSums(1)==numSums)
-            error('All rows of Num must add up to same number.');
+            warning('All rows of Num do not add up to same number.');
         end
         
 
@@ -71,7 +71,7 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
         % the one row for each image pair needed - that's the same as the
         % sum across each row of p.Results.Num.
 
-        allPairs = numSums(1);
+        allPairs = max(numSums);
         imagePairs=reshape(randperm(nFileKeys, allPairs*2), [allPairs,2]);
 
         for itrialset = 1 : size(p.Results.Num, 1)
