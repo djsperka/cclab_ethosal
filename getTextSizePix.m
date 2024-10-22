@@ -5,8 +5,6 @@ function textSize = getTextSizePix(minPixels, w);
     
     string='X';
     yPositionIsBaseline=0; % 0 or 1
-    firstSize=10;
-    nSizes=90;
     textSize = -1;
     ts = 10;
     while textSize < 0 && ts<100
@@ -15,7 +13,7 @@ function textSize = getTextSizePix(minPixels, w);
         Screen(woff,'TextSize',ts);
         bounds=TextBounds(woff,string,yPositionIsBaseline);
         if max(bounds(3),bounds(4)) > minPixels
-            textSize = ts
+            textSize = ts;
         end
         ts = ts+1;
         Screen('Close',woff);
