@@ -19,6 +19,10 @@ function [filename] = makeEthologInput(varargin)
 %
 %   >> [blocks,inputArgs,parsedResults,scriptName]=generateEthBlocksImgV2(img.BalancedFileKeys, [20,30,0], Base=4, NumBlocks=2);
 %   
+%   or 
+% 
+%   >> [blocks,inputArgs,parsedResults,scriptName]=generateEthBlocksImgV2(img.BalancedFileKeys, [25,0,0], Base=4, FolderKeys={'H','F','N';'L','f','n'});
+%
 %   is packaged with this:
 %   
 %   >> makeEthologInput(ethDataRoot,'rimg','exp','50img_20_30left',img,blocks,inputArgs,parsedResults,scriptName)

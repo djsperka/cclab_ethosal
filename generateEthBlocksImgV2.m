@@ -18,7 +18,7 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
 
     p.addRequired('Num', @(x) isnumeric(x) && size(x, 2)<=3);
     p.addOptional('FolderKeys', {'H'; 'L'},  @(x) iscellstr(x));
-    p.addOptional('TestKeys', {'H'; 'L'},  @(x) iscellstr(x));
+    p.addOptional('TestKeys', [],  @(x) iscellstr(x));
     p.addOptional('FixationTime', 0.5, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('MaxAcquisitionTime', 2.0, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('FixationBreakEarlyTime', 0.5, @(x) isnumeric(x) && length(x)<3);
@@ -37,12 +37,18 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
     parsedResults = p.Results;
     inputArgs = varargin;
 
-    % make convenience vars
+    % make convenience vars and check size of TestKeys/FolderKeys
     FolderKeys = p.Results.FolderKeys;
-    TestKeys = p.Results.TestKeys;
+    if isempty(p.Results.TestKeys)
+        TestKeys = FolderKeys;
+    else
+        TestKeys = p.Results.TestKeys;
+    end
     FileKeys = p.Results.FileKeys;
     nFileKeys = length(FileKeys);
-
+    if size(TestKeys) ~= size(FolderKeys)
+        error('FolderKeys and TestKeys must be same size');
+    end
 
     %% Regular trials - not threshold
 
@@ -83,21 +89,47 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
     
                 if thisSetNums(i) > 0
     
-                    replacements = cell(6,1);
-                    columnNames=cell(6,1);
+                    replacements = cell(7,1);
+                    columnNames=cell(7,1);
                 
                     % Select the images that will be used
                     rep = (C(i)-thisSetNums(i)+1 : C(i))';
                     replacements{1} = rep;
                     columnNames{1} = 'ImagePairIndex';
-                
-                    % Folder1Key
-                    replacements{2}=p.Results.FolderKeys;
-                    columnNames{2} = 'Folder1Key';
-                
-                    % Folder2Key
-                    replacements{3}=p.Results.FolderKeys;
-                    columnNames{3} = 'Folder2Key';
+
+                    % input FolderKeys: 
+                    % Columns = groups of images
+                    % Rows = salience within group
+                    %
+                    % {'H', 'F', 'N';
+                    %  'L', 'f', 'n'}
+                    % 
+                    % Here there are three groups of images. One group has
+                    % folder keys 'H' and 'L', another 'F'&'f', and the
+                    % last 'N'&'n'. The first row, 'H', 'F', 'N' should be
+                    % same salience (all high salience here), and the
+                    % second row would be the low salience counterparts. 
+                    % 
+                    % Within a column, an image '1.bmp' is taken from the
+                    % same starting point, but is processed differently. 
+
+                    replacements{2} = (1:size(p.Results.FolderKeys,2))';
+                    columnNames{2} = 'FolderKeyColumn';
+
+                    replacements{3} = (1:size(p.Results.FolderKeys,1))';
+                    columnNames{3} = 'Folder1KeyRow';
+
+                    replacements{4} = (1:size(p.Results.FolderKeys,1))';
+                    columnNames{4} = 'Folder2KeyRow';
+
+
+                    % % Folder1Key
+                    % replacements{2}=p.Results.FolderKeys;
+                    % columnNames{2} = 'Folder1Key';
+                    % 
+                    % % Folder2Key
+                    % replacements{3}=p.Results.FolderKeys;
+                    % columnNames{3} = 'Folder2Key';
                 
                     % TestType? L=1, R=2
                     % First element of thisBlockNums is the number that will
@@ -107,21 +139,21 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
     
                     switch (i)
                         case 1
-                            replacements{4}=[1;2];
+                            replacements{5}=[1;2];
                         case 2
-                            replacements{4}=[1];
+                            replacements{5}=[1];
                         case 3
-                            replacements{4}=[2];
+                            replacements{5}=[2];
                     end        
-                    columnNames{4} = 'StimTestType';
+                    columnNames{5} = 'StimTestType';
                 
                     % change/nochange test
-                    replacements{5} = [0;1];
-                    columnNames{5} = 'StimChangeTF';
+                    replacements{6} = [0;1];
+                    columnNames{6} = 'StimChangeTF';
                 
                     % Base value (for rotations)
-                    replacements{6} = p.Results.Base;
-                    columnNames{6} = 'Base';
+                    replacements{7} = p.Results.Base;
+                    columnNames{7} = 'Base';
                 
                 
                     % This generates trials with things distributed over the elements of
@@ -133,6 +165,10 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     % Now make File1Key and File2Key
                     tab1.File1Key = FileKeys(imagePairs(tab1.ImagePairIndex,1));
                     tab1.File2Key = FileKeys(imagePairs(tab1.ImagePairIndex,2));
+
+                    % Now make Folder1Key and Folder2Key
+                    tab1.Folder1Key = FolderKeys(sub2ind(size(FolderKeys), tab1.Folder1KeyRow(:), tab1.FolderKeyColumn(:)));
+                    tab1.Folder2Key = FolderKeys(sub2ind(size(FolderKeys), tab1.Folder2KeyRow(:), tab1.FolderKeyColumn(:)));
                 
                     % StimA1Key and StimA2Key
                     tab1.StimA1Key = imageset.make_keys(tab1.Folder1Key, tab1.File1Key);
@@ -152,7 +188,7 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     StimB2Key=cell(size(tab1.StimA1Key));
                     [StimB2Key{:}] = deal('BKGD');
                 
-                    % logical arrays for trials where stim1/Stim2 changes
+                    % logical arrays for trials where stim1/Stim2 do not change
                     ncL1 = tab1.StimTestType==1 & ~tab1.StimChangeTF;
                     ncL2 = tab1.StimTestType==2 & ~tab1.StimChangeTF;
                 
@@ -160,11 +196,11 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     StimB1Key(ncL1) = tab1.StimA1Key(ncL1);
                     StimB2Key(ncL2) = tab1.StimA2Key(ncL2);
                 
-                    % Make an index pointing to the correct index in FileKeys/TestKeys
-                    [~,indA1] = ismember(tab1.Folder1Key, FolderKeys);
-                    [~,indA2] = ismember(tab1.Folder2Key, FolderKeys);
-                    tab1.indA1 = indA1;
-                    tab1.indA2 = indA2;
+                    % % Make an index pointing to the correct index in FileKeys/TestKeys
+                    % [~,indA1] = ismember(tab1.Folder1Key, FolderKeys);
+                    % [~,indA2] = ismember(tab1.Folder2Key, FolderKeys);
+                    % tab1.indA1 = indA1;
+                    % tab1.indA2 = indA2;
                 
                     % logical arrays for trials where stim1/Stim2 changes
                     L1 = tab1.StimTestType==1 & tab1.StimChangeTF;
@@ -172,17 +208,20 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                 
                     % Make StimB keys
                     if any(L1)
-                        StimB1Key(L1) = imageset.make_keys(TestKeys(indA1(L1)), tab1.File1Key(L1));
+                        %StimB1Key(L1) = imageset.make_keys(TestKeys(indA1(L1)), tab1.File1Key(L1));
+                        StimB1Key(L1) = imageset.make_keys(TestKeys(sub2ind(size(FolderKeys), tab1.Folder1KeyRow(L1), tab1.FolderKeyColumn(L1))), tab1.File1Key(L1));
                     end
                     if any(L2)
-                        StimB2Key(L2) = imageset.make_keys(TestKeys(indA2(L2)), tab1.File2Key(L2));
+                        %StimB2Key(L2) = imageset.make_keys(TestKeys(indA2(L2)), tab1.File2Key(L2));
+                        StimB2Key(L2) = imageset.make_keys(TestKeys(sub2ind(size(FolderKeys), tab1.Folder2KeyRow(L2), tab1.FolderKeyColumn(L2))), tab1.File2Key(L2));
                     end
                     tab1.StimB1Key = StimB1Key;
                     tab1.StimB2Key = StimB2Key;
                 
                     % Make life easier when analyzing data by assigning the "scientific"
                     % trial type HH,HL,LH,LL
-                    folderKeyIndices = horzcat(indA1, indA2);
+                    %folderKeyIndices = horzcat(indA1, indA2);
+                    %folderKeyIndices = horzcat(tab1.Folder1KeyRow, tab1.Folder2KeyRow);
                     hl={'H','L'};
                 
                     % logical arrays for trials stim1/Stim2 is test type (regardless of 
@@ -192,8 +231,8 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                 
                     sciTrialType = cell(height(tab1), 1);
                 
-                    sciTrialType(L1) = strcat(hl(indA1(L1)), hl(indA2(L1)));
-                    sciTrialType(L2) = strcat(hl(indA2(L2)), hl(indA1(L2)));
+                    sciTrialType(L1) = strcat(hl(tab1.Folder1KeyRow(L1)), hl(tab1.Folder2KeyRow(L1)));
+                    sciTrialType(L2) = strcat(hl(tab1.Folder2KeyRow(L2)), hl(tab1.Folder1KeyRow(L2)));
                     tab1.sciTrialType = sciTrialType;
         
                     thisSetTable = [thisSetTable; tab1];
