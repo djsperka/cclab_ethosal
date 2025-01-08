@@ -305,7 +305,8 @@ classdef imageset
             % create parser for texture() function
             obj.TextureParser = inputParser;
             addRequired(obj.TextureParser, 'Window', @(x) isscalar(x));
-            addRequired(obj.TextureParser, 'Key', @(x) (ischar(x) && obj.Images.isKey(x)) || (isstring(x) && all(obj.Images.isKey(x))));
+            %addRequired(obj.TextureParser, 'Key', @(x) (ischar(x) && obj.Images.isKey(x)) || (isstring(x) && all(obj.Images.isKey(x))));
+            addRequired(obj.TextureParser, 'Key', @(x) (ischar(x) && obj.Images.isKey(x)) || (isstring(x) && all(obj.Images.isKey(x))) || (iscellstr(x) && all(obj.Images.isKey(x))));
             addOptional(obj.TextureParser, 'PreProcessFunc', [], @(x) isempty(x) || isa(x, 'function_handle') || (iscell(x) && all(cellfun(@(x)isa(x,'function_handle'), x))));
 
             % now process files. Each row of the cell array is two elements
@@ -518,6 +519,16 @@ classdef imageset
                 obj.Images(key) = struct('fname', fname, 'image', obj.read_image_file(fname, key));
             end
             image = obj.Images(key).image;
+        end
+
+        function tf = is_key(obj, k)
+            if ischar(k)
+                tf = obj.Images.isKey(k);
+            elseif iscellstr(k)
+                tf = cellfun(@(x) obj.Images.isKey(x), k);
+            else 
+                error('is_key requires string or cellstr');
+            end
         end
     end
 end
