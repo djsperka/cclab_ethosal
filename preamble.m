@@ -29,7 +29,8 @@ classdef preamble < handle
 
     properties
         Script
-        TextRect
+        TextYFractionFromTop
+        TextYNext
         DrawRect
         CharWidth
         CharHeight
@@ -37,10 +38,11 @@ classdef preamble < handle
         OldTextSize
         Responder
         Imageset
+        IsVerbose
     end
 
     methods
-        function obj = preamble(cmds, textSize, resp, img)
+        function obj = preamble(cmds, textSize, resp, img, beVerbose)
             %UNTITLED4 Construct an instance of this class
             %   Detailed explanation goes here
             arguments
@@ -48,11 +50,13 @@ classdef preamble < handle
                 textSize (1,1) {mustBeInteger}
                 resp responder
                 img imageset
+                beVerbose (1,1) {mustBeNumericOrLogical} = false
             end
             obj.Script = cmds;
             obj.TextSize = textSize;
             obj.Responder = resp;
             obj.Imageset = img;
+            obj.IsVerbose = beVerbose;
         end
 
         function play(obj,w)
@@ -70,13 +74,23 @@ classdef preamble < handle
             obj.CharWidth = RectWidth(bbox);
             obj.CharHeight = RectHeight(bbox);
             Screen('FillRect', w, [0.5 0.5 0.5]);   % get rid of text drawn for size
+
+            % DrawRect is entire screen, text location is middle by
+            % default.
+            obj.DrawRect = Screen('Rect', w)
+            obj.TextYFractionFromTop = 0.8;
+            obj.TextYNext = obj.TextYFractionFromTop * RectHeight(obj.DrawRect);
+
             for i=1:size(obj.Script, 1)
                 cmd=obj.Script{i, 1};
                 args=obj.Script{i, 2};
-                fprintf(1, '%s\n', cmd);
+                if obj.IsVerbose
+                    fprintf(1, '%d/%d: %s\n', i, size(obj.Script, 1), cmd);
+                end
                 obj.do_cmd(w, cmd, args);
             end     
             Screen('TextSize', w, obj.OldTextSize);
+
         end
 
         function [ok] = wait_for_button(obj, which_buttons, max_time_secs)
@@ -96,53 +110,50 @@ classdef preamble < handle
 
         function do_cmd(obj, w, cmd, args)
             switch(cmd)
-                case 'split_screen'
-                    proportions = args;  % this should be (1,2) or (2,1)
-                    if isempty(proportions); proportions = [1 1]; end
-                    rect=Screen('Rect', w);
-                    if proportions(1)==0
-                        obj.DrawRect = [];
-                        obj.TextRect = rect;
-                    elseif proportions(2)==0
-                        obj.DrawRect = rect;
-                        obj.TextRect = [];
-                    else
-                        yfrac=RectHeight(rect) * proportions(1)/(proportions(1)+proportions(2));
-                        obj.DrawRect = rect;
-                        obj.DrawRect(4) = obj.DrawRect(2)+yfrac;
-                        obj.TextRect = rect;
-                        obj.TextRect(2) = obj.TextRect(2)+yfrac;
-                    end
                 case 'mkey'
                     obj.mkey(w, obj.DrawRect, args{:});
                 case 'image'
                     obj.image(w, obj.DrawRect, args{:});
                 case 'text'
                     if length(args) > 0
-                        [~, ny, ~, ~] = DrawFormattedText(w, args{1}, 'center', obj.TextRect(2) + obj.CharHeight, [0,0,0]);
-                        if length(args)>1
-                            DrawFormattedText(w, args{2}, 'center', ny+2*obj.CharHeight, [0,0,0]);
-                        end
+                        [~, obj.TextYNext, ~, ~] = DrawFormattedText(w, args, 'center', obj.TextYNext + obj.CharHeight, [0,0,0]);
+                        % if length(args)>1
+                        %     DrawFormattedText(w, args{2}, 'center', ny+2*obj.CharHeight, [0,0,0]);
+                        % end
                     end
-%                 case 'callback'
-%                     args{:}
-%                     if isa(args{1}, 'function_handle')
-%                         if length(args)==1
-%                             args{1}(w, obj.DrawRect);
-%                         else
-%                             length(args(2:end))
-%                             args{1}(w, obj.DrawRect, args{2:end});
-%                         end
-%                     else
-%                         error('callback command first arg should be a function handle');
-%                     end
                 case 'flip'
                     Screen('Flip', w);
-                    WaitSecs(args);
+                    % args are ignored!
+                    % WaitSecs(args);
                 case 'clear_screen'
                     Screen('Flip', w);
                 case 'wait_button'
                     obj.wait_for_button(args, 30);
+                case 'operator'
+                    obj.opmsg_and_wait(w, args);
+                case 'slide'
+                    % equivalent of 
+                    % 'image', {args{1}}; ...
+                    % 'text', args{2}; ...
+                    % 'flip', 0.0; ...
+                    % If the third arg is numeric, then
+                    % 'wait_button', args{3}; ...
+                    % If its char, then print to screen and wait 
+                    % for a keypress
+                    % 'operator', args{3}; ...
+                    
+                    obj.image(w, obj.DrawRect, args{1});
+                    if length(args{2}) > 0
+                        obj.TextYNext + obj.CharHeight
+                        [~, obj.TextYNext, ~, ~] = DrawFormattedText(w, args{2}, 'center', obj.TextYNext + obj.CharHeight, [0,0,0]);
+                    end
+                    Screen('Flip', w);
+                    if isnumeric(args{3})
+                        obj.wait_for_button(args{3}, 30);
+                    else
+                        obj.opmsg_and_wait(args{3});
+                    end
+                        
                 otherwise
                     fprintf(1, 'Command %s not implemented\n', cmd);
             end
@@ -196,6 +207,13 @@ classdef preamble < handle
                 [rects, x, y] = divvyRect(rect, nrows, ncols);
                 Screen('DrawTextures', w, t(:), [], CenterRectOnPoint(obj.Imageset.UniformOrFirstRect', x', y'))
             end
+        end
+
+        function opmsg_and_wait(obj, msg)
+            fprintf(1, '%s\n', msg);
+            fprintf(1, 'Hit any key to continue preamble.\n');
+            KbWait;
+            WaitSecs(0.2);
         end
 
     end
