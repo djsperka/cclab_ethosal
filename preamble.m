@@ -115,12 +115,15 @@ classdef preamble < handle
                 case 'image'
                     obj.image(w, obj.DrawRect, args{:});
                 case 'text'
-                    if length(args) > 0
-                        [~, obj.TextYNext, ~, ~] = DrawFormattedText(w, args, 'center', obj.TextYNext + obj.CharHeight, [0,0,0]);
-                        % if length(args)>1
-                        %     DrawFormattedText(w, args{2}, 'center', ny+2*obj.CharHeight, [0,0,0]);
-                        % end
+                    if length(args{1}) > 0
+                        [~, obj.TextYNext, ~, ~] = DrawFormattedText(w, args{1}, 'center', obj.TextYNext + obj.CharHeight, [0,0,0]);
                     end
+                    Screen('Flip', w);
+                    if isnumeric(args{2})
+                        obj.wait_for_button(args{2}, 30);
+                    else
+                        obj.opmsg_and_wait(args{2});
+                    end                    
                 case 'flip'
                     Screen('Flip', w);
                     % args are ignored!
