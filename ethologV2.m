@@ -36,6 +36,9 @@ function [results] = ethologV2(varargin)
     p.addParameter('CueWidth', 2, @(x) isscalar(x));
     p.addParameter('UseCues', false, @(x) islogical(x));
 
+    % cues for goal-directed trials
+    p.addParameter('UseGoalCues', true, @(x) islogical(x));
+
     p.addParameter('FixptDiam', 1, @(x) isscalar(x) && isnumeric(x));
     p.addParameter('FixptXY', [0,0], @(x) isvector(x) && length(x)==2);
     p.addParameter('FixptColor', [0,0,0], @(x) all(size(x) == [1 3]));  % color should be row vector on cmd line
@@ -127,12 +130,6 @@ function [results] = ethologV2(varargin)
     completeTrials=@(x) sum(x.Started & x.tResp>0 & x.iResp>-1);
     correctTrials=@(x) sum(x.Started & x.tResp>0 & x.iResp==x.StimChangeTF);
 
-    % feedback colors, and feedback animator
-    feedbackColorCorrect = [.5,.55,.5];
-    feedbackColorIncorrect = [.55,.5,.5];
-    feedbackStruct = struct('rect', [], 'color', [1,1,1], 'on', 0, 'ramp', p.Results.ITI/2, 'off', 0.9*p.Results.ITI, 'thick', 8);
-    feedbackAnimator = AnimMgr([0,p.Results.ITI], @visualFeedbackRectAnimator, feedbackStruct);
-
     %% Initialize PTB and associated things
     % PTB defaults
     PsychDefaultSetup(2);
@@ -165,7 +162,7 @@ function [results] = ethologV2(varargin)
     end
 
     % Init audio - BEFORE the tracker is initialized ()
-    beeper = twotonebeeper('OpenSnd', true);
+    beeper = twotonebeeper(true);
 
     % init eye tracker.     
     if ~p.Results.EyelinkDummyMode
@@ -224,7 +221,7 @@ function [results] = ethologV2(varargin)
     fixXYScr = converter.deg2scr(p.Results.FixptXY);
 
     % Lines for the fixation "+" sign. The array fixLines has x,y values in
-    % columns, one column for each line segment.
+    % rows, one column for each line segment.
     fixLines = [ ...
         fixXYScr(1) + fixDiamPix/2, fixXYScr(2); ...
         fixXYScr(1) - fixDiamPix/2, fixXYScr(2); ...
@@ -233,6 +230,35 @@ function [results] = ethologV2(varargin)
         ]';
     stim1XYScr = converter.deg2scr(p.Results.Stim1XY);
     stim2XYScr = converter.deg2scr(p.Results.Stim2XY);
+
+    % AnimMgr for putting goal-directed cues on screen during fixation
+    % period.
+    if p.Results.UseGoalCues
+        goalCueStruct.fixLines = fixLines;
+        goalCueStruct.fixColor = p.Results.FixptColor';  % Note this gets transposed in call to DrawLines above.
+
+        % unit vectors in direction from fixpt to each stim. Row 1 for stim
+        % 1, and row 2 for stim2.
+
+        goalCueStruct.fixXYScr = fixXYScr(:);
+        goalCueStruct.dirVecs = ...
+            [ 
+            (stim1XYScr - fixXYScr);
+            (stim2XYScr - fixXYScr);
+            ]';
+        goalCueStruct.ipix=5;
+        goalCueStruct.dpix=fixDiamPix/2;
+        goalCueStruct.lpix=goalCueStruct.dpix/2;
+        goalCueStruct.tpix=goalCueStruct.dpix/2;
+        goalCueStruct.cueDirIndex = 0;   % This is set to 1 or 2 per trial
+        goalCueAnim = AnimMgr(@ethologFixationCueCallback);
+    end
+
+    % feedback colors, and feedback animator
+    feedbackColorCorrect = [.5,.55,.5];
+    feedbackColorIncorrect = [.55,.5,.5];
+    feedbackStruct = struct('rect', [], 'color', [1,1,1], 'on', 0, 'ramp', p.Results.ITI/2, 'off', 0.9*p.Results.ITI, 'thick', 8);
+    feedbackAnimator = AnimMgr(@visualFeedbackRectAnimator, [0,p.Results.ITI], feedbackStruct);
 
     % Fixation window. The rect will be used with the eyetracker to test
     % for looking/not-looking
@@ -501,6 +527,10 @@ function [results] = ethologV2(varargin)
                     stateMgr.transitionTo('CLEAR_THEN_PAUSE');
                 elseif tracker.is_in_rect(fixWindowRect)
                     stateMgr.transitionTo('WAIT_FIX');
+                    if p.Results.UseGoalCues
+                        goalCueStruct.cueDirIndex = trial.StimTestType;
+                        goalCueAnim.start(@ethologFixationCueCallback, [0, trial.FixationTime], goalCueStruct);
+                    end
                 end
             case 'WAIT_FIX'
                 if bPausePending
@@ -511,6 +541,10 @@ function [results] = ethologV2(varargin)
                     stateMgr.transitionTo('DRAW_A');
                 elseif ~tracker.is_in_rect(fixWindowRect)
                     stateMgr.transitionTo('FIXATION_BREAK_EARLY');
+                else
+                    if p.Results.UseGoalCues
+                        goalCueAnim.animate(windowIndex) && Screen('Flip', windowIndex);
+                    end
                 end
             case 'FIXATION_BREAK_EARLY'
                 % clear screen, then wait for a little bit
