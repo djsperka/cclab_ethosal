@@ -29,13 +29,19 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
     p.addOptional('GapTime', 0.2, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('NumBlocks', 1, @(x) isscalar(x) && x>0);
 
+    p.addOptional('FlipPair', false, @(x) islogical(x));  % image pairs are same image, one is flipped.
     p.addOptional('Threshold', false, @(x) islogical(x));
-    p.addOptional('Side', 1, @(x) isscalar(x) && ismember(x,[1,2]));
+    p.addOptional('CueSide', 0, @(x) isnumeric(x) && all(ismember(x,[0,1,2])));
     p.addOptional('Base', 5, @(x) isnumeric(x));
 
     p.parse(varargin{:});
     parsedResults = p.Results;
     inputArgs = varargin;
+
+    % Verify that shape of CueSide is good
+    if ~isscalar(p.Results.CueSide)
+        assert(length(p.Results.CueSide) == size(p.Results.Num, 1), 'CueSide must be scalar or have one value per row of Num');
+    end
 
     % make convenience vars and check size of TestKeys/FolderKeys
     FolderKeys = p.Results.FolderKeys;
@@ -78,13 +84,24 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
         % sum across each row of p.Results.Num.
 
         allPairs = max(numSums);
-        imagePairs=reshape(randperm(nFileKeys, allPairs*2), [allPairs,2]);
+        if ~p.Results.FlipPair
+            imagePairs=reshape(randperm(nFileKeys, allPairs*2), [allPairs,2]);
+        else
+            imagePairsTmp = randperm(nFileKeys, allPairs);
+            imagePairs = vertcat(imagePairsTmp, imagePairsTmp)';
+        end
 
         for itrialset = 1 : size(p.Results.Num, 1)
 
             C = cumsum(p.Results.Num(itrialset, :));
             thisSetNums = p.Results.Num(itrialset, :);
             thisSetTable = [];
+
+            if isscalar(p.Results.CueSide)
+                cueSideThisTrialSet = p.Results.CueSide;
+            else
+                cueSideThisTrialSet = p.Results.CueSide(itrialset); % This was verified above!
+            end
             for i = 1:length(thisSetNums)
     
                 if thisSetNums(i) > 0
@@ -179,8 +196,13 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     tab1.StimChangeType = tab1.StimChangeTF.*tab1.StimTestType;
                 
                     % Initial orientation
-                    tab1.Stim1Ori = (2*randi([0 1],nTrials, 1))-1;
-                    tab1.Stim2Ori = (2*randi([0 1],nTrials, 1))-1;
+                    if ~p.Results.FlipPair
+                        tab1.Stim1Ori = (2*randi([0 1],nTrials, 1))-1;
+                        tab1.Stim2Ori = (2*randi([0 1],nTrials, 1))-1;
+                    else
+                        tab1.Stim1Ori = (2*randi([0 1],nTrials, 1))-1;
+                        tab1.Stim2Ori = -1*tab1.Stim1Ori;
+                    end
                 
                     %% Now make B stim keys. 
                     % First, initialize all of them to 'BKGD'. 
@@ -235,7 +257,10 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     sciTrialType(L1) = strcat(hl(tab1.Folder1KeyRow(L1)), hl(tab1.Folder2KeyRow(L1)));
                     sciTrialType(L2) = strcat(hl(tab1.Folder2KeyRow(L2)), hl(tab1.Folder1KeyRow(L2)));
                     tab1.sciTrialType = sciTrialType;
-        
+       
+                    % Assign CueSide value
+                    tab1.CueSide = cueSideThisTrialSet * ones(height(tab1), 1);
+
                     thisSetTable = [thisSetTable; tab1];
     
                     fprintf('i=%d: N=%d, %d trials generated\n', i, thisSetNums(i), height(tab1));
