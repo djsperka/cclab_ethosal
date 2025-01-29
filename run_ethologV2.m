@@ -2,6 +2,7 @@ function results = run_ethologV2(varargin)
 %run_etholog_single Run etholog for a specific block
 %   Detailed explanation goes here
 
+    goalDirectedTypes = {'none', 'existing', 'stim1', 'stim2'};
     testingTypes = {'no-test', 'desk', 'booth'};
     p=inputParser;
     p.addRequired('ID', @(x) ischar(x));
@@ -11,6 +12,7 @@ function results = run_ethologV2(varargin)
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Inside', false, @(x) islogical(x));
     p.addParameter('Trials', [], @(x) istable(x));
+    p.addParameter('GoalDirected', 'none', @(x) ismember(x, goalDirectedTypes));
     p.addParameter('Threshold', false, @(x) islogical(x));
     p.addParameter('ExperimentTestType', 'Image', @(x) ischar(x));
     p.addParameter('ImageFolder','', @(x) ischar(x));
@@ -19,7 +21,6 @@ function results = run_ethologV2(varargin)
     p.addParameter('Stim1XY', [], @(x) isvector(x) && length(x)==2);
     p.addParameter('Stim2XY', [], @(x) isvector(x) && length(x)==2);
 
-    varargin{:}
     p.parse(varargin{:});
 
     switch(p.Results.Test)
@@ -40,7 +41,7 @@ function results = run_ethologV2(varargin)
             kbind = getKeyboardIndex('Dell Dell USB Keyboard');
         case 'no-test'
             % Set these folders according to the current machine
-            if length(p.Results.ImageFolder) > 0
+            if ~isempty(p.Results.ImageFolder)
                 image_folder = p.Results.ImageFolder;
             else
                 image_folder = '/data/cclab/images/Babies';
@@ -62,7 +63,7 @@ function results = run_ethologV2(varargin)
             kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
         case 'booth'
             % Set these folders according to the current machine
-            if length(p.Results.ImageFolder) > 0
+            if ~isempty(p.Results.ImageFolder)
                 image_folder = p.Results.ImageFolder;
             else
                 image_folder = '/data/cclab/images/Babies';
@@ -144,6 +145,7 @@ function results = run_ethologV2(varargin)
         'EyelinkDummyMode', eyelinkDummyMode, ...
         'SkipSyncTests', 1, ...
         'Threshold', p.Results.Threshold, ...
+        'GoalDirected', p.Results.GoalDirected, ...
         'Beep', p.Results.Beep, ...
         'ExperimentTestType', p.Results.ExperimentTestType
         };

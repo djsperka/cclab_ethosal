@@ -22,35 +22,39 @@ classdef ethodlg_exported < matlab.apps.AppBase
         Stim2XEditField          matlab.ui.control.NumericEditField
         Stim2XYEditFieldLabel    matlab.ui.control.Label
         Stim2XYOverride          matlab.ui.control.CheckBox
-        Stim1YEditField          matlab.ui.control.NumericEditField
-        Stim1XEditField          matlab.ui.control.NumericEditField
-        Stim1XYEditFieldLabel    matlab.ui.control.Label
-        Stim1XYOverride          matlab.ui.control.CheckBox
         SelectImagesButton       matlab.ui.control.Button
-        ImagesetNameLabel        matlab.ui.control.Label
-        ImagesetLabel            matlab.ui.control.Label
-        SelectBlockButton        matlab.ui.control.Button
-        BlockSelectedLabel       matlab.ui.control.Label
-        BlockLabel               matlab.ui.control.Label
-        SelectTrialsButton       matlab.ui.control.Button
-        TrialsFileLabel          matlab.ui.control.Label
-        TrialsLabel              matlab.ui.control.Label
-        ScrDistmmEditField       matlab.ui.control.EditField
         ScrDistmmEditFieldLabel  matlab.ui.control.Label
-        LocationDropDown         matlab.ui.control.DropDown
         LocationLabel            matlab.ui.control.Label
         ExitButton               matlab.ui.control.Button
-        TesttypeDropDown         matlab.ui.control.DropDown
         TesttypeDropDownLabel    matlab.ui.control.Label
+        GoalDirectedDropDown     matlab.ui.control.DropDown
+        GoalDirectedCheck        matlab.ui.control.CheckBox
+        SelectBlockButton        matlab.ui.control.Button
         RunButton                matlab.ui.control.Button
+        SelectTrialsButton       matlab.ui.control.Button
         OptionsPanel             matlab.ui.container.Panel
         GridLayout2              matlab.ui.container.GridLayout
         AudFeedbackCheckBox      matlab.ui.control.CheckBox
         UseboothkbdCheckBox      matlab.ui.control.CheckBox
         ShowImageNamesCheckBox   matlab.ui.control.CheckBox
         ThresholdCheckBox        matlab.ui.control.CheckBox
+        ScrWHmmEditField         matlab.ui.control.EditField
+        ScrDistmmEditField       matlab.ui.control.EditField
+        LocationDropDown         matlab.ui.control.DropDown
+        TesttypeDropDown         matlab.ui.control.DropDown
         SubjectIDEditField       matlab.ui.control.EditField
         SubjectIDEditFieldLabel  matlab.ui.control.Label
+        Stim1YEditField          matlab.ui.control.NumericEditField
+        Stim1XEditField          matlab.ui.control.NumericEditField
+        Stim1XYEditFieldLabel    matlab.ui.control.Label
+        Stim1XYOverride          matlab.ui.control.CheckBox
+        ImagesetNameLabel        matlab.ui.control.Label
+        ImagesetLabel            matlab.ui.control.Label
+        BlockSelectedLabel       matlab.ui.control.Label
+        BlockLabel               matlab.ui.control.Label
+        TrialsFileLabel          matlab.ui.control.Label
+        TrialsLabel              matlab.ui.control.Label
+        ScrWHmmEditFieldLabel    matlab.ui.control.Label
     end
 
     
@@ -60,7 +64,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
         isFileSelected % set to true when trial/blocks file is chosen
         filePath % path of trials/blocks file
         fileName % basename of trials/blocks file
-        fileNBlocks % number of blocks in trials file
+        fileNBlocks % number of blocks in trials file (0 if bare trials, no blocks)
         fileBlockIndex % which block in file, or 0 if none selected
         isImagesetSelected % set to true when images selected
         imagesetName % Name of imageset to use
@@ -72,6 +76,9 @@ classdef ethodlg_exported < matlab.apps.AppBase
     methods (Access = private)
         
         function updateFileBlocks(app)
+            %Update GUI elements related to the filename and block
+            %selected, including BlockSelectedLabel, TrialsFileLabel, 
+            % GoalDirectedCheck, and GoalDirectedDropDown
             if app.isFileSelected
                 app.TrialsFileLabel.Text = app.fileName;
                 if app.fileNBlocks > 0
@@ -88,6 +95,14 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 app.BlockSelectedLabel.Text = 'N/A';
             end
 
+            if app.isTrialsSelected
+                app.GoalDirectedCheck.Enable = true;
+                app.GoalDirectedDropDown.Enable = true;
+            else
+                app.GoalDirectedCheck.Value = false;
+                app.GoalDirectedCheck.Enable = true;
+                app.GoalDirectedDropDown.Enable = true;
+            end
             if app.isImagesetSelected
                 app.ImagesetNameLabel.Text = sprintf('%s [%s]', app.imagesetName, app.imagesetParamsFunc);
             else
@@ -126,6 +141,8 @@ classdef ethodlg_exported < matlab.apps.AppBase
         end
         
         function selectBlockNumberDialog(app)
+            %Select a block number from the currently selected input file.
+
             % make a cell array with the numeric values 1:nBlocks, and
             % the last value is 'None Selected'
             C=[cellfun(@(x) sprintf('%d',x), num2cell(1:app.fileNBlocks),UniformOutput=false),{'None Selected'}];
@@ -293,6 +310,9 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 % The value from screen distance comes to us as a char array
                 % 
                 fprintf('Screen distance (ignored) %d\n', str2double(app.ScrDistmmEditField.Value));
+                app.ScrWHmmEditField.Value
+                atmp = eval(['[',app.ScrWHmmEditField.Value,']'])
+                fprintf('Screen WH %dx%d (ignored)\n', atmp(1), atmp(2));
 
                 % get trials, overrides if any
                 trials = app.getSelectedTrials();
@@ -328,6 +348,11 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 if app.Stim2XYOverride.Value
                     args{end+1} = 'Stim2XY';
                     args{end+1} = [app.Stim2XEditField.Value, app.Stim2YEditField.Value];
+                end
+
+                if app.GoalDirectedCheck.Value
+                    args{end+1} = 'GoalDirected';
+                    args{end+1} = app.GoalDirectedDropDown.Value;
                 end
 
                 %run_ethologV2(id, 'Test', app.LocationDropDown.Value, 'Trials', app.getSelectedTrials(), 'Threshold', app.ThresholdCheckBox.Value, 'ExperimentTestType', app.getTestType(), 'Images', img, 'Inside', app.UseboothkbdCheckBox.Value);
@@ -397,6 +422,20 @@ classdef ethodlg_exported < matlab.apps.AppBase
             value = app.RespTimeOverride.Value;
             app.RespTimesEditField.Enable = value;
         end
+
+        % Value changed function: ScrWHmmEditField
+        function ScrWHValueChanged(app, event)
+            value = app.ScrWHmmEditField.Value;
+            try
+                s = sprintf('aaatmp=%s', value);
+                eval(s);
+            catch ME
+                msgText = getReport(ME);
+                fprintf('Cannot evaluate WxH:\n%s\n', msgText);
+                app.ScrWHmmEditField.Value = event.PreviousValue;
+            end
+
+        end
     end
 
     % Component initialization
@@ -407,13 +446,13 @@ classdef ethodlg_exported < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 493 517];
+            app.UIFigure.Position = [100 100 492 542];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create GridLayout
             app.GridLayout = uigridlayout(app.UIFigure);
             app.GridLayout.ColumnWidth = {'20x', '30x', '30x', '20x'};
-            app.GridLayout.RowHeight = {24, 22, 24, 22, 22, 22, 22, 23, '1x'};
+            app.GridLayout.RowHeight = {24, 22, 24, 22, 22, 22, 22, 22, 23, '1x'};
 
             % Create SubjectIDEditFieldLabel
             app.SubjectIDEditFieldLabel = uilabel(app.GridLayout);
@@ -427,6 +466,71 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.SubjectIDEditField.ValueChangedFcn = createCallbackFcn(app, @AnyValueChanged, true);
             app.SubjectIDEditField.Layout.Row = 1;
             app.SubjectIDEditField.Layout.Column = 2;
+
+            % Create TesttypeDropDown
+            app.TesttypeDropDown = uidropdown(app.GridLayout);
+            app.TesttypeDropDown.Items = {'Image', 'Rotate', 'Gabor', 'Flip'};
+            app.TesttypeDropDown.ItemsData = {'Image', 'Rotate', 'Gabor', 'Flip', 'ERR'};
+            app.TesttypeDropDown.Layout.Row = 2;
+            app.TesttypeDropDown.Layout.Column = 2;
+            app.TesttypeDropDown.Value = 'Flip';
+
+            % Create LocationDropDown
+            app.LocationDropDown = uidropdown(app.GridLayout);
+            app.LocationDropDown.Items = {'Booth (test)', 'Booth (subj)', 'Desk'};
+            app.LocationDropDown.ItemsData = {'booth', 'no-test', 'desk', 'ERR'};
+            app.LocationDropDown.Layout.Row = 3;
+            app.LocationDropDown.Layout.Column = 2;
+            app.LocationDropDown.Value = 'booth';
+
+            % Create ScrDistmmEditField
+            app.ScrDistmmEditField = uieditfield(app.GridLayout, 'text');
+            app.ScrDistmmEditField.InputType = 'digits';
+            app.ScrDistmmEditField.Layout.Row = 4;
+            app.ScrDistmmEditField.Layout.Column = 2;
+            app.ScrDistmmEditField.Value = '920';
+
+            % Create ScrWHmmEditField
+            app.ScrWHmmEditField = uieditfield(app.GridLayout, 'text');
+            app.ScrWHmmEditField.ValueChangedFcn = createCallbackFcn(app, @ScrWHValueChanged, true);
+            app.ScrWHmmEditField.Layout.Row = 5;
+            app.ScrWHmmEditField.Layout.Column = 2;
+            app.ScrWHmmEditField.Value = '598,336';
+
+            % Create SelectTrialsButton
+            app.SelectTrialsButton = uibutton(app.GridLayout, 'push');
+            app.SelectTrialsButton.ButtonPushedFcn = createCallbackFcn(app, @LoadTrialsPushed, true);
+            app.SelectTrialsButton.Layout.Row = 6;
+            app.SelectTrialsButton.Layout.Column = 4;
+            app.SelectTrialsButton.Text = 'Select Trials';
+
+            % Create SelectBlockButton
+            app.SelectBlockButton = uibutton(app.GridLayout, 'push');
+            app.SelectBlockButton.ButtonPushedFcn = createCallbackFcn(app, @SelectBlockButtonPushed, true);
+            app.SelectBlockButton.Layout.Row = 7;
+            app.SelectBlockButton.Layout.Column = 4;
+            app.SelectBlockButton.Text = 'Select Block';
+
+            % Create GoalDirectedCheck
+            app.GoalDirectedCheck = uicheckbox(app.GridLayout);
+            app.GoalDirectedCheck.Text = 'Goal-directed cues';
+            app.GoalDirectedCheck.Layout.Row = 8;
+            app.GoalDirectedCheck.Layout.Column = 2;
+
+            % Create GoalDirectedDropDown
+            app.GoalDirectedDropDown = uidropdown(app.GridLayout);
+            app.GoalDirectedDropDown.Items = {'None', 'Use existing', 'Stim1 (Left)', 'Stim2 (Right)'};
+            app.GoalDirectedDropDown.ItemsData = {'none', 'existing', 'stim1', 'stim2'};
+            app.GoalDirectedDropDown.Layout.Row = 8;
+            app.GoalDirectedDropDown.Layout.Column = 3;
+            app.GoalDirectedDropDown.Value = 'none';
+
+            % Create RunButton
+            app.RunButton = uibutton(app.GridLayout, 'push');
+            app.RunButton.ButtonPushedFcn = createCallbackFcn(app, @RunButtonPushed, true);
+            app.RunButton.Layout.Row = 1;
+            app.RunButton.Layout.Column = 4;
+            app.RunButton.Text = 'Run';
 
             % Create OptionsPanel
             app.OptionsPanel = uipanel(app.GridLayout);
@@ -463,26 +567,11 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.AudFeedbackCheckBox.Layout.Row = 4;
             app.AudFeedbackCheckBox.Layout.Column = 1;
 
-            % Create RunButton
-            app.RunButton = uibutton(app.GridLayout, 'push');
-            app.RunButton.ButtonPushedFcn = createCallbackFcn(app, @RunButtonPushed, true);
-            app.RunButton.Layout.Row = 1;
-            app.RunButton.Layout.Column = 4;
-            app.RunButton.Text = 'Run';
-
             % Create TesttypeDropDownLabel
             app.TesttypeDropDownLabel = uilabel(app.GridLayout);
             app.TesttypeDropDownLabel.Layout.Row = 2;
             app.TesttypeDropDownLabel.Layout.Column = 1;
             app.TesttypeDropDownLabel.Text = 'Test type:';
-
-            % Create TesttypeDropDown
-            app.TesttypeDropDown = uidropdown(app.GridLayout);
-            app.TesttypeDropDown.Items = {'Image', 'Rotate', 'Gabor', 'Flip'};
-            app.TesttypeDropDown.ItemsData = {'Image', 'Rotate', 'Gabor', 'Flip', 'ERR'};
-            app.TesttypeDropDown.Layout.Row = 2;
-            app.TesttypeDropDown.Layout.Column = 2;
-            app.TesttypeDropDown.Value = 'Image';
 
             % Create ExitButton
             app.ExitButton = uibutton(app.GridLayout, 'push');
@@ -497,26 +586,17 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.LocationLabel.Layout.Column = 1;
             app.LocationLabel.Text = 'Location:';
 
-            % Create LocationDropDown
-            app.LocationDropDown = uidropdown(app.GridLayout);
-            app.LocationDropDown.Items = {'Booth (test)', 'Booth (subj)', 'Desk'};
-            app.LocationDropDown.ItemsData = {'booth', 'no-test', 'desk', 'ERR'};
-            app.LocationDropDown.Layout.Row = 3;
-            app.LocationDropDown.Layout.Column = 2;
-            app.LocationDropDown.Value = 'booth';
-
             % Create ScrDistmmEditFieldLabel
             app.ScrDistmmEditFieldLabel = uilabel(app.GridLayout);
             app.ScrDistmmEditFieldLabel.Layout.Row = 4;
             app.ScrDistmmEditFieldLabel.Layout.Column = 1;
             app.ScrDistmmEditFieldLabel.Text = 'Scr Dist (mm)';
 
-            % Create ScrDistmmEditField
-            app.ScrDistmmEditField = uieditfield(app.GridLayout, 'text');
-            app.ScrDistmmEditField.InputType = 'digits';
-            app.ScrDistmmEditField.Placeholder = '(default)';
-            app.ScrDistmmEditField.Layout.Row = 4;
-            app.ScrDistmmEditField.Layout.Column = 2;
+            % Create ScrWHmmEditFieldLabel
+            app.ScrWHmmEditFieldLabel = uilabel(app.GridLayout);
+            app.ScrWHmmEditFieldLabel.Layout.Row = 5;
+            app.ScrWHmmEditFieldLabel.Layout.Column = 1;
+            app.ScrWHmmEditFieldLabel.Text = 'Scr W,H (mm)';
 
             % Create TrialsLabel
             app.TrialsLabel = uilabel(app.GridLayout);
@@ -528,13 +608,6 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.TrialsFileLabel = uilabel(app.GridLayout);
             app.TrialsFileLabel.Layout.Row = 6;
             app.TrialsFileLabel.Layout.Column = [2 3];
-
-            % Create SelectTrialsButton
-            app.SelectTrialsButton = uibutton(app.GridLayout, 'push');
-            app.SelectTrialsButton.ButtonPushedFcn = createCallbackFcn(app, @LoadTrialsPushed, true);
-            app.SelectTrialsButton.Layout.Row = 6;
-            app.SelectTrialsButton.Layout.Column = 4;
-            app.SelectTrialsButton.Text = 'Select Trials';
 
             % Create BlockLabel
             app.BlockLabel = uilabel(app.GridLayout);
@@ -548,36 +621,29 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.BlockSelectedLabel.Layout.Column = [2 3];
             app.BlockSelectedLabel.Text = 'Label3';
 
-            % Create SelectBlockButton
-            app.SelectBlockButton = uibutton(app.GridLayout, 'push');
-            app.SelectBlockButton.ButtonPushedFcn = createCallbackFcn(app, @SelectBlockButtonPushed, true);
-            app.SelectBlockButton.Layout.Row = 7;
-            app.SelectBlockButton.Layout.Column = 4;
-            app.SelectBlockButton.Text = 'Select Block';
-
             % Create ImagesetLabel
             app.ImagesetLabel = uilabel(app.GridLayout);
-            app.ImagesetLabel.Layout.Row = 8;
+            app.ImagesetLabel.Layout.Row = 9;
             app.ImagesetLabel.Layout.Column = 1;
             app.ImagesetLabel.Text = 'Imageset';
 
             % Create ImagesetNameLabel
             app.ImagesetNameLabel = uilabel(app.GridLayout);
-            app.ImagesetNameLabel.Layout.Row = 8;
+            app.ImagesetNameLabel.Layout.Row = 9;
             app.ImagesetNameLabel.Layout.Column = [2 3];
             app.ImagesetNameLabel.Text = 'Label4';
 
             % Create SelectImagesButton
             app.SelectImagesButton = uibutton(app.GridLayout, 'push');
             app.SelectImagesButton.ButtonPushedFcn = createCallbackFcn(app, @SelectImagesButtonPushed, true);
-            app.SelectImagesButton.Layout.Row = 8;
+            app.SelectImagesButton.Layout.Row = 9;
             app.SelectImagesButton.Layout.Column = 4;
             app.SelectImagesButton.Text = 'Select Images';
 
             % Create OverridesPanel
             app.OverridesPanel = uipanel(app.GridLayout);
             app.OverridesPanel.Title = 'Overrides';
-            app.OverridesPanel.Layout.Row = 9;
+            app.OverridesPanel.Layout.Row = 10;
             app.OverridesPanel.Layout.Column = [1 3];
 
             % Create GridLayout3

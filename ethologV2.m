@@ -36,9 +36,11 @@ function [results] = ethologV2(varargin)
     p.addParameter('CueWidth', 2, @(x) isscalar(x));
     p.addParameter('UseCues', false, @(x) islogical(x));
 
-    % cues for goal-directed trials
-    p.addParameter('UseGoalCues', true, @(x) islogical(x));
+    % cues for goal-directed trials. 
+    goalDirectedTypes = {'none', 'existing', 'stim1', 'stim2'};
+    p.addParameter('GoalDirected', 'none', @(x) ismember(x, goalDirectedTypes));
 
+    % Overrides for trial parameters
     p.addParameter('FixptDiam', 1, @(x) isscalar(x) && isnumeric(x));
     p.addParameter('FixptXY', [0,0], @(x) isvector(x) && length(x)==2);
     p.addParameter('FixptColor', [0,0,0], @(x) all(size(x) == [1 3]));  % color should be row vector on cmd line
@@ -126,9 +128,34 @@ function [results] = ethologV2(varargin)
     results = p.Results.Trials;
     itrial = 1;
 
-    % useful for getting progress
-    completeTrials=@(x) sum(x.Started & x.tResp>0 & x.iResp>-1);
-    correctTrials=@(x) sum(x.Started & x.tResp>0 & x.iResp==x.StimChangeTF);
+    % useful functions for getting progress - pass 'results' as arg
+    fnCompleteTrials=@(x) sum(x.Started & x.tResp>0 & x.iResp>-1);
+    fnCorrectTrials=@(x) sum(x.Started & x.tResp>0 & x.iResp==x.StimChangeTF);
+    fnNoRespTrials=@(x) sum(x.Started & x.iResp<0);
+    fnRemainingTrials=@(x) sum(~x.Started);
+
+    % If using goal-directed cues, then we MUST have a column named
+    % GoalCues, or else the parameter CueSide must be set, and the column
+    % will be created and assigned that value. 
+    usingGoalDirectedCues = false;
+    switch p.Results.GoalDirected
+        case 'none'
+            % nothing to do
+        case 'existing'
+            % trials must have 'CueSide' column
+            assert(ismember('CueSide', fieldnames(results)) && all(ismember(p.Results.CueSide,[1,2])),...
+                'Input trial table must have column CueSide populated with 1s and 2s');
+            usingGoalDirectedCues = true;
+        case 'stim1'
+            usingGoalDirectedCues = true;
+            results.CueSide = ones(height(results), 1);
+        case 'stim2'
+            usingGoalDirectedCues = true;
+            results.CueSide = 2*ones(height(results), 1);
+        otherwise
+            error('Unknown value for GoalDirected parameter');
+    end
+
 
     %% Initialize PTB and associated things
     % PTB defaults
@@ -233,7 +260,7 @@ function [results] = ethologV2(varargin)
 
     % AnimMgr for putting goal-directed cues on screen during fixation
     % period.
-    if p.Results.UseGoalCues
+    if usingGoalDirectedCues
         goalCueStruct.fixLines = fixLines;
         goalCueStruct.fixColor = p.Results.FixptColor';  % Note this gets transposed in call to DrawLines above.
 
@@ -385,7 +412,7 @@ function [results] = ethologV2(varargin)
                             side = 'none';
                     end
                     if any(strcmp(bStimType, {'Image','RotatedImage','Flip'}))
-                        fprintf('etholog: trial: %3d\t%s\tchange? %d\n', itrial, side, trial.StimChangeType);
+                        fprintf('etholog: trial: %3d %s change? %d\n', itrial, side, trial.StimChangeType);
                     elseif strcmp(bStimType, 'Gabor')
                         if trial.StimTestType == trial.StimChangeType
                             sChange = 'YES';
@@ -527,8 +554,8 @@ function [results] = ethologV2(varargin)
                     stateMgr.transitionTo('CLEAR_THEN_PAUSE');
                 elseif tracker.is_in_rect(fixWindowRect)
                     stateMgr.transitionTo('WAIT_FIX');
-                    if p.Results.UseGoalCues
-                        goalCueStruct.cueDirIndex = trial.StimTestType;
+                    if usingGoalDirectedCues
+                        goalCueStruct.cueDirIndex = trial.CueSide;
                         goalCueAnim.start(@ethologFixationCueCallback, [0, trial.FixationTime], goalCueStruct);
                     end
                 end
@@ -542,7 +569,7 @@ function [results] = ethologV2(varargin)
                 elseif ~tracker.is_in_rect(fixWindowRect)
                     stateMgr.transitionTo('FIXATION_BREAK_EARLY');
                 else
-                    if p.Results.UseGoalCues
+                    if usingGoalDirectedCues
                         goalCueAnim.animate(windowIndex) && Screen('Flip', windowIndex);
                     end
                 end
@@ -742,12 +769,12 @@ function [results] = ethologV2(varargin)
                     feedbackStruct.color = feedbackColorIncorrect;
                 end
 
-                if strcmp(bStimType, 'Image')
-                    fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
-                elseif strcmp(bStimType, 'RotatedImage')
-                    fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
-                elseif strcmp(bStimType, 'Flip')
-                    fprintf('etholog: trial: %3d\t%s\tchange? %d\tresponse: %s\tcorrect? %s\n', itrial, side, trial.StimChangeType, sresp, scorr);
+                nCompleted = fnCompleteTrials(results);
+                nCorrect = fnCorrectTrials(results);
+                nNoResp = fnNoRespTrials(results);
+                nRemain = fnRemainingTrials(results);
+                if any(strcmp(bStimType, {'Image','RotatedImage','Flip'}))
+                    fprintf('etholog: trial: %3d %s change? %dresponse: %s\tcorrect? %s\tN: %d\tcomplete: %d\tno resp: %d\tremaining: %d\n', itrial, side, trial.StimChangeType, sresp, scorr, NumTrials, nCompleted, nNoResp, nRemain);
                 elseif strcmp(bStimType, 'Gabor')
                     if trial.StimTestType == trial.StimChangeType
                         sChange = 'YES';
@@ -763,7 +790,6 @@ function [results] = ethologV2(varargin)
                 % the trial list for re-trying later.
                 if ~results.Started(itrial) || results.tResp(itrial) < 0 || results.iResp(itrial) < 0
                     results = [results;struct2table(trial)];
-                    fprintf('etholog: Incomplete trial appended to end of trial list. Trial list now has %d trials.\n', height(results));
                 end
 
                 % increment trial
@@ -789,7 +815,7 @@ function [results] = ethologV2(varargin)
                 if stateMgr.timeInState() >= p.Results.ITI
                     if p.Results.Breaks && breakTimeMilestones.check(itrial/height(results))
                         stateMgr.transitionTo('BREAK_TIME');
-                    elseif p.Results.StatusBreaks > 0 && statusMilestones.check(completeTrials(results))
+                    elseif p.Results.StatusBreaks > 0 && statusMilestones.check(fnCompleteTrials(results))
                         stateMgr.transitionTo('STATUS_BREAK_TIME');
                     else
                         stateMgr.transitionTo('START');
@@ -816,9 +842,9 @@ function [results] = ethologV2(varargin)
                     Screen('TextSize', windowIndex, oldTextSize);
                 end
             case 'STATUS_BREAK_TIME'
-                [ind, passed] = statusMilestones.pass(completeTrials(results));
-                c0 = completeTrials(results);
-                c1 = correctTrials(results);
+                [ind, passed] = statusMilestones.pass(fnCompleteTrials(results));
+                c0 = fnCompleteTrials(results);
+                c1 = fnCorrectTrials(results);
                 rate = c1/c0;
                 s = sprintf('%d/%d complete trials, %.0f%% correct', c0, NumTrials, rate*100);
 

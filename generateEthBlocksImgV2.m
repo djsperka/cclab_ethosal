@@ -164,6 +164,7 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                 
                     % Now make File1Key and File2Key
                     tab1.File1Key = FileKeys(imagePairs(tab1.ImagePairIndex,1));
+
                     tab1.File2Key = FileKeys(imagePairs(tab1.ImagePairIndex,2));
 
                     % Now make Folder1Key and Folder2Key
