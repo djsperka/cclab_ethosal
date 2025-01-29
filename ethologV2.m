@@ -143,7 +143,7 @@ function [results] = ethologV2(varargin)
             % nothing to do
         case 'existing'
             % trials must have 'CueSide' column
-            assert(ismember('CueSide', fieldnames(results)) && all(ismember(p.Results.CueSide,[1,2])),...
+            assert(ismember('CueSide', fieldnames(results)) && all(ismember(results.CueSide,[1,2])),...
                 'Input trial table must have column CueSide populated with 1s and 2s');
             usingGoalDirectedCues = true;
         case 'stim1'
