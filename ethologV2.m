@@ -157,7 +157,8 @@ function [results] = ethologV2(varargin)
     end
 
 
-    %% Initialize PTB and associated things
+    %% Initialize PTB and hardware. 
+
     % PTB defaults
     PsychDefaultSetup(2);
     Screen('Preference', 'SkipSyncTests', p.Results.SkipSyncTests);
@@ -165,20 +166,20 @@ function [results] = ethologV2(varargin)
     % Open window for visual stim
     [windowIndex, windowRect] = PsychImaging('OpenWindow', p.Results.Screen, p.Results.Bkgd, p.Results.Rect);
     
-    % create converter for dealing with pixels&degrees 
-    % If 2 elements, [screenWidthMM, screenDistanceMM]
-    % if single element, [fovX] - testing only
+    % pixel-degree converter
     if ~isempty(p.Results.ScreenWH)
         converter = pixdegconverter(windowRect, p.Results.ScreenWH, p.Results.ScreenDistance);
     else
         converter = pixdegconverter(windowRect, p.Results.Fovx);
     end
 
-    % Kb queue - need to know correct index!
+    % Keyboard used for input from operator
     if ~p.Results.KeyboardIndex
         error('Need to specify keyboard index');
     end
     KbQueueCreate(p.Results.KeyboardIndex);
+    KbQueueStart(p.Results.KeyboardIndex);
+    ListenChar(-1);
 
     % input response device if needed
     if strcmp(subjectResponseType, 'MilliKey')
@@ -234,11 +235,13 @@ function [results] = ethologV2(varargin)
     textSizeForMilestones = getTextSizePix(converter.deg2pix(1), windowIndex);
     fprintf('Using text size %d for %f pixels\n', textSizeForMilestones, converter.deg2pix(1));
 
-    %% Initialize experimental parameters
+    %% Initialize experimental parameters that apply to all blocks
     
-    stateMgr = statemgr('START', ourVerbosity>0);
-    bQuit = false;
+    % background color
     bkgdColor = [.5 .5 .5];
+
+    % fixation point color
+    fixColor = p.Results.FixptColor;
 
     % Diameter of fixation point/cross in pixels
     fixDiamPix = converter.deg2pix(p.Results.FixptDiam);
@@ -262,7 +265,7 @@ function [results] = ethologV2(varargin)
     % period.
     if usingGoalDirectedCues
         goalCueStruct.fixLines = fixLines;
-        goalCueStruct.fixColor = p.Results.FixptColor';  % Note this gets transposed in call to DrawLines above.
+        goalCueStruct.fixColor = fixColor';  % Note this gets transposed in call to DrawLines above.
 
         % unit vectors in direction from fixpt to each stim. Row 1 for stim
         % 1, and row 2 for stim2.
@@ -293,9 +296,7 @@ function [results] = ethologV2(varargin)
     fixWindowRect = CenterRectOnPoint([0 0 fixWindowDiamPix fixWindowDiamPix], fixXYScr(1), fixXYScr(2));
     fixFeedbackRect = CenterRectOnPoint(images.UniformOrFirstRect, fixXYScr(1), fixXYScr(2));
 
-    % start kbd queue now
-    KbQueueStart(p.Results.KeyboardIndex);
-    ListenChar(-1);
+    %% per-block initializations
 
     % Create a cleanup object, that will execute whenever this script ends
     % (even if it crashes). Use it to restore matlab to a usable state -
@@ -305,10 +306,14 @@ function [results] = ethologV2(varargin)
     % Use this for managing pauses
     bPausePending = false;
 
+    % state manager and flag for quitting
+    stateMgr = statemgr('START', ourVerbosity>0);
+    bQuit = false;
+
 
     %% Start trial loop
-    while ~bQuit && ~strcmp(stateMgr.Current, 'DONE')
-        
+    % while ~bQuit && ~strcmp(stateMgr.Current, 'DONE')
+    while ~bQuit
         
         % any keys pressed? 
         [keyPressed, keyCode,  ~, ~] = checkKbdQueue(p.Results.KeyboardIndex);
@@ -342,7 +347,7 @@ function [results] = ethologV2(varargin)
                     if strcmp(stateMgr.Current, 'WAIT_PAUSE')
                         % draw fixpt, kick off drift correction
                         Screen('FillRect', windowIndex, bkgdColor);
-                        Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
+                        Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
                         Screen('Flip', windowIndex);
                         tracker.drift_correct(fixXYScr(1), fixXYScr(2));
                         
@@ -537,7 +542,7 @@ function [results] = ethologV2(varargin)
             case 'DRAW_FIXPT'
                 % Draw fixation cross on screen
                 Screen('FillRect', windowIndex, bkgdColor);
-                Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
+                Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
                 Screen('Flip', windowIndex);
 
                 % Draw cross and box on tracker screen
@@ -595,7 +600,7 @@ function [results] = ethologV2(varargin)
                 if p.Results.UseCues
                     Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
                 end
-                Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
+                Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
 
                 % draw boxes for images on tracker
                 tracker.draw_box(stim1Rect(1), stim1Rect(2), stim1Rect(3), stim1Rect(4), 15);
@@ -626,7 +631,7 @@ function [results] = ethologV2(varargin)
                 end                
             case 'DRAW_AB'
                 Screen('FillRect', windowIndex, bkgdColor);
-                Screen('DrawLines', windowIndex, fixLines, 4,p.Results.FixptColor');
+                Screen('DrawLines', windowIndex, fixLines, 4,fixColor');
                 [ results.tAoff(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_AB');
             case 'WAIT_AB'
@@ -649,7 +654,7 @@ function [results] = ethologV2(varargin)
                 if p.Results.UseCues
                     Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
                 end
-                Screen('DrawLines', windowIndex, fixLines, 4, p.Results.FixptColor');
+                Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
                 [ results.tBon(itrial) ] = Screen('Flip', windowIndex);
 
                 % Moved this from START_RESPONSE, so subject may respond as
@@ -878,18 +883,28 @@ function [results] = ethologV2(varargin)
                     bPausePending = false;
                 end
             case 'DONE'
-                % no-op
+
+                % save data, again
+                save(outputFilename, 'results');
+                fprintf('\n*** Results saved in output file %s\n', outputFilename);
+            
+                experimentElapsedTime = GetSecs - experimentStartTime;
+                fprintf(1, 'This block took %.1f sec.\n', experimentElapsedTime);
+
+                % This will cause us to exit the state loop!
+                bQuit = true;
+
             otherwise
                 error('Unhandled state %s\n', stateMgr.Current);
         end
     end
 
-    % save data, again
-    save(outputFilename, 'results');
-    fprintf('\n*** Results saved in output file %s\n', outputFilename);
-
-    experimentElapsedTime = GetSecs - experimentStartTime;
-    fprintf(1, 'This block took %.1f sec.\n', experimentElapsedTime);
+    % % save data, again
+    % save(outputFilename, 'results');
+    % fprintf('\n*** Results saved in output file %s\n', outputFilename);
+    % 
+    % experimentElapsedTime = GetSecs - experimentStartTime;
+    % fprintf(1, 'This block took %.1f sec.\n', experimentElapsedTime);
     
 end
 
