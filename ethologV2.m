@@ -105,56 +105,11 @@ function [results] = ethologV2(varargin)
         error('Responses are not configured correctly for anything other than Image/RotatedImage/Flip type');
     end
 
-    % Prepare output file name. Make sure an existing file does not get
-    % clobbered.
-    if isfile(p.Results.OutputFile)
-        warning('OutputFile %s already exists. Finding a suitable name...', p.Results.OutputFile);
-        [path, base, ext] = fileparts(p.Results.OutputFile);
-        [ok, outputFilename] = makeNNNFilename(fullfile(path, [base, '_NNN', ext]));
-        if ~ok
-            error('Cannot form usable filename using folder %s and basename %s', p.Results.Folder, p.Results.Basename);
-        end
-    else
-        outputFilename = p.Results.OutputFile;
-    end
-    fprintf('\n*** Using output filename %s\n', outputFilename);
-
-    % The number of trials. This number WILL NOT CHANGE, though more trials
-    % may be appended to the array (when a trial is incomplete, e.g.)
-    NumTrials = height(p.Results.Trials);
-
-    % All trial parameters are contained in results. Also put
-    % results/timestamps/responses/etc in same table.
-    results = p.Results.Trials;
-    itrial = 1;
-
     % useful functions for getting progress - pass 'results' as arg
     fnCompleteTrials=@(x) sum(x.Started & x.tResp>0 & x.iResp>-1);
     fnCorrectTrials=@(x) sum(x.Started & x.tResp>0 & x.iResp==x.StimChangeTF);
     fnNoRespTrials=@(x) sum(x.Started & x.iResp<0);
     fnRemainingTrials=@(x) sum(~x.Started);
-
-    % If using goal-directed cues, then we MUST have a column named
-    % GoalCues, or else the parameter CueSide must be set, and the column
-    % will be created and assigned that value. 
-    usingGoalDirectedCues = false;
-    switch p.Results.GoalDirected
-        case 'none'
-            % nothing to do
-        case 'existing'
-            % trials must have 'CueSide' column
-            assert(ismember('CueSide', fieldnames(results)) && all(ismember(results.CueSide,[1,2])),...
-                'Input trial table must have column CueSide populated with 1s and 2s');
-            usingGoalDirectedCues = true;
-        case 'stim1'
-            usingGoalDirectedCues = true;
-            results.CueSide = ones(height(results), 1);
-        case 'stim2'
-            usingGoalDirectedCues = true;
-            results.CueSide = 2*ones(height(results), 1);
-        otherwise
-            error('Unknown value for GoalDirected parameter');
-    end
 
 
     %% Initialize PTB and hardware. 
@@ -236,7 +191,7 @@ function [results] = ethologV2(varargin)
     fprintf('Using text size %d for %f pixels\n', textSizeForMilestones, converter.deg2pix(1));
 
     %% Initialize experimental parameters that apply to all blocks
-    
+
     % background color
     bkgdColor = [.5 .5 .5];
 
@@ -296,12 +251,59 @@ function [results] = ethologV2(varargin)
     fixWindowRect = CenterRectOnPoint([0 0 fixWindowDiamPix fixWindowDiamPix], fixXYScr(1), fixXYScr(2));
     fixFeedbackRect = CenterRectOnPoint(images.UniformOrFirstRect, fixXYScr(1), fixXYScr(2));
 
-    %% per-block initializations
-
     % Create a cleanup object, that will execute whenever this script ends
     % (even if it crashes). Use it to restore matlab to a usable state -
     % see cleanup() below.
     myCleanupObj = onCleanup(@cleanup);
+
+    %% per-block initializations
+
+    % Prepare output file name. Make sure an existing file does not get
+    % clobbered.
+    if isfile(p.Results.OutputFile)
+        warning('OutputFile %s already exists. Finding a suitable name...', p.Results.OutputFile);
+        [path, base, ext] = fileparts(p.Results.OutputFile);
+        [ok, outputFilename] = makeNNNFilename(fullfile(path, [base, '_NNN', ext]));
+        if ~ok
+            error('Cannot form usable filename using folder %s and basename %s', p.Results.Folder, p.Results.Basename);
+        end
+    else
+        outputFilename = p.Results.OutputFile;
+    end
+    fprintf('\n*** Using output filename %s\n', outputFilename);
+
+    % The number of trials. This number WILL NOT CHANGE, though more trials
+    % may be appended to the array (when a trial is incomplete, e.g.)
+    NumTrials = height(p.Results.Trials);
+
+    % All trial parameters are contained in results. Also put
+    % results/timestamps/responses/etc in same table.
+    results = p.Results.Trials;
+    itrial = 1;
+
+    % If using goal-directed cues, then we MUST have a column named
+    % GoalCues, or else the parameter CueSide must be set, and the column
+    % will be created and assigned that value. 
+    usingGoalDirectedCues = false;
+    switch p.Results.GoalDirected
+        case 'none'
+            % nothing to do
+        case 'existing'
+            % trials must have 'CueSide' column
+            assert(ismember('CueSide', fieldnames(results)) && all(ismember(results.CueSide,[1,2])),...
+                'Input trial table must have column CueSide populated with 1s and 2s');
+            usingGoalDirectedCues = true;
+        case 'stim1'
+            usingGoalDirectedCues = true;
+            results.CueSide = ones(height(results), 1);
+        case 'stim2'
+            usingGoalDirectedCues = true;
+            results.CueSide = 2*ones(height(results), 1);
+        otherwise
+            error('Unknown value for GoalDirected parameter');
+    end
+
+
 
     % Use this for managing pauses
     bPausePending = false;
