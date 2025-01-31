@@ -231,7 +231,7 @@ function [results] = ethologV2(varargin)
         [path, base, ext] = fileparts(p.Results.OutputFile);
         [ok, outputFilename] = makeNNNFilename(fullfile(path, [base, '_NNN', ext]));
         if ~ok
-            error('Cannot form usable filename using folder %s and basename %s', p.Results.Folder, p.Results.Basename);
+            error('Cannot form usable filename using folder %s and basename %s', path, base);
         end
     else
         outputFilename = p.Results.OutputFile;
