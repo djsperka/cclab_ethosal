@@ -111,6 +111,11 @@ function [results] = ethologV2(varargin)
     fnNoRespTrials=@(x) sum(x.Started & x.iResp<0);
     fnRemainingTrials=@(x) sum(~x.Started);
 
+    % Create a cleanup object, that will execute whenever this script ends
+    % (even if it crashes). Use it to restore matlab to a usable state -
+    % see cleanup() below.
+    myCleanupObj = onCleanup(@cleanup);
+
 
     %% Initialize PTB and hardware. 
 
@@ -178,18 +183,6 @@ function [results] = ethologV2(varargin)
     % In general, nice to have a background texture laying around
     BkgdTex = images.texture(windowIndex, 'BKGD');
 
-    % For taking breaks. We check regardless of whether its been requested.
-    % Use a text size that makes characters be about 1 degree on screen for
-    % short messages.
-
-    breakTimeMilestones = OneShotMilestone([p.Results.BreakParams{:,1}]);
-    statusMilestones = [];
-    if p.Results.StatusBreaks > 0
-        statusMilestones = OneShotMilestone(p.Results.StatusBreaks:p.Results.StatusBreaks:NumTrials);
-    end
-    textSizeForMilestones = getTextSizePix(converter.deg2pix(1), windowIndex);
-    fprintf('Using text size %d for %f pixels\n', textSizeForMilestones, converter.deg2pix(1));
-
     %% Initialize experimental parameters that apply to all blocks
 
     % background color
@@ -216,28 +209,6 @@ function [results] = ethologV2(varargin)
     stim1XYScr = converter.deg2scr(p.Results.Stim1XY);
     stim2XYScr = converter.deg2scr(p.Results.Stim2XY);
 
-    % AnimMgr for putting goal-directed cues on screen during fixation
-    % period.
-    if usingGoalDirectedCues
-        goalCueStruct.fixLines = fixLines;
-        goalCueStruct.fixColor = fixColor';  % Note this gets transposed in call to DrawLines above.
-
-        % unit vectors in direction from fixpt to each stim. Row 1 for stim
-        % 1, and row 2 for stim2.
-
-        goalCueStruct.fixXYScr = fixXYScr(:);
-        goalCueStruct.dirVecs = ...
-            [ 
-            (stim1XYScr - fixXYScr);
-            (stim2XYScr - fixXYScr);
-            ]';
-        goalCueStruct.ipix=5;
-        goalCueStruct.dpix=fixDiamPix/2;
-        goalCueStruct.lpix=goalCueStruct.dpix/2;
-        goalCueStruct.tpix=goalCueStruct.dpix/2;
-        goalCueStruct.cueDirIndex = 0;   % This is set to 1 or 2 per trial
-        goalCueAnim = AnimMgr(@ethologFixationCueCallback);
-    end
 
     % feedback colors, and feedback animator
     feedbackColorCorrect = [.5,.55,.5];
@@ -250,11 +221,6 @@ function [results] = ethologV2(varargin)
     fixWindowDiamPix = converter.deg2pix(p.Results.FixptWindowDiam);
     fixWindowRect = CenterRectOnPoint([0 0 fixWindowDiamPix fixWindowDiamPix], fixXYScr(1), fixXYScr(2));
     fixFeedbackRect = CenterRectOnPoint(images.UniformOrFirstRect, fixXYScr(1), fixXYScr(2));
-
-    % Create a cleanup object, that will execute whenever this script ends
-    % (even if it crashes). Use it to restore matlab to a usable state -
-    % see cleanup() below.
-    myCleanupObj = onCleanup(@cleanup);
 
     %% per-block initializations
 
@@ -281,6 +247,19 @@ function [results] = ethologV2(varargin)
     results = p.Results.Trials;
     itrial = 1;
 
+
+    % For taking breaks. We check regardless of whether its been requested.
+    % Use a text size that makes characters be about 1 degree on screen for
+    % short messages.
+    breakTimeMilestones = OneShotMilestone([p.Results.BreakParams{:,1}]);
+    statusMilestones = [];
+    if p.Results.StatusBreaks > 0
+        statusMilestones = OneShotMilestone(p.Results.StatusBreaks:p.Results.StatusBreaks:NumTrials);
+    end
+    textSizeForMilestones = getTextSizePix(converter.deg2pix(1), windowIndex);
+    fprintf('Using text size %d for %f pixels\n', textSizeForMilestones, converter.deg2pix(1));
+
+
     % If using goal-directed cues, then we MUST have a column named
     % GoalCues, or else the parameter CueSide must be set, and the column
     % will be created and assigned that value. 
@@ -303,6 +282,28 @@ function [results] = ethologV2(varargin)
             error('Unknown value for GoalDirected parameter');
     end
 
+    % AnimMgr for putting goal-directed cues on screen during fixation
+    % period.
+    if usingGoalDirectedCues
+        goalCueStruct.fixLines = fixLines;
+        goalCueStruct.fixColor = fixColor';  % Note this gets transposed in call to DrawLines above.
+
+        % unit vectors in direction from fixpt to each stim. Row 1 for stim
+        % 1, and row 2 for stim2.
+
+        goalCueStruct.fixXYScr = fixXYScr(:);
+        goalCueStruct.dirVecs = ...
+            [ 
+            (stim1XYScr - fixXYScr);
+            (stim2XYScr - fixXYScr);
+            ]';
+        goalCueStruct.ipix=5;
+        goalCueStruct.dpix=fixDiamPix/2;
+        goalCueStruct.lpix=goalCueStruct.dpix/2;
+        goalCueStruct.tpix=goalCueStruct.dpix/2;
+        goalCueStruct.cueDirIndex = 0;   % This is set to 1 or 2 per trial
+        goalCueAnim = AnimMgr(@ethologFixationCueCallback);
+    end
 
 
     % Use this for managing pauses
