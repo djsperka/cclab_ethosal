@@ -6,10 +6,9 @@ function [tf, sreturned] = ethologFixationCueCallback(ind, t, minmax, w, s)
     sreturned = s;
 
     % Draw fixation cross on screen
-    Screen('DrawLines', w, s.fixLines, 4, s.fixColor);
     if ind
-        % Get chevrons
-        [~,segments] = getChevrons(s.fixXYScr, s.dirVecs(:,s.cueDirIndex), s.dpix, s.ipix, s.lpix, s.tpix, 1);
-        Screen('DrawLines', w, segments, 4, s.fixColor);
+        s.fixpt.draw(w, s.cueDirIndex);
+    else
+        s.fixpt.draw(w);
     end
 end

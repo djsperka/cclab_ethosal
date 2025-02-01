@@ -198,17 +198,21 @@ function [results] = ethologV2(varargin)
     % screen-pixel values (where 0,0 is upper left corner, y positive down.
     fixXYScr = converter.deg2scr(p.Results.FixptXY);
 
-    % Lines for the fixation "+" sign. The array fixLines has x,y values in
-    % rows, one column for each line segment.
-    fixLines = [ ...
-        fixXYScr(1) + fixDiamPix/2, fixXYScr(2); ...
-        fixXYScr(1) - fixDiamPix/2, fixXYScr(2); ...
-        fixXYScr(1), fixXYScr(2) + fixDiamPix/2; ...
-        fixXYScr(1), fixXYScr(2) - fixDiamPix/2
-        ]';
+    % % Lines for the fixation "+" sign. The array fixLines has x,y values in
+    % % rows, one column for each line segment.
+    % fixLines = [ ...
+    %     fixXYScr(1) + fixDiamPix/2, fixXYScr(2); ...
+    %     fixXYScr(1) - fixDiamPix/2, fixXYScr(2); ...
+    %     fixXYScr(1), fixXYScr(2) + fixDiamPix/2; ...
+    %     fixXYScr(1), fixXYScr(2) - fixDiamPix/2
+    %     ]';
     stim1XYScr = converter.deg2scr(p.Results.Stim1XY);
     stim2XYScr = converter.deg2scr(p.Results.Stim2XY);
 
+
+    % Create Fixation point object
+    fixpt = FixationPoint(fixXYScr,fixDiamPix,fixColor,'+',...
+            dirvecs=[stim1XYScr - fixXYScr; stim2XYScr - fixXYScr ]);
 
     % feedback colors, and feedback animator
     feedbackColorCorrect = [.5,.55,.5];
@@ -221,6 +225,8 @@ function [results] = ethologV2(varargin)
     fixWindowDiamPix = converter.deg2pix(p.Results.FixptWindowDiam);
     fixWindowRect = CenterRectOnPoint([0 0 fixWindowDiamPix fixWindowDiamPix], fixXYScr(1), fixXYScr(2));
     fixFeedbackRect = CenterRectOnPoint(images.UniformOrFirstRect, fixXYScr(1), fixXYScr(2));
+
+
 
     %% per-block initializations
 
@@ -285,22 +291,7 @@ function [results] = ethologV2(varargin)
     % AnimMgr for putting goal-directed cues on screen during fixation
     % period.
     if usingGoalDirectedCues
-        goalCueStruct.fixLines = fixLines;
-        goalCueStruct.fixColor = fixColor';  % Note this gets transposed in call to DrawLines above.
-
-        % unit vectors in direction from fixpt to each stim. Row 1 for stim
-        % 1, and row 2 for stim2.
-
-        goalCueStruct.fixXYScr = fixXYScr(:);
-        goalCueStruct.dirVecs = ...
-            [ 
-            (stim1XYScr - fixXYScr);
-            (stim2XYScr - fixXYScr);
-            ]';
-        goalCueStruct.ipix=5;
-        goalCueStruct.dpix=fixDiamPix/2;
-        goalCueStruct.lpix=goalCueStruct.dpix/2;
-        goalCueStruct.tpix=goalCueStruct.dpix/2;
+        goalCueStruct.fixpt = fixpt;
         goalCueStruct.cueDirIndex = 0;   % This is set to 1 or 2 per trial
         goalCueAnim = AnimMgr(@ethologFixationCueCallback);
     end
@@ -350,7 +341,8 @@ function [results] = ethologV2(varargin)
                     if strcmp(stateMgr.Current, 'WAIT_PAUSE')
                         % draw fixpt, kick off drift correction
                         Screen('FillRect', windowIndex, bkgdColor);
-                        Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
+                        %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
+                        fixpt.draw(windowIndex);
                         Screen('Flip', windowIndex);
                         tracker.drift_correct(fixXYScr(1), fixXYScr(2));
                         
@@ -545,7 +537,8 @@ function [results] = ethologV2(varargin)
             case 'DRAW_FIXPT'
                 % Draw fixation cross on screen
                 Screen('FillRect', windowIndex, bkgdColor);
-                Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
+                fixpt.draw(windowIndex);
+                %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
                 Screen('Flip', windowIndex);
 
                 % Draw cross and box on tracker screen
@@ -603,7 +596,8 @@ function [results] = ethologV2(varargin)
                 if p.Results.UseCues
                     Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
                 end
-                Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
+                fixpt.draw(windowIndex);
+                %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
 
                 % draw boxes for images on tracker
                 tracker.draw_box(stim1Rect(1), stim1Rect(2), stim1Rect(3), stim1Rect(4), 15);
@@ -634,7 +628,8 @@ function [results] = ethologV2(varargin)
                 end                
             case 'DRAW_AB'
                 Screen('FillRect', windowIndex, bkgdColor);
-                Screen('DrawLines', windowIndex, fixLines, 4,fixColor');
+                fixpt.draw(windowIndex);
+                %Screen('DrawLines', windowIndex, fixLines, 4,fixColor');
                 [ results.tAoff(itrial) ] = Screen('Flip', windowIndex);
                 stateMgr.transitionTo('WAIT_AB');
             case 'WAIT_AB'
@@ -657,7 +652,8 @@ function [results] = ethologV2(varargin)
                 if p.Results.UseCues
                     Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
                 end
-                Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
+                fixpt.draw(windowIndex);
+                %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
                 [ results.tBon(itrial) ] = Screen('Flip', windowIndex);
 
                 % Moved this from START_RESPONSE, so subject may respond as
