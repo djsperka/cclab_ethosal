@@ -22,32 +22,11 @@ classdef ethodlg_exported < matlab.apps.AppBase
         Stim2XEditField          matlab.ui.control.NumericEditField
         Stim2XYEditFieldLabel    matlab.ui.control.Label
         Stim2XYOverride          matlab.ui.control.CheckBox
-        SelectImagesButton       matlab.ui.control.Button
-        ScrDistmmEditFieldLabel  matlab.ui.control.Label
-        LocationLabel            matlab.ui.control.Label
-        ExitButton               matlab.ui.control.Button
-        TesttypeDropDownLabel    matlab.ui.control.Label
-        GoalDirectedDropDown     matlab.ui.control.DropDown
-        GoalDirectedCheck        matlab.ui.control.CheckBox
-        SelectBlockButton        matlab.ui.control.Button
-        RunButton                matlab.ui.control.Button
-        SelectTrialsButton       matlab.ui.control.Button
-        OptionsPanel             matlab.ui.container.Panel
-        GridLayout2              matlab.ui.container.GridLayout
-        AudFeedbackCheckBox      matlab.ui.control.CheckBox
-        UseboothkbdCheckBox      matlab.ui.control.CheckBox
-        ShowImageNamesCheckBox   matlab.ui.control.CheckBox
-        ThresholdCheckBox        matlab.ui.control.CheckBox
-        ScrWHmmEditField         matlab.ui.control.EditField
-        ScrDistmmEditField       matlab.ui.control.EditField
-        LocationDropDown         matlab.ui.control.DropDown
-        TesttypeDropDown         matlab.ui.control.DropDown
-        SubjectIDEditField       matlab.ui.control.EditField
-        SubjectIDEditFieldLabel  matlab.ui.control.Label
         Stim1YEditField          matlab.ui.control.NumericEditField
         Stim1XEditField          matlab.ui.control.NumericEditField
         Stim1XYEditFieldLabel    matlab.ui.control.Label
         Stim1XYOverride          matlab.ui.control.CheckBox
+        SelectImagesButton       matlab.ui.control.Button
         ImagesetNameLabel        matlab.ui.control.Label
         ImagesetLabel            matlab.ui.control.Label
         BlockSelectedLabel       matlab.ui.control.Label
@@ -55,6 +34,27 @@ classdef ethodlg_exported < matlab.apps.AppBase
         TrialsFileLabel          matlab.ui.control.Label
         TrialsLabel              matlab.ui.control.Label
         ScrWHmmEditFieldLabel    matlab.ui.control.Label
+        ScrDistmmEditFieldLabel  matlab.ui.control.Label
+        LocationLabel            matlab.ui.control.Label
+        ExitButton               matlab.ui.control.Button
+        TesttypeDropDownLabel    matlab.ui.control.Label
+        OptionsPanel             matlab.ui.container.Panel
+        GridLayout2              matlab.ui.container.GridLayout
+        AudFeedbackCheckBox      matlab.ui.control.CheckBox
+        UseboothkbdCheckBox      matlab.ui.control.CheckBox
+        ShowImageNamesCheckBox   matlab.ui.control.CheckBox
+        ThresholdCheckBox        matlab.ui.control.CheckBox
+        RunButton                matlab.ui.control.Button
+        GoalDirectedDropDown     matlab.ui.control.DropDown
+        GoalDirectedCheck        matlab.ui.control.CheckBox
+        SelectBlockButton        matlab.ui.control.Button
+        SelectTrialsButton       matlab.ui.control.Button
+        ScrWHmmEditField         matlab.ui.control.EditField
+        ScrDistmmEditField       matlab.ui.control.EditField
+        LocationDropDown         matlab.ui.control.DropDown
+        TesttypeDropDown         matlab.ui.control.DropDown
+        SubjectIDEditField       matlab.ui.control.EditField
+        SubjectIDEditFieldLabel  matlab.ui.control.Label
     end
 
     
