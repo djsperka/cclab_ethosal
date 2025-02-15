@@ -22,7 +22,7 @@ function [results] = ethologV2(varargin)
     defaultBreakParams = {
         .25, 'You''re done 1/4 of the trials in this block.';
         .5, 'You''re halfway through this block!';
-        .75, 'That''s 3/4 the trials in this block. Almost done!'
+        .75, 'That''s 3/4 of the trials in this block. Almost done!'
         };
 
     p.addParameter('Breaks', true, @(x) islogical(x));
@@ -401,27 +401,27 @@ function [results] = ethologV2(varargin)
                 % get a struct with just trial params.  
                 trial = table2struct(results(itrial, :));
 
-                % screen output update
-                if (ourVerbosity > -1)
-                    switch trial.StimTestType
-                        case 1
-                            side = 'left';
-                        case 2
-                            side = 'right';
-                        case 0
-                            side = 'none';
-                    end
-                    if any(strcmp(bStimType, {'Image','RotatedImage','Flip'}))
-                        fprintf('etholog: trial: %3d %s change? %d\n', itrial, side, trial.StimChangeType);
-                    elseif strcmp(bStimType, 'Gabor')
-                        if trial.StimTestType == trial.StimChangeType
-                            sChange = 'YES';
-                        else
-                            sChange = 'NO';
-                        end
-                        fprintf('etholog: trial: %3d\t%s\tchange? %s\tdelta %3.0f\n', itrial, side, sChange, trial.Delta);
-                    end
-                end
+                % % screen output update
+                % if (ourVerbosity > -1)
+                %     switch trial.StimTestType
+                %         case 1
+                %             side = 'left';
+                %         case 2
+                %             side = 'right';
+                %         case 0
+                %             side = 'none';
+                %     end
+                %     if any(strcmp(bStimType, {'Image','RotatedImage','Flip'}))
+                %         fprintf('etholog: trial: %3d %s change? %d\n', itrial, side, trial.StimChangeType);
+                %     elseif strcmp(bStimType, 'Gabor')
+                %         if trial.StimTestType == trial.StimChangeType
+                %             sChange = 'YES';
+                %         else
+                %             sChange = 'NO';
+                %         end
+                %         fprintf('etholog: trial: %3d\t%s\tchange? %s\tdelta %3.0f\n', itrial, side, sChange, trial.Delta);
+                %     end
+                % end
 
 
                 % rects for the textures in trial
@@ -750,12 +750,15 @@ function [results] = ethologV2(varargin)
                 save(outputFilename, 'results');
 
                 % screen output update, AND update struct for feedback
-                if results.iResp(itrial)==1
-                    sresp = 'CHANGE';
-                elseif results.iResp(itrial)==0
-                    sresp = 'NO CHANGE';
+                if results.iResp(itrial) < 0
+                    scc = 'o';
+                    feedbackStruct.color = feedbackColorIncorrect;
+                elseif results.iResp(itrial) == results.StimChangeTF(itrial)
+                    scc = '+';
+                    feedbackStruct.color = feedbackColorCorrect;
                 else
-                    sresp = 'NO RESPONSE';
+                    scc = '-';
+                    feedbackStruct.color = feedbackColorIncorrect;
                 end
                 switch results.StimChangeType(itrial)
                     case 0
@@ -765,29 +768,38 @@ function [results] = ethologV2(varargin)
                     case 2
                         feedbackStruct.rect = stim2Rect;
                 end
-                if results.iResp(itrial) == results.StimChangeTF(itrial)
-                    scorr = 'CORRECT';
-                    feedbackStruct.color = feedbackColorCorrect;
-                else
-                    scorr = 'INCORRECT';
-                    feedbackStruct.color = feedbackColorIncorrect;
-                end
 
-                nCompleted = fnCompleteTrials(results);
-                nCorrect = fnCorrectTrials(results);
-                nNoResp = fnNoRespTrials(results);
-                nRemain = fnRemainingTrials(results);
-                if any(strcmp(bStimType, {'Image','RotatedImage','Flip'}))
-                    fprintf('etholog: trial: %3d %s change? %dresponse: %s\tcorrect? %s\tN: %d\tcomplete: %d\tno resp: %d\tremaining: %d\n', itrial, side, trial.StimChangeType, sresp, scorr, NumTrials, nCompleted, nNoResp, nRemain);
-                elseif strcmp(bStimType, 'Gabor')
-                    if trial.StimTestType == trial.StimChangeType
-                        sChange = 'YES';
-                    else
-                        sChange = 'NO';
-                    end
-                    fprintf('etholog: trial: %3d\t%s\tchange? %s\tdelta %3.0f\tresponse: %s\tcorrect? %s\n', itrial, side, sChange, trial.Delta, sresp, scorr);
+                % Screen output for experimenter. 
+                % nnnn TT CH RR CC AA II OO TA.00 TI.00 TO.00
+                % nnnn = trial number 
+                % TT = StimTestType [1,2]
+                % CH = StimChangeTF [0,1]
+                % RR = Response [0,1,-1]
+                % CC = correct/incorrect/incomplete [+,-,0)
+                % AA = % correct, all types
+                % II = % correct, attend-in
+                % OO = % correct, attend-out
+                % TA = treact, correct trials, all types
+                % TI = treact, correct trials, attend-in
+                % TO = treact, correct trials, attend-out
+                rates = ethRates(results);
+                % pctAll(itrial) = rates.correctPct;
+                % pctIn(itrial)  = rates.correctInPct;
+                % pctOut(itrial)  = rates.correctOutPct;
+                % treactAll(itrial) = rates.treact;
+                % treactIn(itrial) = rates.treactIn;
+                % treactOut(itrial) = rates.treactOut;
+                if rem(itrial, 10)==0
+                    fprintf('\n');
+                    fprintf('---Trial Info--|---Accuracy----|---Reaction---\n');
+                    fprintf('Trl# TT CH RR C All%%  In%%  Ou%%  tRAl tRIn tROu\n');
                 end
+                fprintf('%4d %2d %2d %2d %c %4.1f %4.1f %4.1f %4.2f %4.2f %4.2f\n', itrial, results.StimTestType(itrial), results.StimChangeTF(itrial), results.iResp(itrial), scc, rates.correctPct, rates.correctInPct, rates.correctOutPct, rates.treact, rates.treactIn, rates.treactOut);
 
+                % nCompleted = fnCompleteTrials(results);
+                % nCorrect = fnCorrectTrials(results);
+                % nNoResp = fnNoRespTrials(results);
+                % nRemain = fnRemainingTrials(results);
 
 
                 % If the trial was NOT completed, append it to the end of
