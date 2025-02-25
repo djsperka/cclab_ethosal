@@ -789,8 +789,9 @@ function [results] = ethologV2(varargin)
                 % treactAll(itrial) = rates.treact;
                 % treactIn(itrial) = rates.treactIn;
                 % treactOut(itrial) = rates.treactOut;
-                if rem(itrial, 10)==0
+                if itrial==1 || rem(itrial, 10)==0
                     fprintf('\n');
+                    fprintf('Key: TT:TestType 1=L/2=R  CH:Change? 0/1  RR: Response 0/1  C: Correct +/-\n\n')
                     fprintf('---Trial Info--|---Accuracy----|---Reaction---\n');
                     fprintf('Trl# TT CH RR C All%%  In%%  Ou%%  tRAl tRIn tROu\n');
                 end
