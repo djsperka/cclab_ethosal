@@ -795,7 +795,7 @@ function [results] = ethologV2(varargin)
                     fprintf('---Trial Info--|---Accuracy----|---Reaction---\n');
                     fprintf('Trl# TT CH RR C All%%  In%%  Ou%%  tRAl tRIn tROu\n');
                 end
-                fprintf('%4d %2d %2d %2d %c %4.1f %4.1f %4.1f %4.2f %4.2f %4.2f\n', itrial, results.StimTestType(itrial), results.StimChangeTF(itrial), results.iResp(itrial), scc, rates.correctPct, rates.correctInPct, rates.correctOutPct, rates.treact, rates.treactIn, rates.treactOut);
+                fprintf('%4d %2d %2d %2d %c %4.1f %4.1f %4.1f %4.2f %4.2f %4.2f\n', itrial, results.StimTestType(itrial), results.StimChangeTF(itrial), results.iResp(itrial), scc, 100*rates.correctPct, 100*rates.correctInPct, 100*rates.correctOutPct, rates.treact, rates.treactIn, rates.treactOut);
 
                 % nCompleted = fnCompleteTrials(results);
                 % nCorrect = fnCorrectTrials(results);
