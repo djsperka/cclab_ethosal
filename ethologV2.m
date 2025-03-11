@@ -8,12 +8,21 @@ function [results] = ethologV2(varargin)
 %% Create a parser and parse input arguments
     p = inputParser;
     
-    p.addRequired('Trials', @(x) istable(x));
+    p.addRequired('Trials', @(x) istableOrStruct(x));
     p.addRequired('Images', @(x) isa(x, 'imageset'));
-
     p.addRequired('ScreenWH', @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
     p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
 
+
+    % These two parameters, GoalDirected and OutputFile, are ignored if the
+    % Trials arg is a struct of blocks (which includes output filename and
+    % goal directed arg). If the Trials arg is a table, however, then these
+    % are used. 
+    goalDirectedTypes = {'none', 'existing', 'stim1', 'stim2'};
+    p.addParameter('GoalDirected', 'none', @(x) ismember(x, goalDirectedTypes));
+    p.addParameter('OutputFile', 'etholog_output.mat', @(x) ischar(x));
+
+    % These will be applied to all blocks
     p.addParameter('ITI', 0.5, @(x) isscalar(x));   % inter-trial interval.
     p.addParameter('Screen', 0, @(x) isscalar(x));
     p.addParameter('Rect', [], @(x) isempty(x) || (isvector(x) && length(x) == 4));
@@ -36,9 +45,6 @@ function [results] = ethologV2(varargin)
     p.addParameter('CueWidth', 2, @(x) isscalar(x));
     p.addParameter('UseCues', false, @(x) islogical(x));
 
-    % cues for goal-directed trials. 
-    goalDirectedTypes = {'none', 'existing', 'stim1', 'stim2'};
-    p.addParameter('GoalDirected', 'none', @(x) ismember(x, goalDirectedTypes));
 
     % Overrides for trial parameters
     p.addParameter('FixptDiam', 1, @(x) isscalar(x) && isnumeric(x));
@@ -65,7 +71,6 @@ function [results] = ethologV2(varargin)
     p.addParameter('GaborSC', 100, @(x) x>0);
 
     p.addParameter('SkipSyncTests', 0, @(x) isscalar(x) && (x==0 || x==1));
-    p.addParameter('OutputFile', 'etholog_output.mat', @(x) ischar(x));
     p.addParameter('EyelinkDummyMode', 1,  @(x) isscalar(x) && (x == 0 || x == 1));
     p.addParameter('Verbose', 0, @(x) isscalar(x) && isnumeric(x) && x>=0);
     p.addParameter('Fovx', 30, @(x) isscalar(x));
@@ -99,6 +104,21 @@ function [results] = ethologV2(varargin)
 
     subjectResponseType = validatestring(p.Results.Response, responseTypes);
 
+    %% Initialize blockStruct
+    %
+    % Warning: After this point in the code DO NOT USE OR REFER TO these
+    % values: p.Results.Trials, p.Results.OutputFile,
+    % p.Results.GoalDirected, and use the values in blockStruct(iblock)
+
+    iblock = 1;
+    if istable(p.Results.Trials)
+        blockStruct.trials = p.Results.Trials;
+        blockStruct.outputfile = p.Results.OutputFile;
+        blockStruct.goaldirected = p.Results.GoalDirected;
+        blockStruct.intermission = '';
+    else
+        blockStruct = p.Results.Trials;
+    end
 
     % issue WARNING and EXIT if test type is anything other than 'Image'
     if ~any(strcmp(bStimType, {'Image','RotatedImage','Flip'}))
@@ -232,25 +252,27 @@ function [results] = ethologV2(varargin)
 
     % Prepare output file name. Make sure an existing file does not get
     % clobbered.
-    if isfile(p.Results.OutputFile)
-        warning('OutputFile %s already exists. Finding a suitable name...', p.Results.OutputFile);
-        [path, base, ext] = fileparts(p.Results.OutputFile);
+    if isfile(blockStruct(iblock).outputfile)
+        warning('OutputFile %s already exists. Finding a suitable name...', blockStruct(iblock).outputfile);
+        [path, base, ext] = fileparts(blockStruct(iblock).outputfile);
         [ok, outputFilename] = makeNNNFilename(fullfile(path, [base, '_NNN', ext]));
         if ~ok
             error('Cannot form usable filename using folder %s and basename %s', path, base);
         end
     else
-        outputFilename = p.Results.OutputFile;
+        outputFilename = blockStruct(iblock).outputfile;
     end
     fprintf('\n*** Using output filename %s\n', outputFilename);
 
-    % The number of trials. This number WILL NOT CHANGE, though more trials
-    % may be appended to the array (when a trial is incomplete, e.g.)
-    NumTrials = height(p.Results.Trials);
 
-    % All trial parameters are contained in results. Also put
-    % results/timestamps/responses/etc in same table.
-    results = p.Results.Trials;
+    % The table 'results' will be used to hold all parameters and results
+    % for this block. 
+    % 'itrial' is the row of the current trial
+    % 'NumTrials' is the height of the original results table. This number 
+    % WILL NOT CHANGE, though more trials may be appended to the array 
+    % (when a trial is incomplete, e.g.)
+    results = blockStruct(iblock).trials;
+    NumTrials = height(results);
     itrial = 1;
 
 
@@ -270,7 +292,7 @@ function [results] = ethologV2(varargin)
     % GoalCues, or else the parameter CueSide must be set, and the column
     % will be created and assigned that value. 
     usingGoalDirectedCues = false;
-    switch p.Results.GoalDirected
+    switch blockStruct(iblock).goaldirected
         case 'none'
             % nothing to do
         case 'existing'
@@ -959,4 +981,16 @@ function cleanup
     Screen('CloseAll');
     ListenChar(1);
     ShowCursor;
+end
+
+function [tf] = istableOrStruct(tors)
+    tf = 0;
+    if istable(tors)
+        tf = 1;
+    elseif isstruct(tors)
+        expectedFieldnames = {'trials', 'outputfile', 'goaldirected', 'intermission'};
+        tf = all(ismember(expectedFieldnames, fieldnames(tors)));
+    end
+end        
+    tf = 0;
 end
