@@ -1,3 +1,4 @@
+
 function results = run_ethologV2(varargin)
 %run_etholog_single Run etholog for a specific block
 %   Detailed explanation goes here
@@ -11,7 +12,7 @@ function results = run_ethologV2(varargin)
     p.addParameter('ScreenWH', [], @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
     p.addParameter('Rect', [], @(x) isvector(x) && length(x) == 4);
     p.addParameter('Inside', false, @(x) islogical(x));
-    p.addParameter('Trials', [], @(x) istable(x));
+    p.addParameter('Trials', [], @(x) isValidEthologTrialsInput(x));
     p.addParameter('GoalDirected', 'none', @(x) ismember(x, goalDirectedTypes));
     p.addParameter('Threshold', false, @(x) islogical(x));
     p.addParameter('ExperimentTestType', 'Image', @(x) ischar(x));
@@ -85,18 +86,6 @@ function results = run_ethologV2(varargin)
       
 
 
-    outputFilename = fullfile(output_folder, [p.Results.ID, '.mat']);
-    if isfile(outputFilename)
-        warning('OutputFile %s already exists. Finding a suitable name...', outputFilename);
-        [path, base, ext] = fileparts(outputFilename);
-        [ok, outputFilename] = makeNNNFilename(path, [base, '_NNN', ext]);
-        if ~ok
-            error('Cannot form usable filename using folder %s and basename %s', p.Results.Folder, [base, '_NNN', ext]);
-        end
-    end
-    fprintf('\n*** Using output filename %s\n', outputFilename);
-
-
     % load imageset
     % old default img=imageset(image_folder, 'Subfolders', {'H', 'bw'; 'L', 'bw-texture'}, 'OnLoad', @deal);
     if isempty(p.Results.Images)
@@ -104,9 +93,6 @@ function results = run_ethologV2(varargin)
     else
         img = p.Results.Images;
     end
-    
-    t=p.Results.Trials;
-
 
     % Millikey index (todo - test!)
     mkind = cclabGetMilliKeyIndices();
@@ -134,10 +120,13 @@ function results = run_ethologV2(varargin)
 % run_etholog_single('test','thr','Test','desk','Trials',trials,'Threshold',true,'ImageTest',true,'ImageFolder','/home/dan/work/cclab/images/eth/babies_match_V2')
 
 
+
+
+
+
     args = {
         'Screen', screenNumber, ...
         'Rect', screenRect, ...
-        'OutputFile', outputFilename, ...
         'Response', 'MilliKey', ...
         'MilliKeyIndex', mkind, ...
         'KeyboardIndex', kbind, ...
@@ -145,7 +134,6 @@ function results = run_ethologV2(varargin)
         'EyelinkDummyMode', eyelinkDummyMode, ...
         'SkipSyncTests', 1, ...
         'Threshold', p.Results.Threshold, ...
-        'GoalDirected', p.Results.GoalDirected, ...
         'Beep', p.Results.Beep, ...
         'ExperimentTestType', p.Results.ExperimentTestType
         };
@@ -159,6 +147,47 @@ function results = run_ethologV2(varargin)
         args{end+1} = 'Stim2XY';
         args{end+1} = p.Results.Stim2XY;
     end
+
+
+
+
+    % If a blockset is being passed, then outputFilename should be the
+    % output folder. The 'tag' will be used to form a filename for each
+    % block.
+
+    if istable(p.Results.Trials)
+        outputFilename = fullfile(output_folder, [p.Results.ID, '.mat']);
+        if isfile(outputFilename)
+            warning('OutputFile %s already exists. Finding a suitable name...', outputFilename);
+            [path, base, ext] = fileparts(outputFilename);
+            [ok, outputFilename] = makeNNNFilename(path, [base, '_NNN', ext]);
+            if ~ok
+                error('Cannot form usable filename using folder %s and basename %s', p.Results.Folder, [base, '_NNN', ext]);
+            end
+        end
+        fprintf('\n*** Using output filename %s\n', outputFilename);
+
+        args{end+1} = 'OutputFile';
+        args{end+1} = outputFilename;
+        args{end+1} = 'GoalDirected';
+        args{end+1} = p.Results.GoalDirected;
+
+    else
+        args{end+1} = 'OutputFolder';
+        args{end+1} = output_folder;
+        args{end+1} = 'SID';
+        args{end+1} = 
+        fprintf('\n*** Using output folder %s\n', outputFilename);
+    end
+
+
+
+
+
+
+
+
+
 
     results=ethologV2(t, img, screenDimensions, screenDistance, args{:});
 

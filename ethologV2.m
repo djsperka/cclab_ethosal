@@ -8,7 +8,7 @@ function [results] = ethologV2(varargin)
 %% Create a parser and parse input arguments
     p = inputParser;
     
-    p.addRequired('Trials', @(x) istableOrStruct(x));
+    p.addRequired('Trials', @(x) isValidEthologTrialsInput(x));
     p.addRequired('Images', @(x) isa(x, 'imageset'));
     p.addRequired('ScreenWH', @(x) isempty(x) || (isnumeric(x) && isvector(x) && length(x)==2));
     p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
@@ -115,7 +115,7 @@ function [results] = ethologV2(varargin)
         blockStruct.trials = p.Results.Trials;
         blockStruct.outputfile = p.Results.OutputFile;
         blockStruct.goaldirected = p.Results.GoalDirected;
-        blockStruct.intermission = '';
+        blockStruct.text = '';
     else
         blockStruct = p.Results.Trials;
     end
@@ -250,689 +250,692 @@ function [results] = ethologV2(varargin)
 
     %% per-block initializations
 
-    % Prepare output file name. Make sure an existing file does not get
-    % clobbered.
-    if isfile(blockStruct(iblock).outputfile)
-        warning('OutputFile %s already exists. Finding a suitable name...', blockStruct(iblock).outputfile);
-        [path, base, ext] = fileparts(blockStruct(iblock).outputfile);
-        [ok, outputFilename] = makeNNNFilename(fullfile(path, [base, '_NNN', ext]));
-        if ~ok
-            error('Cannot form usable filename using folder %s and basename %s', path, base);
-        end
-    else
-        outputFilename = blockStruct(iblock).outputfile;
-    end
-    fprintf('\n*** Using output filename %s\n', outputFilename);
+    for iblock = 1:length(blockStruct)
 
-
-    % The table 'results' will be used to hold all parameters and results
-    % for this block. 
-    % 'itrial' is the row of the current trial
-    % 'NumTrials' is the height of the original results table. This number 
-    % WILL NOT CHANGE, though more trials may be appended to the array 
-    % (when a trial is incomplete, e.g.)
-    results = blockStruct(iblock).trials;
-    NumTrials = height(results);
-    itrial = 1;
-
-
-    % For taking breaks. We check regardless of whether its been requested.
-    % Use a text size that makes characters be about 1 degree on screen for
-    % short messages.
-    breakTimeMilestones = OneShotMilestone([p.Results.BreakParams{:,1}]);
-    statusMilestones = [];
-    if p.Results.StatusBreaks > 0
-        statusMilestones = OneShotMilestone(p.Results.StatusBreaks:p.Results.StatusBreaks:NumTrials);
-    end
-    textSizeForMilestones = getTextSizePix(converter.deg2pix(1), windowIndex);
-    fprintf('Using text size %d for %f pixels\n', textSizeForMilestones, converter.deg2pix(1));
-
-
-    % If using goal-directed cues, then we MUST have a column named
-    % GoalCues, or else the parameter CueSide must be set, and the column
-    % will be created and assigned that value. 
-    usingGoalDirectedCues = false;
-    switch blockStruct(iblock).goaldirected
-        case 'none'
-            % nothing to do
-        case 'existing'
-            % trials must have 'CueSide' column
-            assert(ismember('CueSide', fieldnames(results)) && all(ismember(results.CueSide,[1,2])),...
-                'Input trial table must have column CueSide populated with 1s and 2s');
-            usingGoalDirectedCues = true;
-        case 'stim1'
-            usingGoalDirectedCues = true;
-            results.CueSide = ones(height(results), 1);
-        case 'stim2'
-            usingGoalDirectedCues = true;
-            results.CueSide = 2*ones(height(results), 1);
-        otherwise
-            error('Unknown value for GoalDirected parameter');
-    end
-
-    % AnimMgr for putting goal-directed cues on screen during fixation
-    % period.
-    if usingGoalDirectedCues
-        goalCueStruct.fixpt = fixpt;
-        goalCueStruct.cueDirIndex = 0;   % This is set to 1 or 2 per trial
-        goalCueAnim = AnimMgr(@ethologFixationCueCallback);
-    end
-
-
-    % Use this for managing pauses
-    bPausePending = false;
-
-    % state manager and flag for quitting
-    stateMgr = statemgr('START', ourVerbosity>0);
-    bQuit = false;
-
-
-    %% Start trial loop
-    % while ~bQuit && ~strcmp(stateMgr.Current, 'DONE')
-    while ~bQuit
+        fprintf('Starting block %d/%d: %d trials.\n', iblock, length(blockStruct), height(blockStruct(iblock).trials));
         
-        % any keys pressed? 
-        [keyPressed, keyCode,  ~, ~] = checkKbdQueue(p.Results.KeyboardIndex);
-        if keyPressed
-            switch keyCode
-                case KbName('space')
+        % Prepare output file name. Make sure an existing file does not get
+        % clobbered.
 
-                    % un-do a pending pause?
-                    if bPausePending
-                        bPausePending = false;
-                        fprintf(1, 'Pending pause cancelled.\n');
-                    elseif strcmp(stateMgr.Current, 'WAIT_PAUSE')
-                        % Resume from pause by transitioning
-                        % to the START state. The current trial, with index
-                        % 'itrial', is started.
-                        stateMgr.transitionTo('START');
-                        if (ourVerbosity > -1); fprintf('Resume after pause.\n'); end
-                    else
-                        bPausePending = true;
-                        fprintf('Pause pending...\n');
-                    end
-                case KbName('q')
-                        % trial will have to be flushed. TODO. 
-                        Screen('FillRect', windowIndex, bkgdColor);
-                        Screen('Flip', windowIndex);
-                        stateMgr.transitionTo('DONE');
-                        if (ourVerbosity > -1); fprintf('Quit from kbd.\n'); end
-                case KbName('d')
-                    % this is for doing drift correct, but only if we are
-                    % paused.
-                    if strcmp(stateMgr.Current, 'WAIT_PAUSE')
-                        % draw fixpt, kick off drift correction
-                        Screen('FillRect', windowIndex, bkgdColor);
-                        %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
-                        fixpt.draw(windowIndex);
-                        Screen('Flip', windowIndex);
-                        tracker.drift_correct(fixXYScr(1), fixXYScr(2));
-                        
-                        % Re-generate textures that might have been cleared
-                        % by the tracker. It seems that the tracker might
-                        % clear textures during the drift correction (maybe
-                        % because they use textures for the calibration
-                        % dots?)
-                        if GaborTex > 0
-                            GaborTex = CreateProceduralGabor(windowIndex, RectWidth(rectTemp), RectHeight(rectTemp), 0, [0.5 0.5 0.5 0.0]);
-                            fprintf('Regenerated gabor texture id %d\n', GaborTex);
-                        end
-                        BkgdTex = images.texture(windowIndex, 'BKGD');
-                        fprintf('Regenerated background texture id %d\n', BkgdTex);
-
-                        % djs 2024-09-04. 
-                        % This used to transition to TRIAL_COMPLETE. 
-                        stateMgr.transitionTo('START');
-                    end
-                case KbName('s')
-                    % this is for getting into camera setup. Should be able
-                    % to re-calibrate from here. Not sure about drift
-                    % correction.
-                    if strcmp(stateMgr.Current, 'WAIT_PAUSE')
-                        fprintf('Entering camera setup. Hit ExitSetup to return to trials.\n');
-                        tracker.do_tracker_setup();
-
-                        % Re-generate textures that might have been cleared
-                        % by the tracker. It seems that the tracker might
-                        % clear textures during the drift correction (maybe
-                        % because they use textures for the calibration
-                        % dots?)
-                        if GaborTex > 0
-                            GaborTex = CreateProceduralGabor(windowIndex, RectWidth(rectTemp), RectHeight(rectTemp), 0, [0.5 0.5 0.5 0.0]);
-                            fprintf('Regenerated gabor texture id %d\n', GaborTex);
-                        end
-                        BkgdTex = images.texture(windowIndex, 'BKGD');
-                        fprintf('Regenerated background texture id %d\n', BkgdTex);
-
-                        % djs 2024-09-04. 
-                        % This used to transition to TRIAL_COMPLETE. 
-                        stateMgr.transitionTo('START');
-                    end
-                otherwise
-                    if (ourVerbosity > -1); fprintf('Keys:\n<space> - toggle pause\n\n');end
+        % blockStruct might have a field named 'outputfile' - when the
+        % input is a single block, and a full output filename is provided.
+        % when the input was a blockset, then each block has a
+        % corresponding 'tag', which is used to construct the filename.
+        if ismember('outputfile', fieldnames(blockStruct(iblock))
+            if isfile(blockStruct(iblock).outputfile)
+                warning('OutputFile %s already exists. Finding a suitable name...', blockStruct(iblock).outputfile);
+                [path, base, ext] = fileparts(blockStruct(iblock).outputfile);
+                [ok, outputFilename] = makeNNNFilename(fullfile(path, [base, '_NNN', ext]));
+                if ~ok
+                    error('Cannot form usable filename using folder %s and basename %s', path, base);
+                end
+            else
+                outputFilename = blockStruct(iblock).outputfile;
+            end
+        else
+            base = [char(datetime('now','Format','yyyy-MM-dd-HHmm')), '_', blockStruct(iblock).tag];
+            [ok, outputFilename] = makeNNNFilename(fullfile(p.Results.OutputFile, [base, '_NNN', ext]));
+            if ~ok
+                error('Cannot form usable filename using folder %s and basename %s', path, base);
             end
         end
+        fprintf('\n*** Using output filename %s\n', outputFilename);    
+    
+        % The table 'results' will be used to hold all parameters and results
+        % for this block. 
+        % 'itrial' is the row of the current trial
+        % 'NumTrials' is the height of the original results table. This number 
+        % WILL NOT CHANGE, though more trials may be appended to the array 
+        % (when a trial is incomplete, e.g.)
+        results = blockStruct(iblock).trials;
+        NumTrials = height(results);
+        itrial = 1;
+    
+    
+        % For taking breaks. We check regardless of whether its been requested.
+        % Use a text size that makes characters be about 1 degree on screen for
+        % short messages.
+        breakTimeMilestones = OneShotMilestone([p.Results.BreakParams{:,1}]);
+        statusMilestones = [];
+        if p.Results.StatusBreaks > 0
+            statusMilestones = OneShotMilestone(p.Results.StatusBreaks:p.Results.StatusBreaks:NumTrials);
+        end
+        textSizeForMilestones = getTextSizePix(converter.deg2pix(1), windowIndex);
+        fprintf('Using text size %d for %f pixels\n', textSizeForMilestones, converter.deg2pix(1));
+    
+    
+        % If using goal-directed cues, then we MUST have a column named
+        % GoalCues, or else the parameter CueSide must be set, and the column
+        % will be created and assigned that value. 
+        usingGoalDirectedCues = false;
+        switch blockStruct(iblock).goaldirected
+            case 'none'
+                % nothing to do
+            case 'existing'
+                % trials must have 'CueSide' column
+                assert(ismember('CueSide', fieldnames(results)) && all(ismember(results.CueSide,[1,2])),...
+                    'Input trial table must have column CueSide populated with 1s and 2s');
+                usingGoalDirectedCues = true;
+            case 'stim1'
+                usingGoalDirectedCues = true;
+                results.CueSide = ones(height(results), 1);
+            case 'stim2'
+                usingGoalDirectedCues = true;
+                results.CueSide = 2*ones(height(results), 1);
+            otherwise
+                error('Unknown value for GoalDirected parameter');
+        end
+    
+        % AnimMgr for putting goal-directed cues on screen during fixation
+        % period.
+        if usingGoalDirectedCues
+            goalCueStruct.fixpt = fixpt;
+            goalCueStruct.cueDirIndex = 0;   % This is set to 1 or 2 per trial
+            goalCueAnim = AnimMgr(@ethologFixationCueCallback);
+        end
+    
+    
+        % Use this for managing pauses. When a <space> key is hit, this is
+        % set to indicate we should pause ASAP. Not all states allow
+        % pausing, so this is a buffer allowing us to wait until it is OK
+        % to pause. 
+        bPausePending = false;
+    
+        % state manager and flag for quitting
+        stateMgr = statemgr('START', ourVerbosity>0);
+        bQuit = false;
 
-                    
-        switch stateMgr.Current
-            case 'START'
+        %% Intermission
+        [ok, ~] = intermission(windowIndex, resp, blockStruct(iblock).text, 18);
+        if ~ok
+            fprintf('Intermission timed out. This could mean the millikey responder is not working! Pausing....');
+            stateMgr.transitionTo('WAIT_PAUSE');
+        end
 
-                % In this state, initialize parameters, textures, etc that
-                % are unique to this trial. 
-
-                % get a struct with just trial params.  
-                trial = table2struct(results(itrial, :));
-
-                % % screen output update
-                % if (ourVerbosity > -1)
-                %     switch trial.StimTestType
-                %         case 1
-                %             side = 'left';
-                %         case 2
-                %             side = 'right';
-                %         case 0
-                %             side = 'none';
-                %     end
-                %     if any(strcmp(bStimType, {'Image','RotatedImage','Flip'}))
-                %         fprintf('etholog: trial: %3d %s change? %d\n', itrial, side, trial.StimChangeType);
-                %     elseif strcmp(bStimType, 'Gabor')
-                %         if trial.StimTestType == trial.StimChangeType
-                %             sChange = 'YES';
-                %         else
-                %             sChange = 'NO';
-                %         end
-                %         fprintf('etholog: trial: %3d\t%s\tchange? %s\tdelta %3.0f\n', itrial, side, sChange, trial.Delta);
-                %     end
-                % end
-
-
-                % rects for the textures in trial
-                stim1Rect = CenterRectOnPoint(images.rect(trial.StimA1Key), stim1XYScr(1), stim1XYScr(2));
-                stim2Rect = CenterRectOnPoint(images.rect(trial.StimA2Key), stim2XYScr(1), stim2XYScr(2));
-
-
-                texturesA = [0,0];
-                texturesB = [0,0];
-                
-                switch bStimType
-                    case 'Gabor'
-                        texturesA = [ ...
-                            images.texture(windowIndex, trial.StimA1Key), ...
-                            images.texture(windowIndex, trial.StimA2Key)
-                            ];
-                        % For threshold gabor, place gabor at test site,
-                        % bkgd on other side.
-                        if p.Results.Threshold
-                            texturesB = [BkgdTex, BkgdTex];
-                            texturesB(trial.StimTestType) = GaborTex;
+        %% Start trial loop
+        % while ~bQuit && ~strcmp(stateMgr.Current, 'DONE')
+        while ~bQuit
+            
+            % any keys pressed? 
+            [keyPressed, keyCode,  ~, ~] = checkKbdQueue(p.Results.KeyboardIndex);
+            if keyPressed
+                switch keyCode
+                    case KbName('space')
+    
+                        % un-do a pending pause?
+                        if bPausePending
+                            bPausePending = false;
+                            fprintf(1, 'Pending pause cancelled.\n');
+                        elseif strcmp(stateMgr.Current, 'WAIT_PAUSE')
+                            % Resume from pause by transitioning
+                            % to the START state. The current trial, with index
+                            % 'itrial', is started.
+                            stateMgr.transitionTo('START');
+                            if (ourVerbosity > -1); fprintf('Resume after pause.\n'); end
                         else
-                            texturesB = [GaborTex, GaborTex];
+                            bPausePending = true;
+                            fprintf('Pause pending...\n');
                         end
-
-                        switch trial.StimChangeType
-                            case 0
-                                GaborOri = [90, 90];
-                            case 1
-                                GaborOri = [0, 90];
-                            case 2
-                                GaborOri = [90, 0];
-                            otherwise
-                                error('StimTestType can only be 0, 1, or 2');
+                    case KbName('q')
+                            % trial will have to be flushed. TODO. 
+                            Screen('FillRect', windowIndex, bkgdColor);
+                            Screen('Flip', windowIndex);
+                            stateMgr.transitionTo('DONE');
+                            if (ourVerbosity > -1); fprintf('Quit from kbd.\n'); end
+                    case KbName('d')
+                        % this is for doing drift correct, but only if we are
+                        % paused.
+                        if strcmp(stateMgr.Current, 'WAIT_PAUSE')
+                            % draw fixpt, kick off drift correction
+                            Screen('FillRect', windowIndex, bkgdColor);
+                            %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
+                            fixpt.draw(windowIndex);
+                            Screen('Flip', windowIndex);
+                            tracker.drift_correct(fixXYScr(1), fixXYScr(2));
+                            
+                            % Re-generate textures that might have been cleared
+                            % by the tracker. It seems that the tracker might
+                            % clear textures during the drift correction (maybe
+                            % because they use textures for the calibration
+                            % dots?)
+                            if GaborTex > 0
+                                GaborTex = CreateProceduralGabor(windowIndex, RectWidth(rectTemp), RectHeight(rectTemp), 0, [0.5 0.5 0.5 0.0]);
+                                fprintf('Regenerated gabor texture id %d\n', GaborTex);
+                            end
+                            BkgdTex = images.texture(windowIndex, 'BKGD');
+                            fprintf('Regenerated background texture id %d\n', BkgdTex);
+    
+                            % djs 2024-09-04. 
+                            % This used to transition to TRIAL_COMPLETE. 
+                            stateMgr.transitionTo('START');
                         end
-
+                    case KbName('s')
+                        % this is for getting into camera setup. Should be able
+                        % to re-calibrate from here. Not sure about drift
+                        % correction.
+                        if strcmp(stateMgr.Current, 'WAIT_PAUSE')
+                            fprintf('Entering camera setup. Hit ExitSetup to return to trials.\n');
+                            tracker.do_tracker_setup();
+    
+                            % Re-generate textures that might have been cleared
+                            % by the tracker. It seems that the tracker might
+                            % clear textures during the drift correction (maybe
+                            % because they use textures for the calibration
+                            % dots?)
+                            if GaborTex > 0
+                                GaborTex = CreateProceduralGabor(windowIndex, RectWidth(rectTemp), RectHeight(rectTemp), 0, [0.5 0.5 0.5 0.0]);
+                                fprintf('Regenerated gabor texture id %d\n', GaborTex);
+                            end
+                            BkgdTex = images.texture(windowIndex, 'BKGD');
+                            fprintf('Regenerated background texture id %d\n', BkgdTex);
+    
+                            % djs 2024-09-04. 
+                            % This used to transition to TRIAL_COMPLETE. 
+                            stateMgr.transitionTo('START');
+                        end
+                    otherwise
+                        if (ourVerbosity > -1); fprintf('Keys:\n<space> - toggle pause\n\n');end
+                end
+            end
+    
                         
-                        GaborParams.contrast = trial.Delta;
-
-                    case 'Flip'
-
-                        % A presentation will have images flipped if their
-                        % Ori (Stim1Ori, Stim2Ori) is negative. 
-                        funcPtr = @(x) flip(x,2);
-                        if trial.Stim1Ori < 0
-                            texturesA(1) = images.texture(windowIndex, trial.StimA1Key, funcPtr);
-                        else
-                            texturesA(1) = images.texture(windowIndex, trial.StimA1Key);
-                        end
-                        if trial.Stim2Ori < 0
-                            texturesA(2) = images.texture(windowIndex, trial.StimA2Key, funcPtr);
-                        else
-                            texturesA(2) = images.texture(windowIndex, trial.StimA2Key);
-                        end
-
-                        if trial.StimTestType==1
-                            texturesB(2) = images.texture(windowIndex, trial.StimB2Key);
-                            if trial.StimChangeTF
-                                itmp = -trial.Stim1Ori;
+            switch stateMgr.Current
+                case 'START'
+    
+                    % In this state, initialize parameters, textures, etc that
+                    % are unique to this trial. 
+    
+                    % get a struct with just trial params.  
+                    trial = table2struct(results(itrial, :));
+    
+                    % rects for the textures in trial
+                    stim1Rect = CenterRectOnPoint(images.rect(trial.StimA1Key), stim1XYScr(1), stim1XYScr(2));
+                    stim2Rect = CenterRectOnPoint(images.rect(trial.StimA2Key), stim2XYScr(1), stim2XYScr(2));    
+    
+                    % Somehow, get the textures themselves.
+                    % texturesA/texturesB are 2-element arrays, the
+                    % positions correspond to the stim1 and stim2.
+                    texturesA = [0,0];
+                    texturesB = [0,0];                    
+                    switch bStimType
+                        case 'Gabor'
+                            texturesA = [ ...
+                                images.texture(windowIndex, trial.StimA1Key), ...
+                                images.texture(windowIndex, trial.StimA2Key)
+                                ];
+                            % For threshold gabor, place gabor at test site,
+                            % bkgd on other side.
+                            if p.Results.Threshold
+                                texturesB = [BkgdTex, BkgdTex];
+                                texturesB(trial.StimTestType) = GaborTex;
                             else
-                                itmp = trial.Stim1Ori;
+                                texturesB = [GaborTex, GaborTex];
                             end
-                            if itmp < 0
-                                texturesB(1) = images.texture(windowIndex, trial.StimB1Key, funcPtr);
-                            else
-                                texturesB(1) = images.texture(windowIndex, trial.StimB1Key);
+    
+                            switch trial.StimChangeType
+                                case 0
+                                    GaborOri = [90, 90];
+                                case 1
+                                    GaborOri = [0, 90];
+                                case 2
+                                    GaborOri = [90, 0];
+                                otherwise
+                                    error('StimTestType can only be 0, 1, or 2');
                             end
-                        elseif trial.StimTestType==2
-                            texturesB(1) = images.texture(windowIndex, trial.StimB1Key);
-                            if trial.StimChangeTF
-                                itmp = -trial.Stim2Ori;
+    
+                            
+                            GaborParams.contrast = trial.Delta;
+    
+                        case 'Flip'
+    
+                            % A presentation will have images flipped if their
+                            % Ori (Stim1Ori, Stim2Ori) is negative. 
+                            funcPtr = @(x) flip(x,2);
+                            if trial.Stim1Ori < 0
+                                texturesA(1) = images.texture(windowIndex, trial.StimA1Key, funcPtr);
                             else
-                                itmp = trial.Stim2Ori;
+                                texturesA(1) = images.texture(windowIndex, trial.StimA1Key);
                             end
-                            if itmp < 0
-                                texturesB(2) = images.texture(windowIndex, trial.StimB2Key, funcPtr);
+                            if trial.Stim2Ori < 0
+                                texturesA(2) = images.texture(windowIndex, trial.StimA2Key, funcPtr);
                             else
+                                texturesA(2) = images.texture(windowIndex, trial.StimA2Key);
+                            end
+    
+                            if trial.StimTestType==1
                                 texturesB(2) = images.texture(windowIndex, trial.StimB2Key);
+                                if trial.StimChangeTF
+                                    itmp = -trial.Stim1Ori;
+                                else
+                                    itmp = trial.Stim1Ori;
+                                end
+                                if itmp < 0
+                                    texturesB(1) = images.texture(windowIndex, trial.StimB1Key, funcPtr);
+                                else
+                                    texturesB(1) = images.texture(windowIndex, trial.StimB1Key);
+                                end
+                            elseif trial.StimTestType==2
+                                texturesB(1) = images.texture(windowIndex, trial.StimB1Key);
+                                if trial.StimChangeTF
+                                    itmp = -trial.Stim2Ori;
+                                else
+                                    itmp = trial.Stim2Ori;
+                                end
+                                if itmp < 0
+                                    texturesB(2) = images.texture(windowIndex, trial.StimB2Key, funcPtr);
+                                else
+                                    texturesB(2) = images.texture(windowIndex, trial.StimB2Key);
+                                end
                             end
-                        end
-                    case {'Image','RotatedImage'}
-
-                        texturesA = [images.texture(windowIndex, trial.StimA1Key), images.texture(windowIndex, trial.StimA2Key)];
-                        texturesB = [images.texture(windowIndex, trial.StimB1Key), images.texture(windowIndex, trial.StimB2Key)];
-
-                        % Rotated images must have fields 'Stim1Ori' and
-                        % 'Stim2Ori', which should be +-1. 
-                        % For either 1 or 2 stim, the initial rotation is 
-                        % Stim1Ori * Base
-                        % or 
-                        % Stim2Ori * Base
-                        % The changed stim will have its final rotation
-                        % (initial rotation) * -1
-
-                        rotationAnglesA = [trial.Stim1Ori * trial.Base, trial.Stim2Ori * trial.Base];
-                        rotationAnglesB = rotationAnglesA;
-                        switch trial.StimChangeType
-                            case 1
-                                rotationAnglesB(1)=rotationAnglesA(1) * -1;
-                            case 2
-                                rotationAnglesB(2)=rotationAnglesA(2) * -1;
-                        end
-
-                end
-                stateMgr.transitionTo('DRAW_FIXPT');
-                
-                % results
-                results.Started(itrial) = true;
-
-                % start tracker recording
-                tracker.start_recording();
-
-            case 'DRAW_FIXPT'
-                % Draw fixation cross on screen
-                Screen('FillRect', windowIndex, bkgdColor);
-                fixpt.draw(windowIndex);
-                %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
-                Screen('Flip', windowIndex);
-
-                % Draw cross and box on tracker screen
-                tracker.draw_cross(fixXYScr(1), fixXYScr(2), 15);
-                tracker.draw_box(fixWindowRect(1), fixWindowRect(2), fixWindowRect(3), fixWindowRect(4), 15);
-
-                stateMgr.transitionTo('WAIT_ACQ');
-            case 'WAIT_ACQ'
-                % no maximum here, could go forever
-                % djs - a pending pause is honored here. 
-                if bPausePending
-                    % reset trial to not-Started
-                    results.Started(itrial) = false;
-                    stateMgr.transitionTo('CLEAR_THEN_PAUSE');
-                elseif tracker.is_in_rect(fixWindowRect)
-                    stateMgr.transitionTo('WAIT_FIX');
-                    if usingGoalDirectedCues
-                        goalCueStruct.cueDirIndex = trial.CueSide;
-                        goalCueAnim.start(@ethologFixationCueCallback, [0, trial.FixationTime], goalCueStruct);
+                        case {'Image','RotatedImage'}
+    
+                            texturesA = [images.texture(windowIndex, trial.StimA1Key), images.texture(windowIndex, trial.StimA2Key)];
+                            texturesB = [images.texture(windowIndex, trial.StimB1Key), images.texture(windowIndex, trial.StimB2Key)];
+    
+                            % Rotated images must have fields 'Stim1Ori' and
+                            % 'Stim2Ori', which should be +-1. 
+                            % For either 1 or 2 stim, the initial rotation is 
+                            % Stim1Ori * Base
+                            % or 
+                            % Stim2Ori * Base
+                            % The changed stim will have its final rotation
+                            % (initial rotation) * -1
+    
+                            rotationAnglesA = [trial.Stim1Ori * trial.Base, trial.Stim2Ori * trial.Base];
+                            rotationAnglesB = rotationAnglesA;
+                            switch trial.StimChangeType
+                                case 1
+                                    rotationAnglesB(1)=rotationAnglesA(1) * -1;
+                                case 2
+                                    rotationAnglesB(2)=rotationAnglesA(2) * -1;
+                            end
+    
                     end
-                end
-            case 'WAIT_FIX'
-                if bPausePending
-                    % reset trial to not-Started
-                    results.Started(itrial) = false;
-                    stateMgr.transitionTo('CLEAR_THEN_PAUSE');
-                elseif stateMgr.timeInState() > trial.FixationTime
-                    stateMgr.transitionTo('DRAW_A');
-                elseif ~tracker.is_in_rect(fixWindowRect)
-                    stateMgr.transitionTo('FIXATION_BREAK_EARLY');
-                else
-                    if usingGoalDirectedCues
-                        goalCueAnim.animate(windowIndex) && Screen('Flip', windowIndex);
-                    end
-                end
-            case 'FIXATION_BREAK_EARLY'
-                % clear screen, then wait for a little bit
-                Screen('FillRect', windowIndex, bkgdColor);
-                Screen('Flip', windowIndex);
-                stateMgr.transitionTo('FIXATION_BREAK_EARLY_WAIT');
-            case 'FIXATION_BREAK_EARLY_WAIT'
-                if stateMgr.timeInState() > trial.FixationBreakEarlyTime
                     stateMgr.transitionTo('DRAW_FIXPT');
-                end
-            case 'DRAW_A'
-                % draw textures, cues if used, and fixation cross on
-                % screen.
-                Screen('FillRect', windowIndex, bkgdColor);
-                switch bStimType
-                    case {'Gabor','Images','Flip'}
-                        Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]');
-                    case 'RotatedImage'
-                        Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]', rotationAnglesA);
-                end             
-                if p.Results.UseCues
-                    Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
-                end
-                fixpt.draw(windowIndex);
-                %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
-
-                % draw boxes for images on tracker
-                tracker.draw_box(stim1Rect(1), stim1Rect(2), stim1Rect(3), stim1Rect(4), 15);
-                tracker.draw_box(stim2Rect(1), stim2Rect(2), stim2Rect(3), stim2Rect(4), 15);
-
-                % flip and save the flip time
-                [ results.tAon(itrial) ] = Screen('Flip', windowIndex);
-                stateMgr.transitionTo('WAIT_A');
-            case 'WAIT_A'
-                if stateMgr.timeInState() >= trial.SampTime
-                    % if GapTime is zero, transition directly to DRAW_B
-                    if trial.GapTime > 0
-                        stateMgr.transitionTo('DRAW_AB');
+                    
+                    % results
+                    results.Started(itrial) = true;
+    
+                    % start tracker recording
+                    tracker.start_recording();
+    
+                case 'DRAW_FIXPT'
+                    % Draw fixation cross on screen
+                    Screen('FillRect', windowIndex, bkgdColor);
+                    fixpt.draw(windowIndex);
+                    %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
+                    Screen('Flip', windowIndex);
+    
+                    % Draw cross and box on tracker screen
+                    tracker.draw_cross(fixXYScr(1), fixXYScr(2), 15);
+                    tracker.draw_box(fixWindowRect(1), fixWindowRect(2), fixWindowRect(3), fixWindowRect(4), 15);
+    
+                    stateMgr.transitionTo('WAIT_ACQ');
+                case 'WAIT_ACQ'
+                    % no maximum here, could go forever
+                    % djs - a pending pause is honored here. 
+                    if bPausePending
+                        % reset trial to not-Started
+                        results.Started(itrial) = false;
+                        stateMgr.transitionTo('CLEAR_THEN_PAUSE');
+                    elseif tracker.is_in_rect(fixWindowRect)
+                        stateMgr.transitionTo('WAIT_FIX');
+                        if usingGoalDirectedCues
+                            goalCueStruct.cueDirIndex = trial.CueSide;
+                            goalCueAnim.start(@ethologFixationCueCallback, [0, trial.FixationTime], goalCueStruct);
+                        end
+                    end
+                case 'WAIT_FIX'
+                    if bPausePending
+                        % reset trial to not-Started
+                        results.Started(itrial) = false;
+                        stateMgr.transitionTo('CLEAR_THEN_PAUSE');
+                    elseif stateMgr.timeInState() > trial.FixationTime
+                        stateMgr.transitionTo('DRAW_A');
+                    elseif ~tracker.is_in_rect(fixWindowRect)
+                        stateMgr.transitionTo('FIXATION_BREAK_EARLY');
                     else
+                        if usingGoalDirectedCues
+                            goalCueAnim.animate(windowIndex) && Screen('Flip', windowIndex);
+                        end
+                    end
+                case 'FIXATION_BREAK_EARLY'
+                    % clear screen, then wait for a little bit
+                    Screen('FillRect', windowIndex, bkgdColor);
+                    Screen('Flip', windowIndex);
+                    stateMgr.transitionTo('FIXATION_BREAK_EARLY_WAIT');
+                case 'FIXATION_BREAK_EARLY_WAIT'
+                    if stateMgr.timeInState() > trial.FixationBreakEarlyTime
+                        stateMgr.transitionTo('DRAW_FIXPT');
+                    end
+                case 'DRAW_A'
+                    % draw textures, cues if used, and fixation cross on
+                    % screen.
+                    Screen('FillRect', windowIndex, bkgdColor);
+                    switch bStimType
+                        case {'Gabor','Images','Flip'}
+                            Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]');
+                        case 'RotatedImage'
+                            Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]', rotationAnglesA);
+                    end             
+                    if p.Results.UseCues
+                        Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                    end
+                    fixpt.draw(windowIndex);
+                    %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
+    
+                    % draw boxes for images on tracker
+                    tracker.draw_box(stim1Rect(1), stim1Rect(2), stim1Rect(3), stim1Rect(4), 15);
+                    tracker.draw_box(stim2Rect(1), stim2Rect(2), stim2Rect(3), stim2Rect(4), 15);
+    
+                    % flip and save the flip time
+                    [ results.tAon(itrial) ] = Screen('Flip', windowIndex);
+                    stateMgr.transitionTo('WAIT_A');
+                case 'WAIT_A'
+                    if stateMgr.timeInState() >= trial.SampTime
+                        % if GapTime is zero, transition directly to DRAW_B
+                        if trial.GapTime > 0
+                            stateMgr.transitionTo('DRAW_AB');
+                        else
+                            stateMgr.transitionTo('DRAW_B');
+                        end
+                    elseif ~tracker.is_in_rect(fixWindowRect)
+                        stateMgr.transitionTo('FIXATION_BREAK_LATE');
+                    end
+                case 'FIXATION_BREAK_LATE'
+                    Screen('FillRect', windowIndex, bkgdColor);
+                    Screen('Flip', windowIndex);
+                    stateMgr.transitionTo('FIXATION_BREAK_LATE_WAIT');
+                case 'FIXATION_BREAK_LATE_WAIT'
+                    if stateMgr.timeInState() > trial.FixationBreakLateTime
+                        stateMgr.transitionTo('TRIAL_COMPLETE');
+                        results.iResp(itrial) = -4;
+                    end                
+                case 'DRAW_AB'
+                    Screen('FillRect', windowIndex, bkgdColor);
+                    fixpt.draw(windowIndex);
+                    %Screen('DrawLines', windowIndex, fixLines, 4,fixColor');
+                    [ results.tAoff(itrial) ] = Screen('Flip', windowIndex);
+                    stateMgr.transitionTo('WAIT_AB');
+                case 'WAIT_AB'
+                    if stateMgr.timeInState() >= trial.GapTime
                         stateMgr.transitionTo('DRAW_B');
                     end
-                elseif ~tracker.is_in_rect(fixWindowRect)
-                    stateMgr.transitionTo('FIXATION_BREAK_LATE');
-                end
-            case 'FIXATION_BREAK_LATE'
-                Screen('FillRect', windowIndex, bkgdColor);
-                Screen('Flip', windowIndex);
-                stateMgr.transitionTo('FIXATION_BREAK_LATE_WAIT');
-            case 'FIXATION_BREAK_LATE_WAIT'
-                if stateMgr.timeInState() > trial.FixationBreakLateTime
-                    stateMgr.transitionTo('TRIAL_COMPLETE');
-                    results.iResp(itrial) = -4;
-                end                
-            case 'DRAW_AB'
-                Screen('FillRect', windowIndex, bkgdColor);
-                fixpt.draw(windowIndex);
-                %Screen('DrawLines', windowIndex, fixLines, 4,fixColor');
-                [ results.tAoff(itrial) ] = Screen('Flip', windowIndex);
-                stateMgr.transitionTo('WAIT_AB');
-            case 'WAIT_AB'
-                if stateMgr.timeInState() >= trial.GapTime
-                    stateMgr.transitionTo('DRAW_B');
-                end
-            case 'DRAW_B'
-                Screen('FillRect', windowIndex, bkgdColor);
-                if strcmp(bStimType, 'Gabor')
-                    % struct2array removed R2024a? 
-                    %paramsTemp = struct2array(GaborParams);
-                    paramsTemp1 = struct2cell(GaborParams);
-                    paramsTemp = [paramsTemp1{:}];
-                    Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]', GaborOri, [], [], [], [], kPsychDontDoRotation, [paramsTemp;paramsTemp]');
-                elseif strcmp(bStimType, 'RotatedImage')
-                    Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]', rotationAnglesB);
-                else
-                    Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]');
-                end                    
-                if p.Results.UseCues
-                    Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
-                end
-                fixpt.draw(windowIndex);
-                %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
-                [ results.tBon(itrial) ] = Screen('Flip', windowIndex);
-
-                % Moved this from START_RESPONSE, so subject may respond as
-                % soon as B image is shown. The WAIT_B period will still
-                % run to completion, as responses are not checked there. 
-                % Can do that, but that's a little tricky. Since the test
-                % period is short, this seems OK to me. 
-
-                if strcmp(subjectResponseType, 'MilliKey')
-                    millikey.start();
-                end
-                stateMgr.transitionTo('WAIT_RESPONSE_WITH_B');
-            case {'WAIT_RESPONSE_WITH_B', 'WAIT_RESPONSE'}
-                response = 0;
-                tResp = 0;
-
-                isResponse = false;
-                switch subjectResponseType
-                    case 'Saccade'
-                        sac = tracker.saccade([stim1Rect;stim2Rect]');
-                        % We should ensure that the rectangles cannot
-                        % overlap!
-                        if any(sac)
-                            response = find(sac);
-                            isResponse = true;
-                            tResp = GetSecs;    % not an accurate measurement at all! 
+                case 'DRAW_B'
+                    Screen('FillRect', windowIndex, bkgdColor);
+                    if strcmp(bStimType, 'Gabor')
+                        % struct2array removed R2024a? 
+                        %paramsTemp = struct2array(GaborParams);
+                        paramsTemp1 = struct2cell(GaborParams);
+                        paramsTemp = [paramsTemp1{:}];
+                        Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]', GaborOri, [], [], [], [], kPsychDontDoRotation, [paramsTemp;paramsTemp]');
+                    elseif strcmp(bStimType, 'RotatedImage')
+                        Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]', rotationAnglesB);
+                    else
+                        Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]');
+                    end                    
+                    if p.Results.UseCues
+                        Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                    end
+                    fixpt.draw(windowIndex);
+                    %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
+                    [ results.tBon(itrial) ] = Screen('Flip', windowIndex);
+    
+                    % Moved this from START_RESPONSE, so subject may respond as
+                    % soon as B image is shown. The WAIT_B period will still
+                    % run to completion, as responses are not checked there. 
+                    % Can do that, but that's a little tricky. Since the test
+                    % period is short, this seems OK to me. 
+    
+                    if strcmp(subjectResponseType, 'MilliKey')
+                        millikey.start();
+                    end
+                    stateMgr.transitionTo('WAIT_RESPONSE_WITH_B');
+                case {'WAIT_RESPONSE_WITH_B', 'WAIT_RESPONSE'}
+                    response = 0;
+                    tResp = 0;
+    
+                    isResponse = false;
+                    switch subjectResponseType
+                        case 'Saccade'
+                            sac = tracker.saccade([stim1Rect;stim2Rect]');
+                            % We should ensure that the rectangles cannot
+                            % overlap!
+                            if any(sac)
+                                response = find(sac);
+                                isResponse = true;
+                                tResp = GetSecs;    % not an accurate measurement at all! 
+                            end
+                        case 'MilliKey'
+                            [isResponse, response, tResp] = millikey.response();
+                    end
+                    if isResponse
+                        stateMgr.transitionTo('TRIAL_COMPLETE');
+                        if strcmp(subjectResponseType, 'MilliKey')
+                            millikey.stop(true);
                         end
-                    case 'MilliKey'
-                        [isResponse, response, tResp] = millikey.response();
-                end
-                if isResponse
-                    stateMgr.transitionTo('TRIAL_COMPLETE');
+    
+                        % record response
+                        results.iResp(itrial) = response;
+                        results.tResp(itrial) = tResp;
+                        
+                        % beep maybe
+                        if p.Results.Beep
+                            if results.iResp(itrial) == trial.StimChangeTF
+                                beeper.correct();
+                            elseif results.iResp(itrial) < 0
+                                beeper.incorrect();
+                            else
+                                beeper.incorrect();
+                            end
+                        end
+                    else
+                        switch stateMgr.Current
+                            case 'WAIT_RESPONSE_WITH_B'
+                                if ~tracker.is_in_rect(fixWindowRect)
+                                    stateMgr.transitionTo('FIXATION_BREAK_LATE');
+                                elseif stateMgr.timeInState() >= trial.TestTime
+                                    % still waiting for response, but clear
+                                    % screen. Do a state change that doesn't
+                                    % change the start time of the state - then
+                                    % we can use the timeInState to test for
+                                    % timeout on response.
+                                    Screen('FillRect', windowIndex, bkgdColor);
+                                    Screen('Flip', windowIndex);
+                                    stateMgr.setCurrent('WAIT_RESPONSE');
+                                end
+                            case 'WAIT_RESPONSE'
+                                if stateMgr.timeInState() >= trial.RespTime
+                                    stateMgr.transitionTo('TRIAL_COMPLETE');
+                                    results.iResp(itrial) = -3;
+                                    results.tResp(itrial) = -1;
+                                end
+                            otherwise
+                                error('unhandled state while waiting for response');
+                        end
+                    end
+                case 'TRIAL_COMPLETE'
+    
+                    % clear stimulus screen
+                    Screen('Flip', windowIndex);
+    
+                    % stop tracker recording
+                    tracker.offline();
+    
+                    % clear tracker screen
+                    tracker.command('clear_screen 0');
+    
+    
+                    % stop millikey queue
                     if strcmp(subjectResponseType, 'MilliKey')
                         millikey.stop(true);
                     end
-
-                    % record response
-                    results.iResp(itrial) = response;
-                    results.tResp(itrial) = tResp;
-                    
-                    % beep maybe
-                    if p.Results.Beep
-                        if results.iResp(itrial) == trial.StimChangeTF
-                            beeper.correct();
-                        elseif results.iResp(itrial) < 0
-                            beeper.incorrect();
+    
+                    % save data
+                    save(outputFilename, 'results');
+    
+                    % screen output update, AND update struct for feedback
+                    if results.iResp(itrial) < 0
+                        scc = 'o';
+                        feedbackStruct.color = feedbackColorIncorrect;
+                    elseif results.iResp(itrial) == results.StimChangeTF(itrial)
+                        scc = '+';
+                        feedbackStruct.color = feedbackColorCorrect;
+                    else
+                        scc = '-';
+                        feedbackStruct.color = feedbackColorIncorrect;
+                    end
+                    switch results.StimChangeType(itrial)
+                        case 0
+                            feedbackStruct.rect = fixFeedbackRect;
+                        case 1
+                            feedbackStruct.rect = stim1Rect;
+                        case 2
+                            feedbackStruct.rect = stim2Rect;
+                    end
+    
+                    % Screen output for experimenter. 
+                    % nnnn TT CH RR CC AA II OO TA.00 TI.00 TO.00
+                    % nnnn = trial number 
+                    % TT = StimTestType [1,2]
+                    % CH = StimChangeTF [0,1]
+                    % RR = Response [0,1,-1]
+                    % CC = correct/incorrect/incomplete [+,-,0)
+                    % AA = % correct, all types
+                    % II = % correct, attend-in
+                    % OO = % correct, attend-out
+                    % TA = treact, correct trials, all types
+                    % TI = treact, correct trials, attend-in
+                    % TO = treact, correct trials, attend-out
+                    rates = ethRates(results);
+                    % pctAll(itrial) = rates.correctPct;
+                    % pctIn(itrial)  = rates.correctInPct;
+                    % pctOut(itrial)  = rates.correctOutPct;
+                    % treactAll(itrial) = rates.treact;
+                    % treactIn(itrial) = rates.treactIn;
+                    % treactOut(itrial) = rates.treactOut;
+                    if itrial==1 || rem(itrial, 10)==0
+                        fprintf('\n');
+                        fprintf('Key: TT:TestType 1=L/2=R  CH:Change? 0/1  RR: Response 0/1  C: Correct +/-\n\n')
+                        fprintf('---Trial Info--|---Accuracy----|---Reaction---\n');
+                        fprintf('Trl# TT CH RR C All%%  In%%  Ou%%  tRAl tRIn tROu\n');
+                    end
+                    fprintf('%4d %2d %2d %2d %c %4.1f %4.1f %4.1f %4.2f %4.2f %4.2f\n', itrial, results.StimTestType(itrial), results.StimChangeTF(itrial), results.iResp(itrial), scc, 100*rates.correctPct, 100*rates.correctInPct, 100*rates.correctOutPct, rates.treact, rates.treactIn, rates.treactOut);
+    
+                    % nCompleted = fnCompleteTrials(results);
+                    % nCorrect = fnCorrectTrials(results);
+                    % nNoResp = fnNoRespTrials(results);
+                    % nRemain = fnRemainingTrials(results);
+    
+    
+                    % If the trial was NOT completed, append it to the end of
+                    % the trial list for re-trying later.
+                    if ~results.Started(itrial) || results.tResp(itrial) < 0 || results.iResp(itrial) < 0
+                        results = [results;struct2table(trial)];
+                    end
+    
+                    % increment trial
+                    itrial = itrial + 1;
+                    if itrial > height(results)
+                        stateMgr.transitionTo('DONE');
+                    else
+                        % check if a pause is pending
+                        if bPausePending
+                            stateMgr.transitionTo('WAIT_PAUSE');
                         else
-                            beeper.incorrect();
+                            stateMgr.transitionTo('WAIT_ITI');
+                            if p.Results.Feedback
+                                feedbackAnimator.start(feedbackStruct);
+                            end
                         end
                     end
-                else
-                    switch stateMgr.Current
-                        case 'WAIT_RESPONSE_WITH_B'
-                            if ~tracker.is_in_rect(fixWindowRect)
-                                stateMgr.transitionTo('FIXATION_BREAK_LATE');
-                            elseif stateMgr.timeInState() >= trial.TestTime
-                                % still waiting for response, but clear
-                                % screen. Do a state change that doesn't
-                                % change the start time of the state - then
-                                % we can use the timeInState to test for
-                                % timeout on response.
-                                Screen('FillRect', windowIndex, bkgdColor);
-                                Screen('Flip', windowIndex);
-                                stateMgr.setCurrent('WAIT_RESPONSE');
-                            end
-                        case 'WAIT_RESPONSE'
-                            if stateMgr.timeInState() >= trial.RespTime
-                                stateMgr.transitionTo('TRIAL_COMPLETE');
-                                results.iResp(itrial) = -3;
-                                results.tResp(itrial) = -1;
-                            end
-                        otherwise
-                            error('unhandled state while waiting for response');
-                    end
-                end
-            case 'TRIAL_COMPLETE'
-
-                % clear stimulus screen
-                Screen('Flip', windowIndex);
-
-                % stop tracker recording
-                tracker.offline();
-
-                % clear tracker screen
-                tracker.command('clear_screen 0');
-
-
-                % stop millikey queue
-                if strcmp(subjectResponseType, 'MilliKey')
-                    millikey.stop(true);
-                end
-
-                % save data
-                save(outputFilename, 'results');
-
-                % screen output update, AND update struct for feedback
-                if results.iResp(itrial) < 0
-                    scc = 'o';
-                    feedbackStruct.color = feedbackColorIncorrect;
-                elseif results.iResp(itrial) == results.StimChangeTF(itrial)
-                    scc = '+';
-                    feedbackStruct.color = feedbackColorCorrect;
-                else
-                    scc = '-';
-                    feedbackStruct.color = feedbackColorIncorrect;
-                end
-                switch results.StimChangeType(itrial)
-                    case 0
-                        feedbackStruct.rect = fixFeedbackRect;
-                    case 1
-                        feedbackStruct.rect = stim1Rect;
-                    case 2
-                        feedbackStruct.rect = stim2Rect;
-                end
-
-                % Screen output for experimenter. 
-                % nnnn TT CH RR CC AA II OO TA.00 TI.00 TO.00
-                % nnnn = trial number 
-                % TT = StimTestType [1,2]
-                % CH = StimChangeTF [0,1]
-                % RR = Response [0,1,-1]
-                % CC = correct/incorrect/incomplete [+,-,0)
-                % AA = % correct, all types
-                % II = % correct, attend-in
-                % OO = % correct, attend-out
-                % TA = treact, correct trials, all types
-                % TI = treact, correct trials, attend-in
-                % TO = treact, correct trials, attend-out
-                rates = ethRates(results);
-                % pctAll(itrial) = rates.correctPct;
-                % pctIn(itrial)  = rates.correctInPct;
-                % pctOut(itrial)  = rates.correctOutPct;
-                % treactAll(itrial) = rates.treact;
-                % treactIn(itrial) = rates.treactIn;
-                % treactOut(itrial) = rates.treactOut;
-                if itrial==1 || rem(itrial, 10)==0
-                    fprintf('\n');
-                    fprintf('Key: TT:TestType 1=L/2=R  CH:Change? 0/1  RR: Response 0/1  C: Correct +/-\n\n')
-                    fprintf('---Trial Info--|---Accuracy----|---Reaction---\n');
-                    fprintf('Trl# TT CH RR C All%%  In%%  Ou%%  tRAl tRIn tROu\n');
-                end
-                fprintf('%4d %2d %2d %2d %c %4.1f %4.1f %4.1f %4.2f %4.2f %4.2f\n', itrial, results.StimTestType(itrial), results.StimChangeTF(itrial), results.iResp(itrial), scc, 100*rates.correctPct, 100*rates.correctInPct, 100*rates.correctOutPct, rates.treact, rates.treactIn, rates.treactOut);
-
-                % nCompleted = fnCompleteTrials(results);
-                % nCorrect = fnCorrectTrials(results);
-                % nNoResp = fnNoRespTrials(results);
-                % nRemain = fnRemainingTrials(results);
-
-
-                % If the trial was NOT completed, append it to the end of
-                % the trial list for re-trying later.
-                if ~results.Started(itrial) || results.tResp(itrial) < 0 || results.iResp(itrial) < 0
-                    results = [results;struct2table(trial)];
-                end
-
-                % increment trial
-                itrial = itrial + 1;
-                if itrial > height(results)
-                    stateMgr.transitionTo('DONE');
-                else
-                    % check if a pause is pending
-                    if bPausePending
-                        stateMgr.transitionTo('WAIT_PAUSE');
+    
+                    % free textures, but not gabor textures.
+                    Screen('Close', unique(setdiff([texturesA, texturesB], [GaborTex, BkgdTex])));
+                    
+                case 'WAIT_ITI'
+                    if stateMgr.timeInState() >= p.Results.ITI
+                        if p.Results.Breaks && breakTimeMilestones.check(itrial/height(results))
+                            stateMgr.transitionTo('BREAK_TIME');
+                        elseif p.Results.StatusBreaks > 0 && statusMilestones.check(fnCompleteTrials(results))
+                            stateMgr.transitionTo('STATUS_BREAK_TIME');
+                        else
+                            stateMgr.transitionTo('START');
+                        end
                     else
+                        if p.Results.Feedback && feedbackAnimator.animate(windowIndex)
+                            Screen('Flip', windowIndex);
+                        end
+                    end
+                case 'BREAK_TIME'
+                    % figure out which break we're on
+                    ind = breakTimeMilestones.pass(itrial/height(results));
+                    if isempty(ind)
+                        % This shouldn't happen! The transition to this state
+                        % should have been preceded by milestones.check==true
                         stateMgr.transitionTo('WAIT_ITI');
-                        if p.Results.Feedback
-                            feedbackAnimator.start(feedbackStruct);
-                        end
-                    end
-                end
-
-                % free textures, but not gabor textures.
-                Screen('Close', unique(setdiff([texturesA, texturesB], [GaborTex, BkgdTex])));
-                
-            case 'WAIT_ITI'
-                if stateMgr.timeInState() >= p.Results.ITI
-                    if p.Results.Breaks && breakTimeMilestones.check(itrial/height(results))
-                        stateMgr.transitionTo('BREAK_TIME');
-                    elseif p.Results.StatusBreaks > 0 && statusMilestones.check(fnCompleteTrials(results))
-                        stateMgr.transitionTo('STATUS_BREAK_TIME');
                     else
-                        stateMgr.transitionTo('START');
-                    end
-                else
-                    if p.Results.Feedback && feedbackAnimator.animate(windowIndex)
+                        stateMgr.transitionTo('BREAK_TIME_WAIT');
+    
+                        % draw text on screen
+                        oldTextSize = Screen('TextSize', windowIndex, textSizeForMilestones);
+                        DrawFormattedText(windowIndex, p.Results.BreakParams{ind(1),2}, 'center','center',[1 1 1]);
                         Screen('Flip', windowIndex);
+                        Screen('TextSize', windowIndex, oldTextSize);
                     end
-                end
-            case 'BREAK_TIME'
-                % figure out which break we're on
-                ind = breakTimeMilestones.pass(itrial/height(results));
-                if isempty(ind)
-                    % This shouldn't happen! The transition to this state
-                    % should have been preceded by milestones.check==true
-                    stateMgr.transitionTo('WAIT_ITI');
-                else
-                    stateMgr.transitionTo('BREAK_TIME_WAIT');
-
+                case 'STATUS_BREAK_TIME'
+                    [ind, passed] = statusMilestones.pass(fnCompleteTrials(results));
+                    c0 = fnCompleteTrials(results);
+                    c1 = fnCorrectTrials(results);
+                    rate = c1/c0;
+                    s = sprintf('%d/%d complete trials, %.0f%% correct', c0, NumTrials, rate*100);
+    
                     % draw text on screen
                     oldTextSize = Screen('TextSize', windowIndex, textSizeForMilestones);
-                    DrawFormattedText(windowIndex, p.Results.BreakParams{ind(1),2}, 'center','center',[1 1 1]);
+                    DrawFormattedText(windowIndex, s, 'center','center',[1 1 1]);
                     Screen('Flip', windowIndex);
                     Screen('TextSize', windowIndex, oldTextSize);
-                end
-            case 'STATUS_BREAK_TIME'
-                [ind, passed] = statusMilestones.pass(fnCompleteTrials(results));
-                c0 = fnCompleteTrials(results);
-                c1 = fnCorrectTrials(results);
-                rate = c1/c0;
-                s = sprintf('%d/%d complete trials, %.0f%% correct', c0, NumTrials, rate*100);
-
-                % draw text on screen
-                oldTextSize = Screen('TextSize', windowIndex, textSizeForMilestones);
-                DrawFormattedText(windowIndex, s, 'center','center',[1 1 1]);
-                Screen('Flip', windowIndex);
-                Screen('TextSize', windowIndex, oldTextSize);
-
-                % compute detection rate for the last N completed trials
-                stateMgr.transitionTo('BREAK_TIME_WAIT');
-            case 'BREAK_TIME_WAIT'
-                if stateMgr.timeInState() >= p.Results.BreakTime
+    
+                    % compute detection rate for the last N completed trials
+                    stateMgr.transitionTo('BREAK_TIME_WAIT');
+                case 'BREAK_TIME_WAIT'
+                    if stateMgr.timeInState() >= p.Results.BreakTime
+                        Screen('Flip', windowIndex);
+                        stateMgr.transitionTo('START');
+                    end
+                case 'CLEAR_THEN_PAUSE'
                     Screen('Flip', windowIndex);
-                    stateMgr.transitionTo('START');
-                end
-            case 'CLEAR_THEN_PAUSE'
-                Screen('Flip', windowIndex);
-
-                % stop tracker recording
-                tracker.offline();
-
-                % free textures, but not gabor textures.
-                Screen('Close', unique(setdiff([texturesA, texturesB], [GaborTex, BkgdTex])));
-
-                stateMgr.transitionTo('WAIT_PAUSE');
-            case 'WAIT_PAUSE'
-                % the only way out is to use space bar when paused.
-                if bPausePending
-                    fprintf(1, 'Paused. Hit spacebar to resume.\n');
-                    bPausePending = false;
-                end
-            case 'DONE'
-
-                % save data, again
-                save(outputFilename, 'results');
-                fprintf('\n*** Results saved in output file %s\n', outputFilename);
-            
-                experimentElapsedTime = GetSecs - experimentStartTime;
-                fprintf(1, 'This block took %.1f sec.\n', experimentElapsedTime);
-
-                % This will cause us to exit the state loop!
-                bQuit = true;
-
-            otherwise
-                error('Unhandled state %s\n', stateMgr.Current);
+    
+                    % stop tracker recording
+                    tracker.offline();
+    
+                    % free textures, but not gabor textures.
+                    Screen('Close', unique(setdiff([texturesA, texturesB], [GaborTex, BkgdTex])));
+    
+                    stateMgr.transitionTo('WAIT_PAUSE');
+                case 'WAIT_PAUSE'
+                    % the only way out is to use space bar when paused.
+                    if bPausePending
+                        fprintf(1, 'Paused. Hit spacebar to resume.\n');
+                        bPausePending = false;
+                    end
+                case 'DONE'
+    
+                    % save data, again
+                    save(outputFilename, 'results');
+                    fprintf('\n*** Results saved in output file %s\n', outputFilename);
+                
+                    experimentElapsedTime = GetSecs - experimentStartTime;
+                    fprintf(1, 'This block took %.1f sec.\n', experimentElapsedTime);
+    
+                    % This will cause us to exit the state loop!
+                    bQuit = true;
+    
+                otherwise
+                    error('Unhandled state %s\n', stateMgr.Current);
+            end
         end
     end
-
     % % save data, again
     % save(outputFilename, 'results');
     % fprintf('\n*** Results saved in output file %s\n', outputFilename);
@@ -983,14 +986,3 @@ function cleanup
     ShowCursor;
 end
 
-function [tf] = istableOrStruct(tors)
-    tf = 0;
-    if istable(tors)
-        tf = 1;
-    elseif isstruct(tors)
-        expectedFieldnames = {'trials', 'outputfile', 'goaldirected', 'intermission'};
-        tf = all(ismember(expectedFieldnames, fieldnames(tors)));
-    end
-end        
-    tf = 0;
-end

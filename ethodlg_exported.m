@@ -71,6 +71,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
         imagesetParamsFunc % Paramsfunc to use when loading imageset
         Y % input file loaded. Will contain blocks or trials et al.
         isTrialsSelected % file is selected, and a block also if needed
+        isBlocksetSelected % Description
     end
     
     methods (Access = private)
@@ -83,7 +84,11 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 app.TrialsFileLabel.Text = app.fileName;
                 if app.fileNBlocks > 0
                     if app.fileBlockIndex <= app.fileNBlocks
-                        app.BlockSelectedLabel.Text = sprintf('%d/%d', app.fileBlockIndex, app.fileNBlocks);
+                        if app.isBlocksetSelected
+                            app.BlockSelectedLabel.Text = sprintf('%d/%d (multiple blocks will run)', app.fileBlockIndex, app.fileNBlocks);
+                        else
+                            app.BlockSelectedLabel.Text = sprintf('%d/%d', app.fileBlockIndex, app.fileNBlocks);
+                        end
                     else
                         app.BlockSelectedLabel.Text = 'Not selected';
                     end
@@ -145,7 +150,13 @@ classdef ethodlg_exported < matlab.apps.AppBase
 
             % make a cell array with the numeric values 1:nBlocks, and
             % the last value is 'None Selected'
-            C=[cellfun(@(x) sprintf('%d',x), num2cell(1:app.fileNBlocks),UniformOutput=false),{'None Selected'}];
+            if app.isBlocksetSelected
+                C = {app.Y.blockset.tag};
+                pstring = 'Select starting block';
+            else
+                C=[cellfun(@(x) sprintf('%d',x), num2cell(1:app.fileNBlocks),UniformOutput=false),{'None Selected'}];
+                pstring = 'Select a block';
+            end
             if app.isFileSelected && app.fileNBlocks>0
                 if app.fileBlockIndex < app.fileNBlocks && app.fileBlockIndex > 0
                     initialValue = app.fileBlockIndex;
@@ -155,7 +166,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
             else
                 initialValue = length(C);
             end
-            [indexSelected,tf]=listdlg(PromptString='Select a block',ListString=C,SelectionMode='single',ListSize=[150, 25*length(C)],InitialValue=initialValue);
+            [indexSelected,tf]=listdlg(PromptString=pstring,ListString=C,SelectionMode='single',ListSize=[150, 25*length(C)],InitialValue=initialValue);
             if tf
                 app.fileBlockIndex = indexSelected;
                 if indexSelected <= app.fileNBlocks
@@ -177,6 +188,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.pathDataRoot = ethDataRoot;
             app.pathImgRoot = ethImgRoot;
             app.isFileSelected = false;
+            app.isBlocksetSelected = false;
             app.isImagesetSelected = false;
             app.imagesetName = '';
             app.imagesetParamsFunc = '';
@@ -229,14 +241,23 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 app.filePath = pathSelected;
                 app.Y = load(fullfile(pathSelected, fileSelected));
                 
-                if any(contains(fieldnames(app.Y), 'blocks'))
+                if any(strcmp('blocks', fieldnames(app.Y)))
                     app.fileNBlocks = length(app.Y.blocks);
                     app.selectBlockNumberDialog();
-                elseif any(contains(fieldnames(app.Y), 'trials'))
+                    app.isBlocksetSelected = false;
+                elseif any(strcmp('trials', fieldnames(app.Y)))
                     app.fileNBlocks = 0;
                     app.fileBlockIndex = 0;
                     app.isTrialsSelected = true;
+                    app.isBlocksetSelected = false;
+                elseif any(strcmp('blockset', fieldnames(app.Y)))
+                    app.fileNBlocks = length(app.Y.blockset);
+                    app.fileBlockIndex = 0;
+                    app.isTrialsSelected = true;
+                    app.isBlocksetSelected = true;
+                    app.selectBlockNumberDialog();
                 else
+                    app.isBlocksetSelected = false;
                     app.isFileSelected = false;
                     app.fileName = '';
                     app.filePath = '';
@@ -297,15 +318,6 @@ classdef ethodlg_exported < matlab.apps.AppBase
                     img = imageset(imagesetPath, app.imagesetParamsFunc);
                 end
 
-                % form id for output filename
-
-                [~, base, ~] = fileparts(app.fileName);
-                if app.fileNBlocks > 0
-                    blok = sprintf('%s_blk%d', base, app.fileBlockIndex);
-                else
-                    blok = sprintf('%s', base);
-                end
-                id = [char(datetime('now','Format','yyyy-MM-dd-HHmm')), '_', app.SubjectIDEditField.Value, '_', blok];
 
                 % The value from screen distance comes to us as a char array
                 % 
@@ -314,19 +326,60 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 atmp = eval(['[',app.ScrWHmmEditField.Value,']'])
                 fprintf('Screen WH %dx%d (ignored)\n', atmp(1), atmp(2));
 
-                % get trials, overrides if any
-                trials = app.getSelectedTrials();
-                if app.RespTimeOverride.Value
-                    trials.RespTime(:) = app.RespTimesEditField.Value;
-                end
-                if app.SampTimeOverride.Value
-                    trials.SampTime(:) = app.SampTimesEditField.Value;
-                end
-                if app.TestTimeOverride.Value
-                    trials.TestTime(:) = app.TestTimesEditField.Value;
-                end
-                if app.GapTimeOverride.Value
-                    trials.GapTime(:) = app.GapTimesEditField.Value;
+                % get trials, overrides if any. 
+                % also set some arguments for etholog
+                if ~app.isBlocksetSelected
+
+                    % id is the basename of the output file in this case,
+                    % including the input filename base and the block
+                    % number.
+                    [~, base, ~] = fileparts(app.fileName);
+                    if app.fileNBlocks > 0
+                        blok = sprintf('%s_blk%d', base, app.fileBlockIndex);
+                    else
+                        blok = sprintf('%s', base);
+                    end
+                    id = [char(datetime('now','Format','yyyy-MM-dd-HHmm')), '_', app.SubjectIDEditField.Value, '_', blok];
+
+                    trials = app.getSelectedTrials();
+                    if app.RespTimeOverride.Value
+                        trials.RespTime(:) = app.RespTimesEditField.Value;
+                    end
+                    if app.SampTimeOverride.Value
+                        trials.SampTime(:) = app.SampTimesEditField.Value;
+                    end
+                    if app.TestTimeOverride.Value
+                        trials.TestTime(:) = app.TestTimesEditField.Value;
+                    end
+                    if app.GapTimeOverride.Value
+                        trials.GapTime(:) = app.GapTimesEditField.Value;
+                    end
+                else
+
+                    % id is the subject ID and the basename of the input 
+                    % file. etholog will finalize the filename with the
+                    % date and time and folder.
+                    [~, base, ~] = fileparts(app.fileName);
+                    id = [app.SubjectIDEditField.Value, '_', base];
+
+
+                    trials = app.Y.blockset;
+                    % If I were more clever, I wouldn't have this loop run
+                    % all the time.            
+                    for i=1:length(trials)
+                        if app.RespTimeOverride.Value
+                            trials(i).trials.RespTime(:) = app.RespTimesEditField.Value;
+                        end
+                        if app.SampTimeOverride.Value
+                            trials(i).trials.SampTime(:) = app.SampTimesEditField.Value;
+                        end
+                        if app.TestTimeOverride.Value
+                            trials(i).trials.TestTime(:) = app.TestTimesEditField.Value;
+                        end
+                        if app.GapTimeOverride.Value
+                            trials(i).trials.GapTime(:) = app.GapTimesEditField.Value;
+                        end
+                    end
                 end
 
                 % Form arguments cell array
@@ -350,7 +403,10 @@ classdef ethodlg_exported < matlab.apps.AppBase
                     args{end+1} = [app.Stim2XEditField.Value, app.Stim2YEditField.Value];
                 end
 
-                if app.GoalDirectedCheck.Value
+                % goal directed arg only if NOT a blockset. In a blockset,
+                % there is a goaldirected field, the setting for each
+                % block.
+                if ~app.isBlocksetSelected && app.GoalDirectedCheck.Value
                     args{end+1} = 'GoalDirected';
                     args{end+1} = app.GoalDirectedDropDown.Value;
                 end
@@ -636,6 +692,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
             % Create SelectImagesButton
             app.SelectImagesButton = uibutton(app.GridLayout, 'push');
             app.SelectImagesButton.ButtonPushedFcn = createCallbackFcn(app, @SelectImagesButtonPushed, true);
+            app.SelectImagesButton.Enable = 'off';
             app.SelectImagesButton.Layout.Row = 9;
             app.SelectImagesButton.Layout.Column = 4;
             app.SelectImagesButton.Text = 'Select Images';
