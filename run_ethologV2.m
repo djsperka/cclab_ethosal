@@ -153,7 +153,7 @@ function results = run_ethologV2(varargin)
 
     % If a blockset is being passed, then outputFilename should be the
     % output folder. The 'tag' will be used to form a filename for each
-    % block.
+    % block. 
 
     if istable(p.Results.Trials)
         outputFilename = fullfile(output_folder, [p.Results.ID, '.mat']);
@@ -176,7 +176,7 @@ function results = run_ethologV2(varargin)
         args{end+1} = 'OutputFolder';
         args{end+1} = output_folder;
         args{end+1} = 'SID';
-        args{end+1} = 
+        args{end+1} = sprintf('%s_%s')
         fprintf('\n*** Using output folder %s\n', outputFilename);
     end
 

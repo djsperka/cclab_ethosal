@@ -1,12 +1,12 @@
 local_ethosal;   % get directory vars
 
 %% must have L and R - loaded from etholog input file
-if ~exist('L','var')
-    L = load(getfn(ethDataRoot, 'Prompt', 'Select LEFT data file'));
-end
-if ~exist('R', 'var')
-    R = load(getfn(ethDataRoot, 'Prompt', 'Select RIGHT data file'));
-end
+lfn = getfn(ethDataRoot, 'Prompt', 'Select LEFT data file');
+[~,lbase,~] = fileparts(lfn);
+L = load(lfn);
+rfn = getfn(ethDataRoot, 'Prompt', 'Select RIGHT data file');
+[~,rbase,~] = fileparts(rfn);
+R = load(rfn);
 
 if ismember('blocks', fieldnames(L)) && ismember('blocks', fieldnames(R)) && all(size(L.blocks)==size(R.blocks))
 else
@@ -22,13 +22,13 @@ for i=1:length(L.blocks)
     % append LEFT
     BS(end+1).goaldirected = 'existing';
     BS(end).trials = L.blocks{i};
-    BS(end).tag = sprintf('L_blk%d', i);
+    BS(end).tag = sprintf('%s_L_blk%d', lbase, i);
     BS(end).text = 'In this block, pay special attention to the LEFT image.';
 
     % append RIGHT
     BS(end+1).goaldirected = 'existing';
     BS(end).trials = R.blocks{i};
-    BS(end).tag = sprintf('R_blk%d', i);
+    BS(end).tag = sprintf('%s_R_blk%d', rbase, i);
     BS(end).text = 'In this block, pay special attention to the RIGHT image.';
 
 end

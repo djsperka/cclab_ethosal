@@ -14,13 +14,20 @@ function [results] = ethologV2(varargin)
     p.addRequired('ScreenDistance', @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
 
 
-    % These two parameters, GoalDirected and OutputFile, are ignored if the
-    % Trials arg is a struct of blocks (which includes output filename and
-    % goal directed arg). If the Trials arg is a table, however, then these
-    % are used. 
+    % The output filename will be formed like this:
+    %
+    % OutputFolder/datetime_subjectID_OuptutBase.mat
+    % 
+    % so, if a single file is to be run, the 'OutputBase' should be
+    % something like 'infile_bkl1'. When a blockset is used, the field
+    % 'outputbase' is applied to eack block in the set, and the command
+    % line arg is ignored. 
+    
     goalDirectedTypes = {'none', 'existing', 'stim1', 'stim2'};
     p.addParameter('GoalDirected', 'none', @(x) ismember(x, goalDirectedTypes));
-    p.addParameter('OutputFile', 'etholog_output.mat', @(x) ischar(x));
+    p.addParameter('OutputBase', 'ZZZZ', @(x) ischar(x));
+    p.addParameter('OutputFolder', '.', @(x) isfolder(x));
+    p.addParameter('SubjectID', 'dan', @(x) ischar(x));
 
     % These will be applied to all blocks
     p.addParameter('ITI', 0.5, @(x) isscalar(x));   % inter-trial interval.
@@ -273,8 +280,9 @@ function [results] = ethologV2(varargin)
                 outputFilename = blockStruct(iblock).outputfile;
             end
         else
-            base = [char(datetime('now','Format','yyyy-MM-dd-HHmm')), '_', blockStruct(iblock).tag];
-            [ok, outputFilename] = makeNNNFilename(fullfile(p.Results.OutputFile, [base, '_NNN', ext]));
+            datestr = char(datetime('now','Format','yyyy-MM-dd-HHmm'));
+            base = sprintf('%s_%s_%s.mat', datestr, p.Results.ID, blockStruct(iblock).tag];
+            [ok, outputFilename] = makeNNNFilename(fullfile(p.Results.OutputFolder, [base, '_NNN', ext]));
             if ~ok
                 error('Cannot form usable filename using folder %s and basename %s', path, base);
             end
