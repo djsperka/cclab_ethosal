@@ -18,11 +18,18 @@ function [results] = ethologV2(varargin)
     %
     % OutputFolder/datetime_subjectID_OuptutBase.mat
     % 
-    % so, if a single file is to be run, the 'OutputBase' should be
-    % something like 'infile_bkl1'. When a blockset is used, the field
-    % 'outputbase' is applied to eack block in the set, and the command
-    % line arg is ignored. 
-    
+    % The 'OutputFolder' and 'SubjectID' args are required. 
+    %
+    % If a single block of trials is used (i.e. a table is passed in as the
+    % 'Trials' required arg), then 'OutputBase' must be supplied.
+    %
+    % If a blockset is used (the 'Trials' arg is a struct), then 'OutputBase' 
+    % is ignored - it is taken from the field 'outputbase' in the blockset.
+    % 
+    % The subjectID and OutputFolder are passed as input arguments (must be
+    % passed for all cases).
+    % 
+
     goalDirectedTypes = {'none', 'existing', 'stim1', 'stim2'};
     p.addParameter('GoalDirected', 'none', @(x) ismember(x, goalDirectedTypes));
     p.addParameter('OutputBase', 'ZZZZ', @(x) ischar(x));
