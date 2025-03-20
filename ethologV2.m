@@ -127,7 +127,7 @@ function [results] = ethologV2(varargin)
     iblock = 1;
     if istable(p.Results.Trials)
         blockStruct.trials = p.Results.Trials;
-        blockStruct.outputfile = p.Results.OutputFile;
+        blockStruct.outputbase = p.Results.OutputBase;
         blockStruct.goaldirected = p.Results.GoalDirected;
         blockStruct.text = '';
     else

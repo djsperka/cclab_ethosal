@@ -3,7 +3,7 @@ function [tf] = isValidEthologTrialsInput(tors)
     if istable(tors)
         tf = 1;
     elseif isstruct(tors)
-        expectedFieldnames = {'trials', 'tag', 'goaldirected', 'text'};
+        expectedFieldnames = {'trials', 'outputbase', 'goaldirected', 'text'};
         tf = all(ismember(expectedFieldnames, fieldnames(tors)));
     end
 end        
