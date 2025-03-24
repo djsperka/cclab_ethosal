@@ -35,6 +35,7 @@ function [results] = ethologV2(varargin)
     p.addParameter('OutputBase', 'ZZZZ', @(x) ischar(x));
     p.addParameter('OutputFolder', '.', @(x) isfolder(x));
     p.addParameter('SubjectID', 'dan', @(x) ischar(x));
+    p.addParameter('StartBlock', 1, @(x) isscalar(x) && isnumeric(x));  % for blocksets only, ignored otherwise.
 
     % These will be applied to all blocks
     p.addParameter('ITI', 0.5, @(x) isscalar(x));   % inter-trial interval.
@@ -77,7 +78,7 @@ function [results] = ethologV2(varargin)
     % in this version. djs 8/28/2024
 
     testTypes = {'Gabor', 'Image', 'RotatedImage', 'Flip'};
-    p.addParameter('ExperimentTestType', 'Image', @(x) any(validatestring(x, testTypes)));
+    p.addParameter('ExperimentTestType', 'Flip', @(x) any(validatestring(x, testTypes)));
 
     % These are for gabors. The Gabors are only used if GaborTest or 
     % GaborThresh is true,otherwise the parameters here are ignored.
@@ -124,7 +125,6 @@ function [results] = ethologV2(varargin)
     % values: p.Results.Trials, p.Results.OutputFile,
     % p.Results.GoalDirected, and use the values in blockStruct(iblock)
 
-    iblock = 1;
     if istable(p.Results.Trials)
         blockStruct.trials = p.Results.Trials;
         blockStruct.outputbase = p.Results.OutputBase;
@@ -263,8 +263,12 @@ function [results] = ethologV2(varargin)
 
 
     %% per-block initializations
-
-    for iblock = 1:length(blockStruct)
+    bAbortBlockset = false;
+    iblockInitial = 1;
+    if length(blockStruct) > 1
+        iblockInitial = p.Results.StartBlock;
+    end
+    for iblock = iblockInitial:length(blockStruct)
 
         fprintf('Starting block %d/%d: %d trials.\n', iblock, length(blockStruct), height(blockStruct(iblock).trials));
         
@@ -275,7 +279,8 @@ function [results] = ethologV2(varargin)
         % input is a single block, and a full output filename is provided.
         % when the input was a blockset, then each block has a
         % corresponding 'tag', which is used to construct the filename.
-        if ismember('outputfile', fieldnames(blockStruct(iblock))
+
+        if ismember('outputfile', fieldnames(blockStruct(iblock)))
             if isfile(blockStruct(iblock).outputfile)
                 warning('OutputFile %s already exists. Finding a suitable name...', blockStruct(iblock).outputfile);
                 [path, base, ext] = fileparts(blockStruct(iblock).outputfile);
@@ -288,10 +293,13 @@ function [results] = ethologV2(varargin)
             end
         else
             datestr = char(datetime('now','Format','yyyy-MM-dd-HHmm'));
-            base = sprintf('%s_%s_%s.mat', datestr, p.Results.ID, blockStruct(iblock).tag];
-            [ok, outputFilename] = makeNNNFilename(fullfile(p.Results.OutputFolder, [base, '_NNN', ext]));
-            if ~ok
-                error('Cannot form usable filename using folder %s and basename %s', path, base);
+            base = sprintf('%s_%s_%s.mat', datestr, p.Results.SubjectID, blockStruct(iblock).outputbase);
+            outputFilename = fullfile(p.Results.OutputFolder, [base, '.mat']);
+            if isfile(outputFilename)
+                [ok, outputFilename] = makeNNNFilename(fullfile(p.Results.OutputFolder, [base, '_NNN.mat']));
+                if ~ok
+                    error('Cannot form usable filename using folder %s and basename %s', path, base);
+                end
             end
         end
         fprintf('\n*** Using output filename %s\n', outputFilename);    
@@ -361,7 +369,7 @@ function [results] = ethologV2(varargin)
         bQuit = false;
 
         %% Intermission
-        [ok, ~] = intermission(windowIndex, resp, blockStruct(iblock).text, 18);
+        [ok, ~] = intermission(windowIndex, millikey, blockStruct(iblock).text, 18);
         if ~ok
             fprintf('Intermission timed out. This could mean the millikey responder is not working! Pausing....');
             stateMgr.transitionTo('WAIT_PAUSE');
@@ -397,6 +405,13 @@ function [results] = ethologV2(varargin)
                             Screen('Flip', windowIndex);
                             stateMgr.transitionTo('DONE');
                             if (ourVerbosity > -1); fprintf('Quit from kbd.\n'); end
+                    case KbName('k')
+                            % Quit this block and all others
+                            Screen('FillRect', windowIndex, bkgdColor);
+                            Screen('Flip', windowIndex);
+                            bAbortBlockset = true;
+                            stateMgr.transitionTo('DONE');
+                            if (ourVerbosity > -1); fprintf('Quit/abort from kbd.\n'); end                            
                     case KbName('d')
                         % this is for doing drift correct, but only if we are
                         % paused.
@@ -949,6 +964,10 @@ function [results] = ethologV2(varargin)
                 otherwise
                     error('Unhandled state %s\n', stateMgr.Current);
             end
+        end
+        if bAbortBlockset
+            fprintf('Abort blockset here.\n');
+            break;
         end
     end
     % % save data, again

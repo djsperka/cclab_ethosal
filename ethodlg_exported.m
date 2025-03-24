@@ -151,7 +151,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
             % make a cell array with the numeric values 1:nBlocks, and
             % the last value is 'None Selected'
             if app.isBlocksetSelected
-                C = {app.Y.blockset.tag};
+                C = {app.Y.blockset.label};
                 pstring = 'Select starting block';
             else
                 C=[cellfun(@(x) sprintf('%d',x), num2cell(1:app.fileNBlocks),UniformOutput=false),{'None Selected'}];
@@ -389,6 +389,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
                     'Threshold', app.ThresholdCheckBox.Value, ...
                     'Beep', app.AudFeedbackCheckBox.Value, ...
                     'ExperimentTestType', app.getTestType(), ... 
+                    'StartBlock', app.fileBlockIndex, ...
                     'Images', img, ... 
                     'Inside', app.UseboothkbdCheckBox.Value
                     };

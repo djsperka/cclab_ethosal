@@ -14,6 +14,7 @@ function results = run_ethologV2(varargin)
     p.addParameter('Inside', false, @(x) islogical(x));
     p.addParameter('Trials', [], @(x) isValidEthologTrialsInput(x));
     p.addParameter('GoalDirected', 'none', @(x) ismember(x, goalDirectedTypes));
+    p.addParameter('StartBlock', 1, @(x) isscalar(x) && isnumeric(x));
     p.addParameter('Threshold', false, @(x) islogical(x));
     p.addParameter('ExperimentTestType', 'Image', @(x) ischar(x));
     p.addParameter('ImageFolder','', @(x) ischar(x));
@@ -135,7 +136,8 @@ function results = run_ethologV2(varargin)
         'SkipSyncTests', 1, ...
         'Threshold', p.Results.Threshold, ...
         'Beep', p.Results.Beep, ...
-        'ExperimentTestType', p.Results.ExperimentTestType
+        'ExperimentTestType', p.Results.ExperimentTestType, ...
+        'StartBlock', p.Results.StartBlock
         };
 
     if ~ismember('Stim1XY', p.UsingDefaults)
@@ -151,11 +153,16 @@ function results = run_ethologV2(varargin)
 
 
 
+
     % If a blockset is being passed, then outputFilename should be the
     % output folder. The 'tag' will be used to form a filename for each
     % block. 
 
     if istable(p.Results.Trials)
+
+        % Must supply the entire output filename. 
+        % Also supply GoalDirected arg. 
+
         outputFilename = fullfile(output_folder, [p.Results.ID, '.mat']);
         if isfile(outputFilename)
             warning('OutputFile %s already exists. Finding a suitable name...', outputFilename);
@@ -173,11 +180,16 @@ function results = run_ethologV2(varargin)
         args{end+1} = p.Results.GoalDirected;
 
     else
+        % Output filename will be formed inside of etholog, so supply the
+        % components of the filename: subjectID, output folder. The
+        % date-time string is generated when each block is run. The
+        % additional part of the filename: filebase_blk# is passed in the
+        % 'outputbase' field of the blockset struct (see makeBlockset.m)
+
         args{end+1} = 'OutputFolder';
         args{end+1} = output_folder;
-        args{end+1} = 'SID';
-        args{end+1} = sprintf('%s_%s')
-        fprintf('\n*** Using output folder %s\n', outputFilename);
+        args{end+1} = 'SubjectID';
+        args{end+1} = p.Results.ID;
     end
 
 
@@ -189,7 +201,7 @@ function results = run_ethologV2(varargin)
 
 
 
-    results=ethologV2(t, img, screenDimensions, screenDistance, args{:});
+    results=ethologV2(p.Results.Trials, img, screenDimensions, screenDistance, args{:});
 
     % results=ethologV2(t, img, screenDimensions, screenDistance, ...
     %                             'Screen', screenNumber, ...
