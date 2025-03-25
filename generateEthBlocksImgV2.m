@@ -18,6 +18,7 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
 
     p.addRequired('Num', @(x) isnumeric(x) && size(x, 2)<=3);
     p.addOptional('FolderKeys', {'H'; 'L'},  @(x) iscellstr(x));
+    p.addOptional('MixFolderColumns', false, @(x) islogical(x));
     p.addOptional('TestKeys', [],  @(x) iscellstr(x));
     p.addOptional('FixationTime', 0.5, @(x) isnumeric(x) && length(x)<3);
     p.addOptional('MaxAcquisitionTime', 2.0, @(x) isnumeric(x) && length(x)<3);
@@ -106,9 +107,12 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
     
                 if thisSetNums(i) > 0
     
-                    replacements = cell(7,1);
-                    columnNames=cell(7,1);
-                
+                    %replacements = cell(7,1);
+                    %columnNames=cell(7,1);
+                    replacements = {};
+                    columnNames = {};
+
+
                     % Select the images that will be used
                     rep = (C(i)-thisSetNums(i)+1 : C(i))';
                     replacements{1} = rep;
@@ -129,24 +133,37 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     % 
                     % Within a column, an image '1.bmp' is taken from the
                     % same starting point, but is processed differently. 
+                    %
+                    % Images for a trial are taken from the same column of
+                    % the FolderKeys array, unless 'MixFolderColumns' is
+                    % true. In the example above, if 'MixFolderColumns' is
+                    % false, the default, then the images for a given trial
+                    % are taken from the same column - i.e. 'H'&'L' are
+                    % mixed in a trial, but they never appear with any of
+                    % the other image folders 'FfNn'. If 'MixFolderColumns'
+                    % is true, there can be any combination of the columns
+                    % in a trial - e.g. 'H'&'f', etc. When
+                    % 'MixFolderColumns' is true, the sciHH, etc values are
+                    % set regardless of column (but their salience is still
+                    % assumed to be HIGH for the first row andLOW for the
+                    % second).
+               
+                    if p.Results.MixFolderColumns
+                        replacements{end+1} = (1:size(p.Results.FolderKeys,2))';
+                        columnNames{end+1} = 'Folder1KeyColumn';
+                        replacements{end+1} = (1:size(p.Results.FolderKeys,2))';
+                        columnNames{end+1} = 'Folder2KeyColumn';
+                    else
+                        replacements{end+1} = (1:size(p.Results.FolderKeys,2))';
+                        columnNames{end+1} = 'FolderKeyColumn';
+                    end
 
-                    replacements{2} = (1:size(p.Results.FolderKeys,2))';
-                    columnNames{2} = 'FolderKeyColumn';
+                    replacements{end+1} = (1:size(p.Results.FolderKeys,1))';
+                    columnNames{end+1} = 'Folder1KeyRow';
 
-                    replacements{3} = (1:size(p.Results.FolderKeys,1))';
-                    columnNames{3} = 'Folder1KeyRow';
+                    replacements{end+1} = (1:size(p.Results.FolderKeys,1))';
+                    columnNames{end+1} = 'Folder2KeyRow';
 
-                    replacements{4} = (1:size(p.Results.FolderKeys,1))';
-                    columnNames{4} = 'Folder2KeyRow';
-
-
-                    % % Folder1Key
-                    % replacements{2}=p.Results.FolderKeys;
-                    % columnNames{2} = 'Folder1Key';
-                    % 
-                    % % Folder2Key
-                    % replacements{3}=p.Results.FolderKeys;
-                    % columnNames{3} = 'Folder2Key';
                 
                     % TestType? L=1, R=2
                     % First element of thisBlockNums is the number that will
@@ -156,21 +173,21 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
     
                     switch (i)
                         case 1
-                            replacements{5}=[1;2];
+                            replacements{end+1}=[1;2];
                         case 2
-                            replacements{5}=[1];
+                            replacements{end+1}=[1];
                         case 3
-                            replacements{5}=[2];
+                            replacements{end+1}=[2];
                     end        
-                    columnNames{5} = 'StimTestType';
+                    columnNames{end+1} = 'StimTestType';
                 
                     % change/nochange test
-                    replacements{6} = [0;1];
-                    columnNames{6} = 'StimChangeTF';
+                    replacements{end+1} = [0;1];
+                    columnNames{end+1} = 'StimChangeTF';
                 
                     % Base value (for rotations)
-                    replacements{7} = p.Results.Base;
-                    columnNames{7} = 'Base';
+                    replacements{end+1} = p.Results.Base;
+                    columnNames{end+1} = 'Base';
                 
                 
                     % This generates trials with things distributed over the elements of
@@ -185,9 +202,13 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     tab1.File2Key = FileKeys(imagePairs(tab1.ImagePairIndex,2));
 
                     % Now make Folder1Key and Folder2Key
-                    tab1.Folder1Key = FolderKeys(sub2ind(size(FolderKeys), tab1.Folder1KeyRow(:), tab1.FolderKeyColumn(:)));
-                    tab1.Folder2Key = FolderKeys(sub2ind(size(FolderKeys), tab1.Folder2KeyRow(:), tab1.FolderKeyColumn(:)));
-                
+                    if ~p.Results.MixFolderColumns
+                        tab1.Folder1KeyColumn = tab1.FolderKeyColumn;
+                        tab1.Folder2KeyColumn = tab1.FolderKeyColumn;
+                    end
+                    tab1.Folder1Key = FolderKeys(sub2ind(size(FolderKeys), tab1.Folder1KeyRow(:), tab1.Folder1KeyColumn(:)));
+                    tab1.Folder2Key = FolderKeys(sub2ind(size(FolderKeys), tab1.Folder2KeyRow(:), tab1.Folder2KeyColumn(:)));
+
                     % StimA1Key and StimA2Key
                     tab1.StimA1Key = imageset.make_keys(tab1.Folder1Key, tab1.File1Key);
                     tab1.StimA2Key = imageset.make_keys(tab1.Folder2Key, tab1.File2Key);
@@ -232,11 +253,11 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     % Make StimB keys
                     if any(L1)
                         %StimB1Key(L1) = imageset.make_keys(TestKeys(indA1(L1)), tab1.File1Key(L1));
-                        StimB1Key(L1) = imageset.make_keys(TestKeys(sub2ind(size(FolderKeys), tab1.Folder1KeyRow(L1), tab1.FolderKeyColumn(L1))), tab1.File1Key(L1));
+                        StimB1Key(L1) = imageset.make_keys(TestKeys(sub2ind(size(FolderKeys), tab1.Folder1KeyRow(L1), tab1.Folder1KeyColumn(L1))), tab1.File1Key(L1));
                     end
                     if any(L2)
                         %StimB2Key(L2) = imageset.make_keys(TestKeys(indA2(L2)), tab1.File2Key(L2));
-                        StimB2Key(L2) = imageset.make_keys(TestKeys(sub2ind(size(FolderKeys), tab1.Folder2KeyRow(L2), tab1.FolderKeyColumn(L2))), tab1.File2Key(L2));
+                        StimB2Key(L2) = imageset.make_keys(TestKeys(sub2ind(size(FolderKeys), tab1.Folder2KeyRow(L2), tab1.Folder2KeyColumn(L2))), tab1.File2Key(L2));
                     end
                     tab1.StimB1Key = StimB1Key;
                     tab1.StimB2Key = StimB2Key;

@@ -34,6 +34,7 @@ function [results] = ethologV2(varargin)
     p.addParameter('GoalDirected', 'none', @(x) ismember(x, goalDirectedTypes));
     p.addParameter('OutputBase', 'ZZZZ', @(x) ischar(x));
     p.addParameter('OutputFolder', '.', @(x) isfolder(x));
+    p.addParameter('OutputFile', 'eth_output.mat', @(x) ischar(x));    
     p.addParameter('SubjectID', 'dan', @(x) ischar(x));
     p.addParameter('StartBlock', 1, @(x) isscalar(x) && isnumeric(x));  % for blocksets only, ignored otherwise.
 
@@ -127,9 +128,9 @@ function [results] = ethologV2(varargin)
 
     if istable(p.Results.Trials)
         blockStruct.trials = p.Results.Trials;
-        blockStruct.outputbase = p.Results.OutputBase;
+        blockStruct.outputfile = p.Results.OutputFile;
         blockStruct.goaldirected = p.Results.GoalDirected;
-        blockStruct.text = '';
+        blockStruct.text = 'Please hit any button on the millikey to continue.';
     else
         blockStruct = p.Results.Trials;
     end

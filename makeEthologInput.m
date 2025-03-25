@@ -44,6 +44,7 @@ function [filename] = makeEthologInput(varargin)
         error('at least 4 args, please');
     end
 
+    % filename
     if isfolder(varargin{1})        
         myDataRoot = varargin{1};
     else
@@ -53,35 +54,23 @@ function [filename] = makeEthologInput(varargin)
     myTtype = validatestring(varargin{2}, okTtypes);
     myEtype = validatestring(varargin{3}, okEtypes);
     myExtra = varargin{4};
-    
+    filename = [myDataRoot, 'input/', myTtype, '_', myEtype, '_', myExtra, '.mat'];
+
     if isa(varargin{5}, 'imageset')
-        myImg = varargin{5};
+        S.imagesetName = varargin{5}.Name;
+        S.imagesetParamsFunc = varargin{5}.ParamsFunc;
     else
-        error('Arg 5 must be an imageset');
+        error('Arg 5 must be imageset.');
     end
 
     if isa(varargin{6}, 'table')
-        myHaveTrials = true;
-        trials = varargin{6};
-        blocks=[];
+        S.trials = varargin{6};
     elseif iscell(varargin{6}) && all(cellfun(@(x) isa(x,'table'), varargin{6}))
-        myHaveTrials = false;
-        blocks = varargin{6};
-        trials=[];
+        S.blocks = varargin{6};
+    elseif isstruct(varargin{6})
+        S.blockset = varargin{6};
     else
-        error('Arg 6 should be trials or blocks');
-    end
-
-    % Start constructing the struct.
-    % remaining args, if any, will added to this struct.
-
-    S.imagesetName = myImg.Name;
-    S.imagesetParamsFunc = myImg.ParamsFunc;
-    
-    if myHaveTrials
-        S.trials = trials;
-    else
-        S.blocks = blocks;
+        error('Arg 6 should be trials or blocks or blockset');
     end
 
     if nargin > 6
@@ -94,10 +83,9 @@ function [filename] = makeEthologInput(varargin)
         S.genFuncName = varargin{9};
     end
 
-    % Now make output filename
-    filename = [myDataRoot, 'input/', myTtype, '_', myEtype, '_', myExtra, '.mat'];
 
     % and save
     save(filename, '-struct', 'S');
+    fprintf('Saved to %s\n', filename);
 
 end
