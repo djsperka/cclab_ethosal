@@ -58,8 +58,28 @@ The experiment will display two images at once. The positions of the two images 
 
 (*): These values are randomly generated. All other stim-related input values are derived from these values.
 
+## Generating trials for specific experiment types
 
-### Caution - below stuff may be out of date
+Make sure *ethDataRoot* and *ethImageRoot* are set via **local_ethosal** or the equivalent. 
+This can be done on any machine, but the *ethImageRoot* should contain the same image set you use 
+here.
+
+Load the imageset you will use - commands for each experiment type are below. The image set names refer 
+to the cclab-images repo (this repo's folder should be the same as *ethImageRoot*).
+
+### Ethological salience, baby faces
+
+### Ethological salience, three categories (baby, burgers, bushes)
+
+### Ethological salience, burgers
+
+Use food images in folder *food/* and *food-tex/*. 
+
+```
+img=imageset(fullfile(ethImgRoot,'MoreBabies'), 'paramsCircEdge256_food');
+[blocks, inputArgs, parsedResults, scriptName] = generateEthBlocksImgV2(img.BalancedFileKeys, [50,0,0], FolderKeys={'F';'f'},Base=4, NumBlocks=3, FlipPair=true);
+makeEthologInput(ethDataRoot, 'rimg', 'exp', '50food_neutral', img, blocks{:}, inputArgs, parsedResults, scriptName);
+```
 
 ## how to run an experiment
 
@@ -139,6 +159,10 @@ If you are in a drift correction (expt was paused, and you hit **d**) but the tr
 Important to note that when you enter "Camera Setup" via a *pause*/***s*** sequence, or at initial calibration, you must hit "Exit Setup" to proceed. If you enter "Camera Setup" via a *pause*/***d***/**<ESC>** sequence, then you must hit "Output/Record" to proceed.
 
 The sequence of clicks is crucial!
+
+
+
+# Caution - below stuff may be out of date
 
 ## analysis
 
