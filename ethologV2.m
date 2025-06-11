@@ -334,6 +334,8 @@ function [results] = ethologV2(varargin)
         usingGoalDirectedCues = false;
         switch blockStruct(iblock).goaldirected
             case 'none'
+                results.CueSide = zeros(height(results), 1);
+                usingGoalDirectedCues = false;
                 % nothing to do
             case 'existing'
                 % trials must have 'CueSide' column
