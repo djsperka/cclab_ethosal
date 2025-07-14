@@ -23,14 +23,14 @@ for i=1:length(L.blocks)
     BS(end+1).goaldirected = 'existing';
     BS(end).trials = L.blocks{i};
     BS(end).outputbase = sprintf('%s_L_blk%d', lbase, i);
-    BS(end).text = 'In this block, pay special attention to the LEFT image.';
+    BS(end).text = 'In this block, pay special attention to the LEFT image.\nHit any button to continue.';
     BS(end).label = sprintf('L block %d', i);
 
     % append RIGHT
     BS(end+1).goaldirected = 'existing';
     BS(end).trials = R.blocks{i};
     BS(end).outputbase = sprintf('%s_R_blk%d', rbase, i);
-    BS(end).text = 'In this block, pay special attention to the RIGHT image.';
+    BS(end).text = 'In this block, pay special attention to the RIGHT image.\nHit any button to continue.';
     BS(end).label = sprintf('R block %d', i);
 
 end
