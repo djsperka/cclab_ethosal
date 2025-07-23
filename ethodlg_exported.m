@@ -356,11 +356,9 @@ classdef ethodlg_exported < matlab.apps.AppBase
                     end
                 else
 
-                    % id is the subject ID and the basename of the input 
-                    % file. etholog will finalize the filename with the
-                    % date and time and folder.
-                    [~, base, ~] = fileparts(app.fileName);
-                    id = [app.SubjectIDEditField.Value, '_', base];
+                    % id is just the subject ID - etholog will finalize the 
+                    % filename with the date and time and folder.
+                    id = app.SubjectIDEditField.Value;
 
 
                     trials = app.Y.blockset;

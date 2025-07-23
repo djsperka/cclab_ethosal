@@ -295,7 +295,7 @@ function [results] = ethologV2(varargin)
         else
             datestr = char(datetime('now','Format','yyyy-MM-dd-HHmm'));
             base = sprintf('%s_%s_%s.mat', datestr, p.Results.SubjectID, blockStruct(iblock).outputbase);
-            outputFilename = fullfile(p.Results.OutputFolder, [base, '.mat']);
+            outputFilename = fullfile(p.Results.OutputFolder, base);
             if isfile(outputFilename)
                 [ok, outputFilename] = makeNNNFilename(fullfile(p.Results.OutputFolder, [base, '_NNN.mat']));
                 if ~ok
