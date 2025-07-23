@@ -147,6 +147,14 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     % set regardless of column (but their salience is still
                     % assumed to be HIGH for the first row andLOW for the
                     % second).
+                    %
+                    % Trial sets generated with 'MixFolderColumns' = False
+                    % (the default) will have the column 'FolderKeyColumn'
+                    % in the generated table, as well as 'Folder1KeyColumn'
+                    % and 'Folder2KeyColumn'. The latter two are created to
+                    % simplify file key creation. If
+                    % 'MixFolderColumns'=True, then there would be no
+                    % 'FolderKeyColumn' in the output table.
                
                     if p.Results.MixFolderColumns
                         replacements{end+1} = (1:size(p.Results.FolderKeys,2))';
