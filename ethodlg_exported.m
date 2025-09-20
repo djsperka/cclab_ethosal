@@ -532,8 +532,8 @@ classdef ethodlg_exported < matlab.apps.AppBase
 
             % Create LocationDropDown
             app.LocationDropDown = uidropdown(app.GridLayout);
-            app.LocationDropDown.Items = {'Booth (test)', 'Booth (subj)', 'Desk'};
-            app.LocationDropDown.ItemsData = {'booth', 'no-test', 'desk', 'ERR'};
+            app.LocationDropDown.Items = {'Booth (test)', 'Booth (subj)', 'Desk', 'Mangun-desk'};
+            app.LocationDropDown.ItemsData = {'booth', 'no-test', 'desk', 'mangun-desk'};
             app.LocationDropDown.Layout.Row = 3;
             app.LocationDropDown.Layout.Column = 2;
             app.LocationDropDown.Value = 'booth';

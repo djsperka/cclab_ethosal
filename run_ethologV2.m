@@ -4,7 +4,7 @@ function results = run_ethologV2(varargin)
 %   Detailed explanation goes here
 
     goalDirectedTypes = {'none', 'existing', 'stim1', 'stim2'};
-    testingTypes = {'no-test', 'desk', 'booth'};
+    testingTypes = {'no-test', 'desk', 'booth', 'mangun-desk'};
     p=inputParser;
     p.addRequired('ID', @(x) ischar(x));
     p.addParameter('Test', 'no-test', @(x) ismember(x, testingTypes));
@@ -25,6 +25,8 @@ function results = run_ethologV2(varargin)
 
     p.parse(varargin{:});
 
+    % always millikey, unless we're at the mangun lab
+    responseType = 'MilliKey';
     switch(p.Results.Test)
         case 'desk'
             % Set these folders according to the current machine
@@ -83,6 +85,23 @@ function results = run_ethologV2(varargin)
                 kbind = getKeyboardIndex('Dell Dell USB Keyboard');
                 eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
             end
+        case 'mangun-desk'
+            % Set these folders according to the current machine
+            if isempty(p.Results.ImageFolder)
+                image_folder = 'pass_img_as_argument';
+            else
+                image_folder = p.Results.ImageFolder;
+            end
+            output_folder = 'c:/Users/smeyyapp/Documents/cclab/data/output';
+            eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
+            screenDimensions=[];
+            screenDistance=[];
+            screenNumber = 0;
+            screenRect=[1120,300,1920,900];
+            % My desktop kbd
+            kbind = getKeyboardIndex('Keyboard');
+            responseType = 'SharedKbd';
+
     end            
       
 
@@ -96,7 +115,9 @@ function results = run_ethologV2(varargin)
     end
 
     % Millikey index (todo - test!)
-    mkind = cclabGetMilliKeyIndices();
+    %mkind = cclabGetMilliKeyIndices();
+    mkind = 0;
+    warning('Using same kbd for millikey and experimenter input!');
     
         
     
@@ -128,7 +149,7 @@ function results = run_ethologV2(varargin)
     args = {
         'Screen', screenNumber, ...
         'Rect', screenRect, ...
-        'Response', 'MilliKey', ...
+        'Response', responseType, ...
         'MilliKeyIndex', mkind, ...
         'KeyboardIndex', kbind, ...
         'Beep', false, ...

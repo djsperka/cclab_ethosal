@@ -93,7 +93,7 @@ function [results] = ethologV2(varargin)
 
     % Where to look for responses. The 'Saccade' is intended for usage with
     % eyelink dummy mode ('EyelinkDummyMode', 1) - which is the default.
-    responseTypes = {'Saccade', 'MilliKey'};
+    responseTypes = {'Saccade', 'MilliKey', 'SharedKbd'};
     p.addParameter('Response', 'Saccade', @(x) any(validatestring(x, responseTypes)));
     p.addParameter('MilliKeyIndex', 0, @(x) isscalar(x));
     
@@ -169,7 +169,7 @@ function [results] = ethologV2(varargin)
     end
 
     % Keyboard used for input from operator
-    if ~p.Results.KeyboardIndex
+    if ~any(strcmp('KeyboardIndex', fieldnames(p.Results)))
         error('Need to specify keyboard index');
     end
     KbQueueCreate(p.Results.KeyboardIndex);
@@ -178,10 +178,14 @@ function [results] = ethologV2(varargin)
 
     % input response device if needed
     if strcmp(subjectResponseType, 'MilliKey')
-        if ~p.Results.MilliKeyIndex
+        if ~any(strcmp('MilliKeyIndex', fieldnames(p.Results)))
             error('If MilliKey used as response device, you must supply the keyboard index with MilliKeyIndex');
         end
         millikey = responder(p.Results.MilliKeyIndex);
+    elseif strcmp(subjectResponseType, 'SharedKbd')
+        millikey = responder(p.Results.KeyboardIndex, 'kbd');
+        millikey.Responses = {KbName('1!'), 1; KbName('0)'), 0};
+        subjectResponseType = 'MilliKey';
     end
 
     % Init audio - BEFORE the tracker is initialized ()
