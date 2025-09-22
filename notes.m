@@ -168,3 +168,29 @@ save(fullfile(ethDataRoot,'input','gab_exp_33x3-A.mat'), '-struct', 'S');
 img=imageset(fullfile(ethImgRoot, 'baby2-cb'), 'params');
 [blocks,inputArgs,parsedResults,scriptName]=generateEthBlocksImgV2(img.BalancedFileKeys, 50, Base=4, NumBlocks=3);
 makeEthologInput(ethDataRoot,'rimg','exp','50img_r4',img,blocks,inputArgs,parsedResults,scriptName);
+
+
+
+%=========================================
+% For mangun stuff
+img=imageset(fullfile(ethImgRoot,'MoreBabies'), 'paramsCircEdge256_color')
+paramsCircEdge256_3types
+[allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksImgV2(img.BalancedFileKeys, [0,20,20], 'FolderKeys', {'H','L';'C','D'}, 'FlipPair', true, 'MixFolderColumns', true, 'NumBlocks', 6);
+
+
+
+[allTrialSets, inputArgs, parsedResults, myname] = generateEthBlocksImgV2(img.BalancedFileKeys, [10, 30, 0; 10, 0, 30], 'CueSide', [1;2], 'FolderKeys', {'H', 'N';'L', 'n'}, 'FlipPair', true, 'NumBlocks', 3);
+
+[20,60,0;20,0,60], Base=4, FlipPair=true,NumBlocks=8,CueSide=[1;2]
+
+[blocks,inputArgs,parsedResults,scriptName]=generateEthBlocksImgV2(img.BalancedFileKeys, [1,1,0;1,0,1], Base=4, FlipPair=true,CueSide=[1;2], NumBlocks=4);
+
+
+%2 trial sets, 800 trials each
+[allTrialSets, inputArgs, parsedResults, myname] = generateEthBlocksImgV2(img.BalancedFileKeys, [10, 30, 0; 10, 0, 30], 'CueSide', [1;2], 'FolderKeys', {'H', 'N';'L', 'n'}, 'FlipPair', true, 'NumBlocks', 3);
+
+
+[allTrialSets, inputArgs, parsedResults, myname] = generateEthBlocksImgV2(img.BalancedFileKeys, [10, 30, 0; 10, 0, 30], 'CueSide', [1;2], 'FolderKeys', {'H', 'N';'L', 'n'}, 'FlipPair', true, 'NumBlocks', 3);
+makeEthologInput(ethDataRoot, 'rimg', 'exp', '10neutral30L', img, allTrialSets{1}, inputArgs, parsedResults, myname)
+makeEthologInput(ethDataRoot, 'rimg', 'exp', '10neutral30R', img, allTrialSets{2}, inputArgs, parsedResults, myname)
+makeBlockset
