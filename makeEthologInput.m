@@ -54,7 +54,7 @@ function [filename] = makeEthologInput(varargin)
     myTtype = validatestring(varargin{2}, okTtypes);
     myEtype = validatestring(varargin{3}, okEtypes);
     myExtra = varargin{4};
-    filename = [myDataRoot, 'input/', myTtype, '_', myEtype, '_', myExtra, '.mat'];
+    filename = fullfile(myDataRoot, 'input', [myTtype, '_', myEtype, '_', myExtra, '.mat']);
 
     if isa(varargin{5}, 'imageset')
         S.imagesetName = varargin{5}.Name;

@@ -176,6 +176,17 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 end
             end
         end
+        
+        function enableDialog(app, enableFlag)
+            % enableFlag is either true (Enable=on) or false (enable=off).
+            components = [app.RunButton, app.ExitButton, app.OptionsPanel, app.OverridesPanel];
+            if enableFlag
+                flag = 'On';
+            else
+                flag = 'Off';
+            end 
+            set(components, 'Enable', flag);
+        end
     end
     
 
@@ -411,7 +422,9 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 end
 
                 %run_ethologV2(id, 'Test', app.LocationDropDown.Value, 'Trials', app.getSelectedTrials(), 'Threshold', app.ThresholdCheckBox.Value, 'ExperimentTestType', app.getTestType(), 'Images', img, 'Inside', app.UseboothkbdCheckBox.Value);
+                app.enableDialog(false);
                 run_ethologV2(args{:});
+                app.enableDialog(true);
 
             catch ME
                 fprintf('Error running expt:\n%s\n%s\n', ME.message, ME.getReport());

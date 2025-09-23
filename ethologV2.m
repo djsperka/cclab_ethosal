@@ -107,6 +107,10 @@ function [results] = ethologV2(varargin)
     % See docs for details.
     p.addParameter('KeyboardIndex', 0, @(x) isscalar(x));
 
+    % for Mangun stuff (windows only)
+    p.addParameter('UseIO64', false, @(x) islogical(x));
+    p.addParameter('GetEDF', false, @(x) islogical(x));
+
     % Now parse the input arguments
     p.parse(varargin{:});
 
@@ -149,8 +153,7 @@ function [results] = ethologV2(varargin)
     % Create a cleanup object, that will execute whenever this script ends
     % (even if it crashes). Use it to restore matlab to a usable state -
     % see cleanup() below.
-    myCleanupObj = onCleanup(@cleanup);
-
+    myCleanupObj = onCleanup(@()cleanup(p.Results.KeyboardIndex));
 
     %% Initialize PTB and hardware. 
 
@@ -168,16 +171,23 @@ function [results] = ethologV2(varargin)
         converter = pixdegconverter(windowRect, p.Results.Fovx);
     end
 
-    % Keyboard used for input from operator
+    % When on linux, we can treat keyboards and the millikey as separate
+    % devices, and create queues (i.e. KbQueue* functions) with each device
+    % separately. In that case (when response type is 'MilliKey') we will
+    % create a queue for the keyboard, and use the responder object for the
+    % millikey. 
+    % When on Windows, though, all keyboard-like devices are one and the
+    % same, and we have to use 'SharedKbd' as the response type. 
     if ~any(strcmp('KeyboardIndex', fieldnames(p.Results)))
         error('Need to specify keyboard index');
     end
-    KbQueueCreate(p.Results.KeyboardIndex);
-    KbQueueStart(p.Results.KeyboardIndex);
-    ListenChar(-1);
 
-    % input response device if needed
-    if strcmp(subjectResponseType, 'MilliKey')
+    if strcmp(subjectResponseType, 'MilliKey')    
+        % Create queue for keyboard - this is for operator inputs.
+        KbQueueCreate(p.Results.KeyboardIndex);
+        KbQueueStart(p.Results.KeyboardIndex);
+        ListenChar(-1);
+
         if ~any(strcmp('MilliKeyIndex', fieldnames(p.Results)))
             error('If MilliKey used as response device, you must supply the keyboard index with MilliKeyIndex');
         end
@@ -185,7 +195,14 @@ function [results] = ethologV2(varargin)
     elseif strcmp(subjectResponseType, 'SharedKbd')
         millikey = responder(p.Results.KeyboardIndex, 'kbd');
         millikey.Responses = {KbName('1!'), 1; KbName('0)'), 0};
-        subjectResponseType = 'MilliKey';
+        millikey.start();
+    end
+
+    % IO64 for Windows only
+    if p.Results.UseIO64
+        iodevice = IO64Device();
+    else
+        iodevice = [];
     end
 
     % Init audio - BEFORE the tracker is initialized ()
@@ -384,10 +401,18 @@ function [results] = ethologV2(varargin)
 
         %% Start trial loop
         % while ~bQuit && ~strcmp(stateMgr.Current, 'DONE')
+
+        operatorInputAllowed = true;
         while ~bQuit
             
             % any keys pressed? 
-            [keyPressed, keyCode,  ~, ~] = checkKbdQueue(p.Results.KeyboardIndex);
+            if strcmp(subjectResponseType, 'MilliKey')    
+                [keyPressed, keyCode,  ~, ~] = checkKbdQueue(p.Results.KeyboardIndex);
+            elseif strcmp(subjectResponseType, 'SharedKbd') && operatorInputAllowed
+                [keyPressed, keyCode, ~] = millikey.anykey();
+            else
+                keyPressed = false;
+            end
             if keyPressed
                 switch keyCode
                     case KbName('space')
@@ -471,7 +496,9 @@ function [results] = ethologV2(varargin)
                             stateMgr.transitionTo('START');
                         end
                     otherwise
-                        if (ourVerbosity > -1); fprintf('Keys:\n<space> - toggle pause\n\n');end
+                        if (ourVerbosity > -1)
+                            fprintf('Keys:\n<space> - toggle pause\n<q> - quit current block\n<k> - quit all blocks and exit\n<s> - enter camera setup (only when paused)\n<d> - drift correction only when paused - EXPERTS ONLY)\n');
+                        end
                 end
             end
     
@@ -726,6 +753,9 @@ function [results] = ethologV2(varargin)
     
                     if strcmp(subjectResponseType, 'MilliKey')
                         millikey.start();
+                    elseif strcmp(subjectResponseType, 'SharedKbd')
+                         operatorInputAllowed = false;
+                         millikey.flush(true);
                     end
                     stateMgr.transitionTo('WAIT_RESPONSE_WITH_B');
                 case {'WAIT_RESPONSE_WITH_B', 'WAIT_RESPONSE'}
@@ -743,13 +773,20 @@ function [results] = ethologV2(varargin)
                                 isResponse = true;
                                 tResp = GetSecs;    % not an accurate measurement at all! 
                             end
-                        case 'MilliKey'
+                        case {'MilliKey', 'SharedKbd'}
                             [isResponse, response, tResp] = millikey.response();
+                            if isResponse
+                                millikey.flush(true);
+                                operatorInputAllowed = true;
+                            end
                     end
                     if isResponse
                         stateMgr.transitionTo('TRIAL_COMPLETE');
                         if strcmp(subjectResponseType, 'MilliKey')
                             millikey.stop(true);
+                        elseif strcmp(subjectResponseType, 'SharedKbd')
+                            millikey.flush(true);
+                            operatorInputAllowed = true;
                         end
     
                         % record response
@@ -977,12 +1014,12 @@ function [results] = ethologV2(varargin)
             break;
         end
     end
-    % % save data, again
-    % save(outputFilename, 'results');
-    % fprintf('\n*** Results saved in output file %s\n', outputFilename);
-    % 
-    % experimentElapsedTime = GetSecs - experimentStartTime;
-    % fprintf(1, 'This block took %.1f sec.\n', experimentElapsedTime);
+
+    % TODO
+    % Fetch EDF file if needed
+    % if p.Results.GetEDF
+    %     tracker.receive_file();
+    % end
     
 end
 
@@ -1021,9 +1058,11 @@ end
 
 
 % PortAudio and eye tracker should be handled by objects, not here.
-function cleanup
+function cleanup(kbdIndex)
     Screen('CloseAll');
-    ListenChar(1);
+    if (kbdIndex > 0)
+        ListenChar(1);
+    end
     ShowCursor;
 end
 

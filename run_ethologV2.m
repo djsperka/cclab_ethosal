@@ -4,7 +4,7 @@ function results = run_ethologV2(varargin)
 %   Detailed explanation goes here
 
     goalDirectedTypes = {'none', 'existing', 'stim1', 'stim2'};
-    testingTypes = {'no-test', 'desk', 'booth', 'mangun-desk'};
+    testingTypes = {'no-test', 'desk', 'booth', 'mangun-desk', 'mangun-booth'};
     p=inputParser;
     p.addRequired('ID', @(x) ischar(x));
     p.addParameter('Test', 'no-test', @(x) ismember(x, testingTypes));
@@ -96,8 +96,26 @@ function results = run_ethologV2(varargin)
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
             screenDimensions=[];
             screenDistance=[];
-            screenNumber = 0;
-            screenRect=[1120,300,1920,900];
+            screenNumber = 1;
+            %screenRect=[1120,300,1920,900];
+            screenRect=[];
+            % My desktop kbd
+            kbind = getKeyboardIndex('Keyboard');
+            responseType = 'SharedKbd';
+        case 'mangun-booth'
+            % Set these folders according to the current machine
+            if isempty(p.Results.ImageFolder)
+                image_folder = 'pass_img_as_argument';
+            else
+                image_folder = p.Results.ImageFolder;
+            end
+            output_folder = 'c:/Users/smeyyapp/Documents/cclab/data/output';
+            eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
+            screenDimensions=[];
+            screenDistance=[];
+            screenNumber = 1;
+            %screenRect=[1120,300,1920,900];
+            screenRect=[];
             % My desktop kbd
             kbind = getKeyboardIndex('Keyboard');
             responseType = 'SharedKbd';
@@ -171,8 +189,20 @@ function results = run_ethologV2(varargin)
         args{end+1} = p.Results.Stim2XY;
     end
 
-
-
+    % for mangun lab, we will use the io64 device for input/output to the
+    % eeg recording
+    if strcmp(p.Results.Test, 'mangun-desk')
+        args{end+1} = 'UseIO64';
+        args{end+1} = true;
+        args{end+1} = 'GetEDF';
+        args{end+1} = false;
+    end
+    if strcmp(p.Results.Test, 'mangun-booth')
+        args{end+1} = 'UseIO64';
+        args{end+1} = true;
+        args{end+1} = 'GetEDF';
+        args{end+1} = true;
+    end
 
 
     % If a blockset is being passed, then outputFilename should be the
