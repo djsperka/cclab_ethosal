@@ -198,9 +198,10 @@ function [results] = ethologV2(varargin)
         millikey.start();
     end
 
-    % IO64 for Windows only
+    % IO64 for Windows only at Mangun Lab. The address is hardcoded for this
+    % lab, may need to be different if we're elsewhere.
     if p.Results.UseIO64
-        iodevice = IO64Device();
+        iodevice = IO64Device(hex2dec('03FB8'));
     else
         iodevice = [];
     end
@@ -214,6 +215,11 @@ function [results] = ethologV2(varargin)
     end
     trackerFilename = 'etholog';
     tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.ScreenWH, p.Results.ScreenDistance, trackerFilename, windowIndex, 'Verbose', ourVerbosity);
+    if ~p.Results.EyelinkDummyMode
+        warning('Tracker is ALWAYS LOOKING DO NOT USE IN ACTUAL EXPERIMENT');
+        tracker.always_in_rect(true);
+    end
+    
 
     % For gabor tests, must generate a texture here, after the window is
     % opened.
@@ -629,6 +635,11 @@ function [results] = ethologV2(varargin)
                     fixpt.draw(windowIndex);
                     %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
                     Screen('Flip', windowIndex);
+
+                    if p.Results.UseIO64
+                        iodevice.outp(14);
+                        tracker.message('FIX_ON 14');
+                    end
     
                     % Draw cross and box on tracker screen
                     tracker.draw_cross(fixXYScr(1), fixXYScr(2), 15);
@@ -647,6 +658,21 @@ function [results] = ethologV2(varargin)
                         if usingGoalDirectedCues
                             goalCueStruct.cueDirIndex = trial.CueSide;
                             goalCueAnim.start(@ethologFixationCueCallback, [0, trial.FixationTime], goalCueStruct);
+                        end
+
+                        % Put cue on message here. It isn't on-screen just
+                        % yet, however. It will be on-screen on the first
+                        % pass through WAIT_FIX.
+                        if p.Results.UseIO64
+                            if trial.CueSide==1
+                                i=21;
+                            elseif trial.CueSide==2
+                                i=29;
+                            else
+                                error('CueSide is %d, not handled.', trial.CueSide);
+                            end
+                           iodevice.outp(i);
+                           tracker.message('CUE_ON %d', i);
                         end
                     end
                 case 'WAIT_FIX'
@@ -694,6 +720,14 @@ function [results] = ethologV2(varargin)
     
                     % flip and save the flip time
                     [ results.tAon(itrial) ] = Screen('Flip', windowIndex);
+
+                    % Mangun output
+                    if p.Results.UseIO64
+                        i = trial.ImagePairIndex + 100;
+                        iodevice.outp(i);
+                        tracker.message('STIM_A %d', i);
+                    end
+
                     stateMgr.transitionTo('WAIT_A');
                 case 'WAIT_A'
                     if stateMgr.timeInState() >= trial.SampTime
@@ -721,6 +755,12 @@ function [results] = ethologV2(varargin)
                     %Screen('DrawLines', windowIndex, fixLines, 4,fixColor');
                     [ results.tAoff(itrial) ] = Screen('Flip', windowIndex);
                     stateMgr.transitionTo('WAIT_AB');
+
+                    if p.Results.UseIO64
+                        iodevice.outp(18);
+                        tracker.message('STIM_AB 18');
+                    end
+
                 case 'WAIT_AB'
                     if stateMgr.timeInState() >= trial.GapTime
                         stateMgr.transitionTo('DRAW_B');
@@ -757,6 +797,13 @@ function [results] = ethologV2(varargin)
                          operatorInputAllowed = false;
                          millikey.flush(true);
                     end
+
+                    if p.Results.UseIO64
+                        i=getMangunCode(trial, 201);
+                        iodevice.outp(i);
+                        tracker.message('STIM_B %d', i);
+                    end
+
                     stateMgr.transitionTo('WAIT_RESPONSE_WITH_B');
                 case {'WAIT_RESPONSE_WITH_B', 'WAIT_RESPONSE'}
                     response = 0;
@@ -867,7 +914,27 @@ function [results] = ethologV2(varargin)
                         case 2
                             feedbackStruct.rect = stim2Rect;
                     end
-    
+
+                    % put response into eeg and tracker data
+                    if p.Results.UseIO64
+                        i=0;
+                        if results.iResp(itrial) == 1
+                            i = 44;
+                        elseif results.iResp(itrial) == 0
+                            i = 55;
+                        elseif results.iResp(itrial) == -3
+                            % no response
+                            i = 66;
+                        else
+                            % aborted trial
+                            i = 77;
+                        end
+                        if p.Results.UseIO64
+                            iodevice.outp(i);
+                            tracker.message('RESPONSE %d', i);
+                        end
+                    end
+
                     % Screen output for experimenter. 
                     % nnnn TT CH RR CC AA II OO TA.00 TI.00 TO.00
                     % nnnn = trial number 
@@ -1017,10 +1084,34 @@ function [results] = ethologV2(varargin)
 
     % TODO
     % Fetch EDF file if needed
-    % if p.Results.GetEDF
-    %     tracker.receive_file();
-    % end
+    if p.Results.GetEDF
+        tracker.receive_file('test.edf', 0);
+        movefile('test.edf', 'c:/work')
+    end
     
+end
+
+
+function [code] = getMangunCode(trial, base)
+    code = base;
+
+    % lowest bit (bit 0) is whether cue is valid. 
+    if trial.CueSide == trial.StimTestType
+        code = code + 1;
+    end
+
+    % bit 1 is the salience of cued side (0=HIGH, 1=LOW)
+    % bit 2 is salience of un-cued side (0=HIGH, 1=LOW)
+    if trial.CueSide==1
+        code = code + 2*(trial.Folder1KeyRow -1) + 4*(trial.Folder2KeyRow - 1);
+    elseif trial.CueSide == 2
+        code = code + 2*(trial.Folder2KeyRow -1) + 4*(trial.Folder1KeyRow - 1);
+    else
+        error('CueSide is %d, not handled', trial.CueSide);
+    end
+
+    % bit 3 is whether the tested side changed (1=change, 2=no change)
+    code = code + 8*trial.StimChangeTF;
 end
 
 function [keyPressed, keyCode,  tDown, tUp] = checkKbdQueue(kbindex)

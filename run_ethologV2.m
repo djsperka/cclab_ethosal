@@ -92,7 +92,7 @@ function results = run_ethologV2(varargin)
             else
                 image_folder = p.Results.ImageFolder;
             end
-            output_folder = 'c:/Users/smeyyapp/Documents/cclab/data/output';
+            output_folder = 'c:/work/cclab/data/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
             screenDimensions=[];
             screenDistance=[];
@@ -109,7 +109,7 @@ function results = run_ethologV2(varargin)
             else
                 image_folder = p.Results.ImageFolder;
             end
-            output_folder = 'c:/Users/smeyyapp/Documents/cclab/data/output';
+            output_folder = 'c:/work/cclab/data/output';
             eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
             screenDimensions=[];
             screenDistance=[];
