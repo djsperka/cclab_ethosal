@@ -110,6 +110,7 @@ function [results] = ethologV2(varargin)
     % for Mangun stuff (windows only)
     p.addParameter('UseIO64', false, @(x) islogical(x));
     p.addParameter('GetEDF', false, @(x) islogical(x));
+    p.addParameter('VPixxClearBits', false, @(x) islogical(x));
 
     % Now parse the input arguments
     p.parse(varargin{:});
@@ -213,7 +214,8 @@ function [results] = ethologV2(varargin)
     if ~p.Results.EyelinkDummyMode
         warning('Initializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup');
     end
-    trackerFilename = 'etholog';
+    trackerFilename = [char(datetime('now','Format','MMddHHmm')), '.edf'];
+    fprintf('Eyetracker data file: %s\n', trackerFilename);
     tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.ScreenWH, p.Results.ScreenDistance, trackerFilename, windowIndex, 'Verbose', ourVerbosity);
     if ~p.Results.EyelinkDummyMode
         warning('Tracker is ALWAYS LOOKING DO NOT USE IN ACTUAL EXPERIMENT');
@@ -288,6 +290,17 @@ function [results] = ethologV2(varargin)
     fixWindowRect = CenterRectOnPoint([0 0 fixWindowDiamPix fixWindowDiamPix], fixXYScr(1), fixXYScr(2));
     fixFeedbackRect = CenterRectOnPoint(images.UniformOrFirstRect, fixXYScr(1), fixXYScr(2));
 
+    % Screen flip function. Always call doScreenFlip(w), where w is the
+    % window index. Do NOT CALL Screen('Flip') directly. When using VPixx,
+    % the upper left corner pixel is interpreted as a bit pattern that is
+    % sent its digital output. At the Mangun Lab, that digital output is
+    % connected to the EEG input, and (local preference) we want to ensure
+    % that only zeros are in that pixel. 
+    if p.Results.VPixxClearBits
+        doScreenFlip = @(w) doScreenFlipVPixx(w);
+    else
+        doScreenFlip = @(w) Screen('Flip', w);
+    end
 
 
     %% per-block initializations
@@ -331,6 +344,12 @@ function [results] = ethologV2(varargin)
             end
         end
         fprintf('\n*** Using output filename %s\n', outputFilename);    
+
+        if p.Results.GetEDF && ~p.Results.EyelinkDummyMode
+            [~, base, ext] = fileparts(outputFilename);
+            tracker.message('DATAFILE %s', [base, ext]);
+        end
+
     
         % The table 'results' will be used to hold all parameters and results
         % for this block. 
@@ -440,13 +459,13 @@ function [results] = ethologV2(varargin)
                     case KbName('q')
                             % trial will have to be flushed. TODO. 
                             Screen('FillRect', windowIndex, bkgdColor);
-                            Screen('Flip', windowIndex);
+                            doScreenFlip(windowIndex);
                             stateMgr.transitionTo('DONE');
                             if (ourVerbosity > -1); fprintf('Quit from kbd.\n'); end
                     case KbName('k')
                             % Quit this block and all others
                             Screen('FillRect', windowIndex, bkgdColor);
-                            Screen('Flip', windowIndex);
+                            doScreenFlip(windowIndex);
                             bAbortBlockset = true;
                             stateMgr.transitionTo('DONE');
                             if (ourVerbosity > -1); fprintf('Quit/abort from kbd.\n'); end                            
@@ -458,7 +477,7 @@ function [results] = ethologV2(varargin)
                             Screen('FillRect', windowIndex, bkgdColor);
                             %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
                             fixpt.draw(windowIndex);
-                            Screen('Flip', windowIndex);
+                            doScreenFlip(windowIndex);
                             tracker.drift_correct(fixXYScr(1), fixXYScr(2));
                             
                             % Re-generate textures that might have been cleared
@@ -634,7 +653,7 @@ function [results] = ethologV2(varargin)
                     Screen('FillRect', windowIndex, bkgdColor);
                     fixpt.draw(windowIndex);
                     %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
-                    Screen('Flip', windowIndex);
+                    doScreenFlip(windowIndex);
 
                     if p.Results.UseIO64
                         iodevice.outp(14);
@@ -686,13 +705,13 @@ function [results] = ethologV2(varargin)
                         stateMgr.transitionTo('FIXATION_BREAK_EARLY');
                     else
                         if usingGoalDirectedCues
-                            goalCueAnim.animate(windowIndex) && Screen('Flip', windowIndex);
+                            goalCueAnim.animate(windowIndex) && doScreenFlip(windowIndex);
                         end
                     end
                 case 'FIXATION_BREAK_EARLY'
                     % clear screen, then wait for a little bit
                     Screen('FillRect', windowIndex, bkgdColor);
-                    Screen('Flip', windowIndex);
+                    doScreenFlip(windowIndex);
                     stateMgr.transitionTo('FIXATION_BREAK_EARLY_WAIT');
                 case 'FIXATION_BREAK_EARLY_WAIT'
                     if stateMgr.timeInState() > trial.FixationBreakEarlyTime
@@ -719,7 +738,7 @@ function [results] = ethologV2(varargin)
                     tracker.draw_box(stim2Rect(1), stim2Rect(2), stim2Rect(3), stim2Rect(4), 15);
     
                     % flip and save the flip time
-                    [ results.tAon(itrial) ] = Screen('Flip', windowIndex);
+                    [ results.tAon(itrial) ] = doScreenFlip(windowIndex);
 
                     % Mangun output
                     if p.Results.UseIO64
@@ -742,7 +761,7 @@ function [results] = ethologV2(varargin)
                     end
                 case 'FIXATION_BREAK_LATE'
                     Screen('FillRect', windowIndex, bkgdColor);
-                    Screen('Flip', windowIndex);
+                    doScreenFlip(windowIndex);
                     stateMgr.transitionTo('FIXATION_BREAK_LATE_WAIT');
                 case 'FIXATION_BREAK_LATE_WAIT'
                     if stateMgr.timeInState() > trial.FixationBreakLateTime
@@ -753,7 +772,7 @@ function [results] = ethologV2(varargin)
                     Screen('FillRect', windowIndex, bkgdColor);
                     fixpt.draw(windowIndex);
                     %Screen('DrawLines', windowIndex, fixLines, 4,fixColor');
-                    [ results.tAoff(itrial) ] = Screen('Flip', windowIndex);
+                    [ results.tAoff(itrial) ] = doScreenFlip(windowIndex);
                     stateMgr.transitionTo('WAIT_AB');
 
                     if p.Results.UseIO64
@@ -783,7 +802,7 @@ function [results] = ethologV2(varargin)
                     end
                     fixpt.draw(windowIndex);
                     %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
-                    [ results.tBon(itrial) ] = Screen('Flip', windowIndex);
+                    [ results.tBon(itrial) ] = doScreenFlip(windowIndex);
     
                     % Moved this from START_RESPONSE, so subject may respond as
                     % soon as B image is shown. The WAIT_B period will still
@@ -862,7 +881,7 @@ function [results] = ethologV2(varargin)
                                     % we can use the timeInState to test for
                                     % timeout on response.
                                     Screen('FillRect', windowIndex, bkgdColor);
-                                    Screen('Flip', windowIndex);
+                                    doScreenFlip(windowIndex);
                                     stateMgr.setCurrent('WAIT_RESPONSE');
                                 end
                             case 'WAIT_RESPONSE'
@@ -878,7 +897,7 @@ function [results] = ethologV2(varargin)
                 case 'TRIAL_COMPLETE'
     
                     % clear stimulus screen
-                    Screen('Flip', windowIndex);
+                    doScreenFlip(windowIndex);
     
                     % stop tracker recording
                     tracker.offline();
@@ -1005,7 +1024,7 @@ function [results] = ethologV2(varargin)
                         end
                     else
                         if p.Results.Feedback && feedbackAnimator.animate(windowIndex)
-                            Screen('Flip', windowIndex);
+                            doScreenFlip(windowIndex);
                         end
                     end
                 case 'BREAK_TIME'
@@ -1021,7 +1040,7 @@ function [results] = ethologV2(varargin)
                         % draw text on screen
                         oldTextSize = Screen('TextSize', windowIndex, textSizeForMilestones);
                         DrawFormattedText(windowIndex, p.Results.BreakParams{ind(1),2}, 'center','center',[1 1 1]);
-                        Screen('Flip', windowIndex);
+                        doScreenFlip(windowIndex);
                         Screen('TextSize', windowIndex, oldTextSize);
                     end
                 case 'STATUS_BREAK_TIME'
@@ -1034,18 +1053,18 @@ function [results] = ethologV2(varargin)
                     % draw text on screen
                     oldTextSize = Screen('TextSize', windowIndex, textSizeForMilestones);
                     DrawFormattedText(windowIndex, s, 'center','center',[1 1 1]);
-                    Screen('Flip', windowIndex);
+                    doScreenFlip(windowIndex);
                     Screen('TextSize', windowIndex, oldTextSize);
     
                     % compute detection rate for the last N completed trials
                     stateMgr.transitionTo('BREAK_TIME_WAIT');
                 case 'BREAK_TIME_WAIT'
                     if stateMgr.timeInState() >= p.Results.BreakTime
-                        Screen('Flip', windowIndex);
+                        doScreenFlip(windowIndex);
                         stateMgr.transitionTo('START');
                     end
                 case 'CLEAR_THEN_PAUSE'
-                    Screen('Flip', windowIndex);
+                    doScreenFlip(windowIndex);
     
                     % stop tracker recording
                     tracker.offline();
@@ -1082,13 +1101,18 @@ function [results] = ethologV2(varargin)
         end
     end
 
-    % TODO
     % Fetch EDF file if needed
-    if p.Results.GetEDF
-        tracker.receive_file('test.edf', 0);
-        movefile('test.edf', 'c:/work')
+    if p.Results.GetEDF && ~p.Results.EyelinkDummyMode
+        tracker.receive_file(trackerFilename, 0);
+        movefile(trackerFilename, p.Results.EDFFolder);
+        fprintf('Eyetracker data for this session is at %s\n', fullfile(p.Results.EDFFolder, trackerFilename));
     end
     
+end
+
+function doScreenFlipVPixx(w)
+    Screen('FillRect', w, [0,0,0]', [0, 0, 5, 5]');
+    Screen('Flip', windowIndex);
 end
 
 

@@ -196,11 +196,15 @@ function results = run_ethologV2(varargin)
         args{end+1} = true;
         args{end+1} = 'GetEDF';
         args{end+1} = false;
+        args{end+1} = 'VPixxClearBits';
+        args{end+1} = true;
     end
     if strcmp(p.Results.Test, 'mangun-booth')
         args{end+1} = 'UseIO64';
         args{end+1} = true;
         args{end+1} = 'GetEDF';
+        args{end+1} = true;
+        args{end+1} = 'VPixxClearBits';
         args{end+1} = true;
     end
 
