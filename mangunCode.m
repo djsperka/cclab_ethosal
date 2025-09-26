@@ -20,7 +20,7 @@ function [code_or_struct] = mangunCode(arg1, base)
         error('base must be scalar 0 < x < 225');
     end
 
-    if istable(arg1)
+    if isstruct(arg1)
         % encode
         trial = arg1;
         code_or_struct = base;
