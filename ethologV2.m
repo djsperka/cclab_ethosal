@@ -818,7 +818,8 @@ function [results] = ethologV2(varargin)
                     end
 
                     if p.Results.UseIO64
-                        i=getMangunCode(trial, 201);
+                        %i=getMangunCode(trial, 201);
+                        i=mangunCode(trial, 201);
                         iodevice.outp(i);
                         tracker.message('STIM_B %d', i);
                     end
@@ -1119,27 +1120,28 @@ function [VBLTimestamp] = doScreenFlipVPixx(w)
 end
 
 
-function [code] = getMangunCode(trial, base)
-    code = base;
-
-    % lowest bit (bit 0) is whether cue is valid. 
-    if trial.CueSide == trial.StimTestType
-        code = code + 1;
-    end
-
-    % bit 1 is the salience of cued side (0=HIGH, 1=LOW)
-    % bit 2 is salience of un-cued side (0=HIGH, 1=LOW)
-    if trial.CueSide==1
-        code = code + 2*(trial.Folder1KeyRow -1) + 4*(trial.Folder2KeyRow - 1);
-    elseif trial.CueSide == 2
-        code = code + 2*(trial.Folder2KeyRow -1) + 4*(trial.Folder1KeyRow - 1);
-    else
-        error('CueSide is %d, not handled', trial.CueSide);
-    end
-
-    % bit 3 is whether the tested side changed (1=change, 2=no change)
-    code = code + 8*trial.StimChangeTF;
-end
+% THIS FUNCTION MOVED TO mangunCode.m - see help mangunCode
+% function [code] = getMangunCode(trial, base)
+%     code = base;
+% 
+%     % lowest bit (bit 0) is whether cue is valid. 
+%     if trial.CueSide == trial.StimTestType
+%         code = code + 1;
+%     end
+% 
+%     % bit 1 is the salience of cued side (0=HIGH, 1=LOW)
+%     % bit 2 is salience of un-cued side (0=HIGH, 1=LOW)
+%     if trial.CueSide==1
+%         code = code + 2*(trial.Folder1KeyRow -1) + 4*(trial.Folder2KeyRow - 1);
+%     elseif trial.CueSide == 2
+%         code = code + 2*(trial.Folder2KeyRow -1) + 4*(trial.Folder1KeyRow - 1);
+%     else
+%         error('CueSide is %d, not handled', trial.CueSide);
+%     end
+% 
+%     % bit 3 is whether the tested side changed (1=change, 2=no change)
+%     code = code + 8*trial.StimChangeTF;
+% end
 
 function [keyPressed, keyCode,  tDown, tUp] = checkKbdQueue(kbindex)
 
