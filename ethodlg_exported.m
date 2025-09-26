@@ -33,8 +33,6 @@ classdef ethodlg_exported < matlab.apps.AppBase
         BlockLabel               matlab.ui.control.Label
         TrialsFileLabel          matlab.ui.control.Label
         TrialsLabel              matlab.ui.control.Label
-        ScrWHmmEditFieldLabel    matlab.ui.control.Label
-        ScrDistmmEditFieldLabel  matlab.ui.control.Label
         LocationLabel            matlab.ui.control.Label
         ExitButton               matlab.ui.control.Button
         TesttypeDropDownLabel    matlab.ui.control.Label
@@ -49,8 +47,6 @@ classdef ethodlg_exported < matlab.apps.AppBase
         GoalDirectedCheck        matlab.ui.control.CheckBox
         SelectBlockButton        matlab.ui.control.Button
         SelectTrialsButton       matlab.ui.control.Button
-        ScrWHmmEditField         matlab.ui.control.EditField
-        ScrDistmmEditField       matlab.ui.control.EditField
         LocationDropDown         matlab.ui.control.DropDown
         TesttypeDropDown         matlab.ui.control.DropDown
         SubjectIDEditField       matlab.ui.control.EditField
@@ -104,7 +100,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 app.GoalDirectedCheck.Enable = true;
                 app.GoalDirectedDropDown.Enable = true;
             else
-                app.GoalDirectedCheck.Value = false;
+                % app.GoalDirectedCheck.Value = false;
                 app.GoalDirectedCheck.Enable = true;
                 app.GoalDirectedDropDown.Enable = true;
             end
@@ -329,14 +325,6 @@ classdef ethodlg_exported < matlab.apps.AppBase
                     img = imageset(imagesetPath, app.imagesetParamsFunc);
                 end
 
-
-                % The value from screen distance comes to us as a char array
-                % 
-                fprintf('Screen distance (ignored) %d\n', str2double(app.ScrDistmmEditField.Value));
-                app.ScrWHmmEditField.Value
-                atmp = eval(['[',app.ScrWHmmEditField.Value,']'])
-                fprintf('Screen WH %dx%d (ignored)\n', atmp(1), atmp(2));
-
                 % get trials, overrides if any. 
                 % also set some arguments for etholog
                 if ~app.isBlocksetSelected
@@ -427,7 +415,9 @@ classdef ethodlg_exported < matlab.apps.AppBase
                 app.enableDialog(true);
 
             catch ME
-                fprintf('Error running expt:\n%s\n%s\n', ME.message, ME.getReport());
+                app.enableDialog(true);
+                fprintf('Error running your experiment\n');
+                rethrow(ME); % Re-throws the error, causing it to appear again
             end
 
         end
@@ -490,20 +480,6 @@ classdef ethodlg_exported < matlab.apps.AppBase
             value = app.RespTimeOverride.Value;
             app.RespTimesEditField.Enable = value;
         end
-
-        % Value changed function: ScrWHmmEditField
-        function ScrWHValueChanged(app, event)
-            value = app.ScrWHmmEditField.Value;
-            try
-                s = sprintf('aaatmp=%s', value);
-                eval(s);
-            catch ME
-                msgText = getReport(ME);
-                fprintf('Cannot evaluate WxH:\n%s\n', msgText);
-                app.ScrWHmmEditField.Value = event.PreviousValue;
-            end
-
-        end
     end
 
     % Component initialization
@@ -549,21 +525,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.LocationDropDown.ItemsData = {'booth', 'no-test', 'desk', 'mangun-desk', 'mangun-booth'};
             app.LocationDropDown.Layout.Row = 3;
             app.LocationDropDown.Layout.Column = 2;
-            app.LocationDropDown.Value = 'booth';
-
-            % Create ScrDistmmEditField
-            app.ScrDistmmEditField = uieditfield(app.GridLayout, 'text');
-            app.ScrDistmmEditField.InputType = 'digits';
-            app.ScrDistmmEditField.Layout.Row = 4;
-            app.ScrDistmmEditField.Layout.Column = 2;
-            app.ScrDistmmEditField.Value = '920';
-
-            % Create ScrWHmmEditField
-            app.ScrWHmmEditField = uieditfield(app.GridLayout, 'text');
-            app.ScrWHmmEditField.ValueChangedFcn = createCallbackFcn(app, @ScrWHValueChanged, true);
-            app.ScrWHmmEditField.Layout.Row = 5;
-            app.ScrWHmmEditField.Layout.Column = 2;
-            app.ScrWHmmEditField.Value = '598,336';
+            app.LocationDropDown.Value = 'mangun-booth';
 
             % Create SelectTrialsButton
             app.SelectTrialsButton = uibutton(app.GridLayout, 'push');
@@ -584,6 +546,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.GoalDirectedCheck.Text = 'Goal-directed cues';
             app.GoalDirectedCheck.Layout.Row = 8;
             app.GoalDirectedCheck.Layout.Column = 2;
+            app.GoalDirectedCheck.Value = true;
 
             % Create GoalDirectedDropDown
             app.GoalDirectedDropDown = uidropdown(app.GridLayout);
@@ -591,7 +554,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.GoalDirectedDropDown.ItemsData = {'none', 'existing', 'stim1', 'stim2'};
             app.GoalDirectedDropDown.Layout.Row = 8;
             app.GoalDirectedDropDown.Layout.Column = 3;
-            app.GoalDirectedDropDown.Value = 'none';
+            app.GoalDirectedDropDown.Value = 'existing';
 
             % Create RunButton
             app.RunButton = uibutton(app.GridLayout, 'push');
@@ -602,6 +565,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
 
             % Create OptionsPanel
             app.OptionsPanel = uipanel(app.GridLayout);
+            app.OptionsPanel.Enable = 'off';
             app.OptionsPanel.Title = 'Options';
             app.OptionsPanel.Layout.Row = [1 5];
             app.OptionsPanel.Layout.Column = 3;
@@ -653,18 +617,6 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.LocationLabel.Layout.Row = 3;
             app.LocationLabel.Layout.Column = 1;
             app.LocationLabel.Text = 'Location:';
-
-            % Create ScrDistmmEditFieldLabel
-            app.ScrDistmmEditFieldLabel = uilabel(app.GridLayout);
-            app.ScrDistmmEditFieldLabel.Layout.Row = 4;
-            app.ScrDistmmEditFieldLabel.Layout.Column = 1;
-            app.ScrDistmmEditFieldLabel.Text = 'Scr Dist (mm)';
-
-            % Create ScrWHmmEditFieldLabel
-            app.ScrWHmmEditFieldLabel = uilabel(app.GridLayout);
-            app.ScrWHmmEditFieldLabel.Layout.Row = 5;
-            app.ScrWHmmEditFieldLabel.Layout.Column = 1;
-            app.ScrWHmmEditFieldLabel.Text = 'Scr W,H (mm)';
 
             % Create TrialsLabel
             app.TrialsLabel = uilabel(app.GridLayout);
