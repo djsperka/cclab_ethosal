@@ -93,7 +93,7 @@ function results = run_ethologV2(varargin)
                 image_folder = p.Results.ImageFolder;
             end
             output_folder = 'c:/work/cclab/data/output';
-            eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
+            eyelinkDummyMode=0;   % will use eyetracker ALWAYS LOOKING
             screenDimensions=[520, 360];
             screenDistance=[850];
             screenNumber = 1;
@@ -195,8 +195,10 @@ function results = run_ethologV2(varargin)
         args{end+1} = 'UseIO64';
         args{end+1} = true;
         args{end+1} = 'EDFFolder';
-        args{end+1} = '';
+        args{end+1} = output_folder;
         args{end+1} = 'VPixxClearBits';
+        args{end+1} = true;
+        args{end+1} = 'AlwaysLooking';
         args{end+1} = true;
     end
     if strcmp(p.Results.Test, 'mangun-booth')

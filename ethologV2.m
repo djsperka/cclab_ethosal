@@ -111,6 +111,7 @@ function [results] = ethologV2(varargin)
     p.addParameter('UseIO64', false, @(x) islogical(x));
     p.addParameter('EDFFolder', '', @(x) ischar(x) && isfolder(x));
     p.addParameter('VPixxClearBits', false, @(x) islogical(x));
+    p.addParameter('AlwaysLooking', false, @(x) islogical(x));
 
     % Now parse the input arguments
     p.parse(varargin{:});
@@ -217,7 +218,7 @@ function [results] = ethologV2(varargin)
     trackerFilenameBase = char(datetime('now','Format','MMddHHmm'));
     fprintf('Eyetracker data file: %s\n', trackerFilenameBase);
     tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.ScreenWH, p.Results.ScreenDistance, trackerFilenameBase, windowIndex, 'Verbose', ourVerbosity);
-    if ~p.Results.EyelinkDummyMode
+    if p.Results.AlwaysLooking
         warning('Tracker is ALWAYS LOOKING DO NOT USE IN ACTUAL EXPERIMENT');
         tracker.always_in_rect(true);
     end
