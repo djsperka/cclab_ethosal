@@ -1113,10 +1113,9 @@ function [results] = ethologV2(varargin)
     
 end
 
-function [tf] = doScreenFlipVPixx(w)
+function [VBLTimestamp] = doScreenFlipVPixx(w)
     Screen('FillRect', w, [0,0,0]', [0, 0, 5, 5]');
-    Screen('Flip', w);
-    tf = true;
+    [VBLTimestamp] = Screen('Flip', w);
 end
 
 
