@@ -45,7 +45,12 @@ The experiment will display two images at once. The positions of the two images 
 | Stim1Ori,Stim2Ori | In | Original orientation of images, -1 means flipped, 1 means not flipped |
 | SciTrialType | In | H/L are high/low salience (regardless of whether images are bw, color, nature, food); first letter is tested image |
 | CueSide | In | For goal-directed expts, this is the side which is cued |
-| FixationTime, MaxAcquisitionTime, FixationBreakEarlyTime, FixationBreakLateTime, SampTime, GapTime, RespTime, TestTime | In | Timing parameters for each trial (same throughout the entire block) |
+| MaxAcquisitionTime | In | After fixpt on, maximum time to acquire (look at) target |
+| FixationTime | In | After first acquiring target, subject must look for this long to "fixate" |
+| FixationBreakEarlyTime, FixationBreakLateTime | In | Wait this long after a fixation break |
+| SampTime | In | First stimulus, with 2 images, is displayed for this long |
+| GapTime | In | After SampTime, the images are removed (fixpt remains), and the blank page is displayed for this long |
+| TestTime | In | The tested image is displayed for this long, or until the subject responds, whichever is less |
 | Started | Out | (T/F) Was the trial started? |
 | trialIndex | Out | Index of trial in the generated input file. When trials are ended early, they are repeated later in the session. This value remains the same, use it to verify that all trials were completed. |
 | tAon | Out | stimulus A onset timestamp |
