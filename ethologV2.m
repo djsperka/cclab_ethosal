@@ -109,7 +109,7 @@ function [results] = ethologV2(varargin)
 
     % for Mangun stuff (windows only)
     p.addParameter('UseIO64', false, @(x) islogical(x));
-    p.addParameter('GetEDF', false, @(x) islogical(x));
+    p.addParameter('EDFFolder', '', @(x) ischar(x) && isfolder(x));
     p.addParameter('VPixxClearBits', false, @(x) islogical(x));
 
     % Now parse the input arguments
@@ -212,11 +212,11 @@ function [results] = ethologV2(varargin)
 
     % init eye tracker.     
     if ~p.Results.EyelinkDummyMode
-        warning('Initializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup');
+        fprintf('\n\nInitializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup\n\n');
     end
-    trackerFilename = [char(datetime('now','Format','MMddHHmm')), '.edf'];
-    fprintf('Eyetracker data file: %s\n', trackerFilename);
-    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.ScreenWH, p.Results.ScreenDistance, trackerFilename, windowIndex, 'Verbose', ourVerbosity);
+    trackerFilenameBase = char(datetime('now','Format','MMddHHmm'));
+    fprintf('Eyetracker data file: %s\n', trackerFilenameBase);
+    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.ScreenWH, p.Results.ScreenDistance, trackerFilenameBase, windowIndex, 'Verbose', ourVerbosity);
     if ~p.Results.EyelinkDummyMode
         warning('Tracker is ALWAYS LOOKING DO NOT USE IN ACTUAL EXPERIMENT');
         tracker.always_in_rect(true);
@@ -345,7 +345,7 @@ function [results] = ethologV2(varargin)
         end
         fprintf('\n*** Using output filename %s\n', outputFilename);    
 
-        if p.Results.GetEDF && ~p.Results.EyelinkDummyMode
+        if ~isempty(p.Results.EDFFolder) && ~p.Results.EyelinkDummyMode
             [~, base, ext] = fileparts(outputFilename);
             tracker.message('DATAFILE %s', [base, ext]);
         end
@@ -1102,17 +1102,21 @@ function [results] = ethologV2(varargin)
     end
 
     % Fetch EDF file if needed
-    if p.Results.GetEDF && ~p.Results.EyelinkDummyMode
-        tracker.receive_file(trackerFilename, 0);
-        movefile(trackerFilename, p.Results.EDFFolder);
-        fprintf('Eyetracker data for this session is at %s\n', fullfile(p.Results.EDFFolder, trackerFilename));
+    if ~isempty(p.Results.EDFFolder) && ~p.Results.EyelinkDummyMode
+        trackerFilenameWithExt = [trackerFilenameBase, '.edf'];
+        tracker.receive_file(trackerFilenameWithExt, 0);
+        if ~strcmp(p.Results.EDFFolder, '.')            
+            movefile(trackerFilenameWithExt, p.Results.EDFFolder);
+        end
+        fprintf('Eyetracker data for this session is at %s\n', fullfile(p.Results.EDFFolder, trackerFilenameWithExt));
     end
     
 end
 
-function doScreenFlipVPixx(w)
+function [tf] = doScreenFlipVPixx(w)
     Screen('FillRect', w, [0,0,0]', [0, 0, 5, 5]');
-    Screen('Flip', windowIndex);
+    Screen('Flip', w);
+    tf = true;
 end
 
 

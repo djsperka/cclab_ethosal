@@ -94,8 +94,8 @@ function results = run_ethologV2(varargin)
             end
             output_folder = 'c:/work/cclab/data/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
-            screenDimensions=[];
-            screenDistance=[];
+            screenDimensions=[520, 360];
+            screenDistance=[850];
             screenNumber = 1;
             %screenRect=[1120,300,1920,900];
             screenRect=[];
@@ -111,8 +111,8 @@ function results = run_ethologV2(varargin)
             end
             output_folder = 'c:/work/cclab/data/output';
             eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
-            screenDimensions=[];
-            screenDistance=[];
+            screenDimensions=[520, 360];
+            screenDistance=[850];
             screenNumber = 1;
             %screenRect=[1120,300,1920,900];
             screenRect=[];
@@ -194,16 +194,16 @@ function results = run_ethologV2(varargin)
     if strcmp(p.Results.Test, 'mangun-desk')
         args{end+1} = 'UseIO64';
         args{end+1} = true;
-        args{end+1} = 'GetEDF';
-        args{end+1} = false;
+        args{end+1} = 'EDFFolder';
+        args{end+1} = '';
         args{end+1} = 'VPixxClearBits';
         args{end+1} = true;
     end
     if strcmp(p.Results.Test, 'mangun-booth')
         args{end+1} = 'UseIO64';
         args{end+1} = true;
-        args{end+1} = 'GetEDF';
-        args{end+1} = true;
+        args{end+1} = 'EDFFolder';
+        args{end+1} = output_folder;
         args{end+1} = 'VPixxClearBits';
         args{end+1} = true;
     end
