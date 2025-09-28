@@ -196,7 +196,7 @@ function [results] = ethologV2(varargin)
         millikey = responder(p.Results.MilliKeyIndex);
     elseif strcmp(subjectResponseType, 'SharedKbd')
         millikey = responder(p.Results.KeyboardIndex, 'kbd');
-        millikey.Responses = {KbName('1!'), 1; KbName('0)'), 0};
+        millikey.Responses = {KbName('1!'), 1; KbName('2@'), 0};
         millikey.start();
     end
 
@@ -659,6 +659,8 @@ function [results] = ethologV2(varargin)
                     if p.Results.UseIO64
                         iodevice.outp(14);
                         tracker.message('FIX_ON 14');
+                        WaitSecs(.005);
+                        iodevice.outp(0);
                     end
     
                     % Draw cross and box on tracker screen
@@ -823,6 +825,8 @@ function [results] = ethologV2(varargin)
                         i=mangunCode(trial, 201);
                         iodevice.outp(i);
                         tracker.message('STIM_B %d', i);
+                        WaitSecs(0.005);
+                        iodevice.outp(0);
                     end
 
                     stateMgr.transitionTo('WAIT_RESPONSE_WITH_B');
@@ -938,7 +942,7 @@ function [results] = ethologV2(varargin)
 
                     % put response into eeg and tracker data
                     if p.Results.UseIO64
-                        i=0;
+                        i=99;
                         if results.iResp(itrial) == 1
                             i = 44;
                         elseif results.iResp(itrial) == 0
@@ -953,6 +957,9 @@ function [results] = ethologV2(varargin)
                         if p.Results.UseIO64
                             iodevice.outp(i);
                             tracker.message('RESPONSE %d', i);
+                            WaitSecs(0.005);
+                            iodevice.outp(0);
+                            WaitSecs(0.005);
                         end
                     end
 
