@@ -46,9 +46,9 @@ function results = run_ethologV2(varargin)
             if ~isempty(p.Results.ImageFolder)
                 image_folder = p.Results.ImageFolder;
             else
-                image_folder = '/data/cclab/images/Babies';
+                image_folder = '/home/cclab/work/cclab-images/Babies';
             end
-            output_folder = '/home/cclab/Desktop/cclab/ethdata/output';
+            output_folder = '/home/cclab/work/ethdata/output';
             eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
 
             screenDimensions=[598, 336];
@@ -68,9 +68,9 @@ function results = run_ethologV2(varargin)
             if ~isempty(p.Results.ImageFolder)
                 image_folder = p.Results.ImageFolder;
             else
-                image_folder = '/data/cclab/images/Babies';
+                image_folder = '/home/cclab/work/cclab-images/MoreBabies';
             end
-            output_folder = '/home/cclab/Desktop/cclab/ethdata/output';
+            output_folder = '/home/cclab/work/ethdata/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
             screenDimensions=[];
             screenDistance=[];
@@ -98,7 +98,14 @@ function results = run_ethologV2(varargin)
     % Millikey index (todo - test!)
     mkind = cclabGetMilliKeyIndices();
     
-        
+    % Under ubuntu 2024 the millikey presents 3 values here instead of 1. 
+    % The first one seems to be the one to use, so let's just choose that
+    % one.
+    if length(mkind)>1
+        fprintf('Millikey presents 3 devices in PsychHID. Choosing the first index (%d)', mkind(1));
+        mkind = mkind(1);
+    end
+
     
 %     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(1:100), [24,6,24,6; 6,24,6,24; 15,15,15,15]', .78, .12);
 %     save('input/contrast_60_single_a_lrn_12.mat', 'blocks', 'inputArgs', 'parsedResults')
