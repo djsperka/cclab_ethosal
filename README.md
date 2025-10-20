@@ -3,6 +3,8 @@ Ethological salience expt
 
 ## setup
 
+Some notes on setting the computer up for our experiments can be found [here](computersetup.md).
+
 The script *local_ethosal* should be copied to somewhere in your MATLAB path. The file in this repo named *local_ethosal_EDIT_AND_COPY.m* is a template. The key folders (this script just places variables with the paths in the current workspace) are
 
 - **ethDataRoot** - root folder for input and output data. There should be subfolders named 'input' and 'output'.
