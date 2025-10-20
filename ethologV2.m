@@ -107,6 +107,12 @@ function [results] = ethologV2(varargin)
     % See docs for details.
     p.addParameter('KeyboardIndex', 0, @(x) isscalar(x));
 
+    % for Mangun stuff (windows only)
+    p.addParameter('UseIO64', false, @(x) islogical(x));
+    p.addParameter('EDFFolder', '', @(x) ischar(x) && isfolder(x));
+    p.addParameter('VPixxClearBits', false, @(x) islogical(x));
+    p.addParameter('AlwaysLooking', false, @(x) islogical(x));
+
     % Now parse the input arguments
     p.parse(varargin{:});
 
@@ -187,12 +193,22 @@ function [results] = ethologV2(varargin)
     % Init audio - BEFORE the tracker is initialized ()
     beeper = twotonebeeper(true);
 
-    % init eye tracker.     
+
+    % init eye tracker. 
+    % Tracker filename is the one used on the tracker itself. It should be unique as long 
+    % as you only create one per minute. Will need to clear these off of the tracker? TODO.
+
     if ~p.Results.EyelinkDummyMode
-        warning('Initializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup');
+        fprintf('\n\nInitializing tracker. Will switch tracker to CameraSetup SCREEN - calibrate and hit ExitSetup\n\n');
     end
-    trackerFilename = 'etholog';
-    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.ScreenWH, p.Results.ScreenDistance, trackerFilename, windowIndex, 'Verbose', ourVerbosity);
+    trackerFilenameBase = char(datetime('now','Format','MMddHHmm'));
+    fprintf('Eyetracker data file: %s\n', trackerFilenameBase);
+    tracker = eyetracker(p.Results.EyelinkDummyMode, p.Results.ScreenWH, p.Results.ScreenDistance, trackerFilenameBase, windowIndex, 'Verbose', ourVerbosity);
+    if p.Results.AlwaysLooking
+        warning('Tracker is ALWAYS LOOKING DO NOT USE IN ACTUAL EXPERIMENT');
+        tracker.always_in_rect(true);
+    end
+    
 
     % For gabor tests, must generate a texture here, after the window is
     % opened.
@@ -304,6 +320,12 @@ function [results] = ethologV2(varargin)
             end
         end
         fprintf('\n*** Using output filename %s\n', outputFilename);    
+
+        if ~isempty(p.Results.EDFFolder) && ~p.Results.EyelinkDummyMode
+            [~, base, ext] = fileparts(outputFilename);
+            tracker.message('DATAFILE %s', [base, ext]);
+        end
+
     
         % The table 'results' will be used to hold all parameters and results
         % for this block. 
@@ -467,7 +489,9 @@ function [results] = ethologV2(varargin)
                             stateMgr.transitionTo('START');
                         end
                     otherwise
-                        if (ourVerbosity > -1); fprintf('Keys:\n<space> - toggle pause\n\n');end
+                        if (ourVerbosity > -1)
+                            fprintf('Keys:\n<space> - toggle pause\n<q> - quit current block\n<k> - quit all blocks and exit\n<s> - enter camera setup (only when paused)\n<d> - drift correction only when paused - EXPERTS ONLY)\n');
+                        end
                 end
             end
     
@@ -591,7 +615,12 @@ function [results] = ethologV2(varargin)
     
                     % start tracker recording
                     tracker.start_recording();
-    
+
+                    % msg to tracker file
+                    if ~isempty(p.Results.EDFFolder) && ~p.Results.EyelinkDummyMode
+                        tracker.message('TRIALINDEX %d', trial.trialIndex);
+                    end
+  
                 case 'DRAW_FIXPT'
                     % Draw fixation cross on screen
                     Screen('FillRect', windowIndex, bkgdColor);
@@ -663,7 +692,12 @@ function [results] = ethologV2(varargin)
     
                     % flip and save the flip time
                     [ results.tAon(itrial) ] = Screen('Flip', windowIndex);
+                    if ~isempty(p.Results.EDFFolder) && ~p.Results.EyelinkDummyMode
+                        tracker.message('STIMA');
+                    end
+
                     stateMgr.transitionTo('WAIT_A');
+
                 case 'WAIT_A'
                     if stateMgr.timeInState() >= trial.SampTime
                         % if GapTime is zero, transition directly to DRAW_B
@@ -689,6 +723,11 @@ function [results] = ethologV2(varargin)
                     fixpt.draw(windowIndex);
                     %Screen('DrawLines', windowIndex, fixLines, 4,fixColor');
                     [ results.tAoff(itrial) ] = Screen('Flip', windowIndex);
+                    % msg to tracker file
+                    if ~isempty(p.Results.EDFFolder) && ~p.Results.EyelinkDummyMode
+                        tracker.message('STIMAB');
+                    end
+
                     stateMgr.transitionTo('WAIT_AB');
                 case 'WAIT_AB'
                     if stateMgr.timeInState() >= trial.GapTime
@@ -713,6 +752,11 @@ function [results] = ethologV2(varargin)
                     fixpt.draw(windowIndex);
                     %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
                     [ results.tBon(itrial) ] = Screen('Flip', windowIndex);
+
+                    % msg to tracker file
+                    if ~isempty(p.Results.EDFFolder) && ~p.Results.EyelinkDummyMode
+                        tracker.message('STIMB');
+                    end
     
                     % Moved this from START_RESPONSE, so subject may respond as
                     % soon as B image is shown. The WAIT_B period will still
@@ -792,13 +836,17 @@ function [results] = ethologV2(varargin)
                     % clear stimulus screen
                     Screen('Flip', windowIndex);
     
+                    % msg to tracker file
+                    if ~isempty(p.Results.EDFFolder) && ~p.Results.EyelinkDummyMode
+                        tracker.message('RESPONSE %d', results.iResp(itrial));
+                    end
+
                     % stop tracker recording
                     tracker.offline();
     
                     % clear tracker screen
-                    tracker.command('clear_screen 0');
-    
-    
+                    tracker.command('clear_screen 0');    
+
                     % stop millikey queue
                     if strcmp(subjectResponseType, 'MilliKey')
                         millikey.stop(true);
@@ -973,12 +1021,16 @@ function [results] = ethologV2(varargin)
             break;
         end
     end
-    % % save data, again
-    % save(outputFilename, 'results');
-    % fprintf('\n*** Results saved in output file %s\n', outputFilename);
-    % 
-    % experimentElapsedTime = GetSecs - experimentStartTime;
-    % fprintf(1, 'This block took %.1f sec.\n', experimentElapsedTime);
+
+    % Fetch EDF file if needed
+    if ~isempty(p.Results.EDFFolder) && ~p.Results.EyelinkDummyMode
+        trackerFilenameWithExt = [trackerFilenameBase, '.edf'];
+        tracker.receive_file(trackerFilenameWithExt, 0);
+        if ~strcmp(p.Results.EDFFolder, '.')            
+            movefile(trackerFilenameWithExt, p.Results.EDFFolder);
+        end
+        fprintf('Eyetracker data for this session is at %s\n', fullfile(p.Results.EDFFolder, trackerFilenameWithExt));
+    end
     
 end
 

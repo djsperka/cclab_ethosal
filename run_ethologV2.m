@@ -158,7 +158,10 @@ function results = run_ethologV2(varargin)
     end
 
 
-
+    if ~eyelinkDummyMode
+        args{end+1} = 'EDFFolder';
+        args{end+1} = output_folder;
+    end
 
 
     % If a blockset is being passed, then outputFilename should be the
