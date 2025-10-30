@@ -46,9 +46,9 @@ function results = run_ethologV2(varargin)
             if ~isempty(p.Results.ImageFolder)
                 image_folder = p.Results.ImageFolder;
             else
-                image_folder = '/home/cclab/work/cclab-images/Babies';
+                image_folder = 'C:/Users/cclab/Desktop/work/cclab-images/MoreBabies';
             end
-            output_folder = '/home/cclab/work/ethdata/output';
+            output_folder = 'C:/Users/cclab/Desktop/work/data/output';
             eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
 
             screenDimensions=[598, 336];
@@ -62,27 +62,29 @@ function results = run_ethologV2(varargin)
             screenNumber = 1;
             screenRect=[];
             % This is the keyboard in use at the booth
-            kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
+            %kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
+            kbind = 0;
         case 'booth'
             % Set these folders according to the current machine
             if ~isempty(p.Results.ImageFolder)
                 image_folder = p.Results.ImageFolder;
             else
-                image_folder = '/home/cclab/work/cclab-images/MoreBabies';
+                image_folder = 'C:/Users/cclab/Desktop/work/cclab-images/MoreBabies';
             end
-            output_folder = '/home/cclab/work/ethdata/output';
+            output_folder = 'C:/Users/cclab/Desktop/work/data/output';
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
             screenDimensions=[];
             screenDistance=[];
             screenNumber = 1;
             screenRect=[];
-            % This may need to be changed if workign inside booth
-            if ~p.Results.Inside
-                kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
-            else
-                kbind = getKeyboardIndex('Dell Dell USB Keyboard');
-                eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
-            end
+            kbind = 0;  % windows
+            % % This may need to be changed if workign inside booth
+            % if ~p.Results.Inside
+            %     kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
+            % else
+            %     kbind = getKeyboardIndex('Dell Dell USB Keyboard');
+            %     eyelinkDummyMode=0;   % 0 for participant, 1 for dummy mode
+            % end
     end            
       
 
@@ -95,40 +97,21 @@ function results = run_ethologV2(varargin)
         img = p.Results.Images;
     end
 
-    % Millikey index (todo - test!)
-    mkind = cclabGetMilliKeyIndices();
-    
-    % Under ubuntu 2024 the millikey presents 3 values here instead of 1. 
-    % The first one seems to be the one to use, so let's just choose that
-    % one.
-    if length(mkind)>1
-        fprintf('Millikey presents 3 devices in PsychHID. Choosing the first index (%d)', mkind(1));
-        mkind = mkind(1);
+    % Millikey index
+
+    if IsWin()
+        mkind = 0;
+    else
+        mkind = cclabGetMilliKeyIndices();  % probably won't work right
+        % Under ubuntu 2024 the millikey presents 3 values here instead of 1. 
+        % The first one seems to be the one to use, so let's just choose that
+        % one.
+        if length(mkind)>1
+            fprintf('Millikey presents 3 devices in PsychHID. Choosing the first index (%d)', mkind(1));
+            mkind = mkind(1);
+        end
     end
-
     
-%     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(1:100), [24,6,24,6; 6,24,6,24; 15,15,15,15]', .78, .12);
-%     save('input/contrast_60_single_a_lrn_12.mat', 'blocks', 'inputArgs', 'parsedResults')
-%     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(1:100), [24,6,24,6; 6,24,6,24; 15,15,15,15]', .78, .12);
-%     save('input/contrast_60_single_b_lrn_12.mat', 'blocks', 'inputArgs', 'parsedResults')
-%     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(1:100), [24,6,24,6; 6,24,6,24; 15,15,15,15]', .78, .12);
-%     save('input/contrast_60_single_c_lrn_12.mat', 'blocks', 'inputArgs', 'parsedResults')
-%     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(100:109), [1,1,1,1]', .78, .16);
-%     save('input/contrast_60_single_TEST_a.mat', 'blocks', 'inputArgs', 'parsedResults')
-%     [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(100:109), [1,1,1,1]', .78, .16);
-%     save('input/contrast_60_single_TEST_b.mat', 'blocks', 'inputArgs', 'parsedResults');    
-
-%      [blocks, inputArgs, parsedResults] = generateEthBlocksSingleTest(imgbw.BalancedFileKeys(100:109), [2,2,2,2]', .78, .16, 'SampTime', 1.0, 'TestTime', 1.0);
-%      save('input/contrast_60_single_DEMO_LONG_a.mat', 'blocks', 'inputArgs', 'parsedResults')
-%
-%      trials = generateThreshBlock(imgbw.BalancedFileKeys, 5, 'HL', .8, [0, .04, .08, .12], 1);
-%
-% img=imageset(image_folder,{'params'});
-% trials=generateThreshBlockProcImage(img.BalancedFileKeys, 5)
-% run_etholog_single('test','thr','Test','desk','Trials',trials,'Threshold',true,'ImageTest',true,'ImageFolder','/home/dan/work/cclab/images/eth/babies_match_V2')
-
-
-
 
 
 

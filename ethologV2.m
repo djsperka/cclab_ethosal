@@ -174,21 +174,34 @@ function [results] = ethologV2(varargin)
         converter = pixdegconverter(windowRect, p.Results.Fovx);
     end
 
-    % Keyboard used for input from operator
-    if ~p.Results.KeyboardIndex
-        error('Need to specify keyboard index');
-    end
-    KbQueueCreate(p.Results.KeyboardIndex);
-    KbQueueStart(p.Results.KeyboardIndex);
-    ListenChar(-1);
+    % % Keyboard used for input from operator
+    % if ~p.Results.KeyboardIndex
+    %     error('Need to specify keyboard index');
+    % end
+    % KbQueueCreate(p.Results.KeyboardIndex);
+    % KbQueueStart(p.Results.KeyboardIndex);
+    % ListenChar(-1);
+    % 
+    % % input response device if needed
+    % if strcmp(subjectResponseType, 'MilliKey')
+    %     if ~p.Results.MilliKeyIndex
+    %         error('If MilliKey used as response device, you must supply the keyboard index with MilliKeyIndex');
+    %     end
+    %     millikey = responder(p.Results.MilliKeyIndex);
+    % end
 
-    % input response device if needed
-    if strcmp(subjectResponseType, 'MilliKey')
-        if ~p.Results.MilliKeyIndex
-            error('If MilliKey used as response device, you must supply the keyboard index with MilliKeyIndex');
-        end
-        millikey = responder(p.Results.MilliKeyIndex);
+    if IsWin()
+        % assuming that millikey has been set so the keypad numbers 1-5 are
+        % used, 5 is center.
+        filters = {{'space','q','k','d','s'};{'1','2','3','4','5'}};
+        responses = { {}; {1,1,1,1,0}};
+        ListenChar(-1);
+        kbqs = SplitKbQueue(0, filters=filters, responses=responses);
+        kbqs.start(1);
+    else
+        error('Linux not supported ATM, must deal with SplitKbQueue');
     end
+
 
     % Init audio - BEFORE the tracker is initialized ()
     beeper = twotonebeeper(true);
@@ -394,7 +407,7 @@ function [results] = ethologV2(varargin)
         bQuit = false;
 
         %% Intermission
-        [ok, ~] = intermission(windowIndex, millikey, blockStruct(iblock).text, 18);
+        [ok, ~] = intermission(windowIndex, kbqs, 2, blockStruct(iblock).text, 18);
         if ~ok
             fprintf('Intermission timed out. This could mean the millikey responder is not working! Pausing....');
             stateMgr.transitionTo('WAIT_PAUSE');
@@ -405,8 +418,10 @@ function [results] = ethologV2(varargin)
         while ~bQuit
             
             % any keys pressed? 
-            [keyPressed, keyCode,  ~, ~] = checkKbdQueue(p.Results.KeyboardIndex);
-            if keyPressed
+            % [keyPressed, keyCode,  ~, ~] = checkKbdQueue(p.Results.KeyboardIndex);
+            % if keyPressed
+            if ~isempty(kbqs, 1)
+                [keyCode, ~] = kbqs.pop(1);
                 switch keyCode
                     case KbName('space')
     
@@ -765,7 +780,7 @@ function [results] = ethologV2(varargin)
                     % period is short, this seems OK to me. 
     
                     if strcmp(subjectResponseType, 'MilliKey')
-                        millikey.start();
+                        kbqs.start(2);
                     end
                     stateMgr.transitionTo('WAIT_RESPONSE_WITH_B');
                 case {'WAIT_RESPONSE_WITH_B', 'WAIT_RESPONSE'}
@@ -784,12 +799,12 @@ function [results] = ethologV2(varargin)
                                 tResp = GetSecs;    % not an accurate measurement at all! 
                             end
                         case 'MilliKey'
-                            [isResponse, response, tResp] = millikey.response();
+                            [isResponse, response, tResp] = kbqs.response(2);
                     end
                     if isResponse
                         stateMgr.transitionTo('TRIAL_COMPLETE');
                         if strcmp(subjectResponseType, 'MilliKey')
-                            millikey.stop(true);
+                            kbqs.stop(2, true);
                         end
     
                         % record response
@@ -849,7 +864,7 @@ function [results] = ethologV2(varargin)
 
                     % stop millikey queue
                     if strcmp(subjectResponseType, 'MilliKey')
-                        millikey.stop(true);
+                        kbqs.stop(2, true);
                     end
     
                     % save data
@@ -1034,29 +1049,6 @@ function [results] = ethologV2(varargin)
     
 end
 
-function [keyPressed, keyCode,  tDown, tUp] = checkKbdQueue(kbindex)
-
-    keyPressed = false;
-    keyCode = 0;
-    tDown = -1;
-    tUp = -1;
-    bquit = false;
-    
-    % Fetch events until a key is released.
-    % This could theoretically miss one, if called while it was held down.
-    
-     while ~bquit && KbEventAvail(kbindex) 
-        [event, ~] = KbEventGet(kbindex);
-        if event.Pressed
-            tDown =  event.Time;
-        else
-            tUp = event.Time;
-            keyCode = event.Keycode;
-            bquit = true;
-            keyPressed = true;
-        end
-     end
-end
 
 % function saveResultsAndCleanup(folder, base, trials, results)
 %     % horzcat, but for tables
