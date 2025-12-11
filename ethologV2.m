@@ -199,7 +199,18 @@ function [results] = ethologV2(varargin)
         kbqs = SplitKbQueue(0, filters=filters, responses=responses);
         kbqs.start(1);
     else
-        error('Linux not supported ATM, must deal with SplitKbQueue');
+        % Only handle the case where kbind==mkind
+        if p.Results.MilliKeyIndex == p.Results.KeyboardIndex
+            filters = {{'space','q','k','d','s'};{'1','2','3','4','5'}};
+            responses = { {}; {1,1,1,1,0}};
+            ListenChar(-1);
+            kbqs = SplitKbQueue(p.Results.KeyboardIndex, filters=filters, responses=responses);
+            kbqs.start(1);
+        else
+            % SplitKbQueue won't handle dual devices yet, so require using
+            % single kbd.
+            error('On linux, MilliKeyIndex==KeyboardIndex');
+        end
     end
 
 

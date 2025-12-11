@@ -29,7 +29,7 @@ function results = run_ethologV2(varargin)
         case 'desk'
             % Set these folders according to the current machine
             if isempty(p.Results.ImageFolder)
-                image_folder = '/home/dan/work/cclab/images/eth/Babies';
+                image_folder = '/home/dan/work/cclab/cclab-images/MoreBabies';
             else
                 image_folder = p.Results.ImageFolder;
             end
@@ -102,14 +102,8 @@ function results = run_ethologV2(varargin)
     if IsWin()
         mkind = 0;
     else
-        mkind = cclabGetMilliKeyIndices();  % probably won't work right
-        % Under ubuntu 2024 the millikey presents 3 values here instead of 1. 
-        % The first one seems to be the one to use, so let's just choose that
-        % one.
-        if length(mkind)>1
-            fprintf('Millikey presents 3 devices in PsychHID. Choosing the first index (%d)', mkind(1));
-            mkind = mkind(1);
-        end
+        % On linux we can use a millikey or shared kbd. 
+        mkind = kbind;
     end
     
 
