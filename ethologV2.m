@@ -3,7 +3,6 @@ function [results] = ethologV2(varargin)
 %   Detailed explanation goes here
 
     experimentStartTime = GetSecs;
-    
 
 %% Create a parser and parse input arguments
     p = inputParser;
@@ -325,7 +324,7 @@ function [results] = ethologV2(varargin)
             if isfile(blockStruct(iblock).outputfile)
                 warning('OutputFile %s already exists. Finding a suitable name...', blockStruct(iblock).outputfile);
                 [path, base, ext] = fileparts(blockStruct(iblock).outputfile);
-                [ok, outputFilename] = makeNNNFilename(fullfile(path, [base, '_NNN', ext]));
+                [ok, outputFilename] = makeNNNFilename(path, [base, '_NNN', ext]);
                 if ~ok
                     error('Cannot form usable filename using folder %s and basename %s', path, base);
                 end
