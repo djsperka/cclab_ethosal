@@ -29,7 +29,7 @@ function [results] = ethologV2(varargin)
     % passed for all cases).
     % 
 
-    goalDirectedTypes = {'none', 'existing', 'stim1', 'stim2'};
+    goalDirectedTypes = {'none', 'lr', 'color'};
     p.addParameter('GoalDirected', 'none', @(x) ismember(x, goalDirectedTypes));
     p.addParameter('OutputBase', 'ZZZZ', @(x) ischar(x));
     p.addParameter('OutputFolder', '.', @(x) isfolder(x));
@@ -58,7 +58,7 @@ function [results] = ethologV2(varargin)
     % djs by default no cues are used. 
     p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
     p.addParameter('CueWidth', 2, @(x) isscalar(x));
-    p.addParameter('UseCues', false, @(x) islogical(x));
+    p.addParameter('UseColorCues', false, @(x) islogical(x));
 
 
     % Overrides for trial parameters
@@ -374,25 +374,27 @@ function [results] = ethologV2(varargin)
     
     
         % If using goal-directed cues, then we MUST have a column named
-        % GoalCues, or else the parameter CueSide must be set, and the column
+        % CueSide, or else the parameter CueSide must be set, and the column
         % will be created and assigned that value. 
         usingGoalDirectedCues = false;
+        usingColorCues = false;
         switch blockStruct(iblock).goaldirected
             case 'none'
                 results.CueSide = zeros(height(results), 1);
                 usingGoalDirectedCues = false;
-                % nothing to do
-            case 'existing'
+                usingColorCues = false;
+            case 'lr'
                 % trials must have 'CueSide' column
                 assert(ismember('CueSide', fieldnames(results)) && all(ismember(results.CueSide,[1,2])),...
                     'Input trial table must have column CueSide populated with 1s and 2s');
                 usingGoalDirectedCues = true;
-            case 'stim1'
-                usingGoalDirectedCues = true;
-                results.CueSide = ones(height(results), 1);
-            case 'stim2'
-                usingGoalDirectedCues = true;
-                results.CueSide = 2*ones(height(results), 1);
+                usingColorCues = false;
+            case 'color'
+                % trials must have 'CueSide' column
+                assert(ismember('CueSide', fieldnames(results)) && all(ismember(results.CueSide,[1,2])),...
+                    'Input trial table must have column CueSide populated with 1s and 2s');
+                usingGoalDirectedCues = false;
+                usingColorCues = true;
             otherwise
                 error('Unknown value for GoalDirected parameter');
         end
@@ -529,7 +531,7 @@ function [results] = ethologV2(varargin)
     
                     % get a struct with just trial params.  
                     trial = table2struct(results(itrial, :));
-    
+
                     % rects for the textures in trial
                     stim1Rect = CenterRectOnPoint(images.rect(trial.StimA1Key), stim1XYScr(1), stim1XYScr(2));
                     stim2Rect = CenterRectOnPoint(images.rect(trial.StimA2Key), stim2XYScr(1), stim2XYScr(2));    
@@ -705,7 +707,7 @@ function [results] = ethologV2(varargin)
                         case 'RotatedImage'
                             Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]', rotationAnglesA);
                     end             
-                    if p.Results.UseCues
+                    if p.Results.UseColorCues
                         Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
                     end
                     fixpt.draw(windowIndex);
@@ -771,7 +773,7 @@ function [results] = ethologV2(varargin)
                     else
                         Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]');
                     end                    
-                    if p.Results.UseCues
+                    if p.Results.UseColorCues
                         Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
                     end
                     fixpt.draw(windowIndex);

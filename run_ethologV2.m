@@ -3,7 +3,7 @@ function results = run_ethologV2(varargin)
 %run_etholog_single Run etholog for a specific block
 %   Detailed explanation goes here
 
-    goalDirectedTypes = {'none', 'existing', 'stim1', 'stim2'};
+    goalDirectedTypes = {'none', 'lr', 'color'};
     testingTypes = {'no-test', 'desk', 'booth'};
     p=inputParser;
     p.addRequired('ID', @(x) ischar(x));
@@ -23,6 +23,7 @@ function results = run_ethologV2(varargin)
     p.addParameter('Stim1XY', [], @(x) isvector(x) && length(x)==2);
     p.addParameter('Stim2XY', [], @(x) isvector(x) && length(x)==2);
 
+    varargin
     p.parse(varargin{:});
 
     switch(p.Results.Test)
