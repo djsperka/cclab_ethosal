@@ -34,6 +34,7 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
     p.addOptional('Threshold', false, @(x) islogical(x));
     p.addOptional('CueSide', 0, @(x) isnumeric(x) && all(ismember(x,[0,1,2])));
     p.addOptional('Base', 5, @(x) isnumeric(x));
+    p.addOptional('UseColorCues', false, @(x) islogical(x));
 
     p.parse(varargin{:});
     parsedResults = p.Results;
@@ -107,8 +108,6 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
     
                 if thisSetNums(i) > 0
     
-                    %replacements = cell(7,1);
-                    %columnNames=cell(7,1);
                     replacements = {};
                     columnNames = {};
 
@@ -172,22 +171,44 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     replacements{end+1} = (1:size(p.Results.FolderKeys,1))';
                     columnNames{end+1} = 'Folder2KeyRow';
 
-                
-                    % TestType? L=1, R=2
-                    % First element of thisBlockNums is the number that will
-                    % have both left&right test. Second element is left-only,
-                    % third element is righ-only. Remember that TestType==1
-                    % means left test, TestType==2 means right test.
+
+                    % Differentiate between sets that use color cues, and
+                    % those that use directional (or no) cues.
+
+                    if p.Results.UseColorCues
+
+                        replacements{end+1} = {[1,2];[2,1]};
+                        columnNames{end+1} = 'ColorLayout';
+
+                        
+                        switch (i)
+                            case 1
+                                replacements{end+1}=[1;2];
+                            case 2
+                                replacements{end+1}=[1];
+                            case 3
+                                replacements{end+1}=[2];
+                        end        
+                        columnNames{end+1} = 'TestColor';
+
+                    else
     
-                    switch (i)
-                        case 1
-                            replacements{end+1}=[1;2];
-                        case 2
-                            replacements{end+1}=[1];
-                        case 3
-                            replacements{end+1}=[2];
-                    end        
-                    columnNames{end+1} = 'StimTestType';
+                        % TestType? L=1, R=2
+                        % First element of thisBlockNums is the number that will
+                        % have both left&right test. Second element is left-only,
+                        % third element is righ-only. Remember that TestType==1
+                        % means left test, TestType==2 means right test.
+        
+                        switch (i)
+                            case 1
+                                replacements{end+1}=[1;2];
+                            case 2
+                                replacements{end+1}=[1];
+                            case 3
+                                replacements{end+1}=[2];
+                        end        
+                        columnNames{end+1} = 'StimTestType';
+                    end
                 
                     % change/nochange test
                     replacements{end+1} = [0;1];
@@ -202,11 +223,27 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     % names/reps.
                     tab1 = randomizeParams('VariableNames', columnNames, 'Replacements', replacements);
                     nTrials = height(tab1);
-                
-                
+
+                    % When using color cues fix some stuff up
+                    if p.Results.UseColorCues
+
+                        % expand 'ColorLayout' into 'Color1' and 'Color2'
+                        cl = cell2mat(tab1.ColorLayout);
+                        tab1.Color1 = cl(:,1);
+                        tab1.Color2 = cl(:,2);
+                        nTrials = height(tab1);
+                        
+                        z = zeros(height(tab1), 1);
+                        z(tab1.TestColor == tab1.Color1) = 1;
+                        z(tab1.TestColor == tab1.Color2) = 2;
+                        tab1.StimTestType = z;
+                        
+                        % convert CueSide into CueColor
+                        tab1.CueColor = cueSideThisTrialSet * ones(height(tab1), 1);
+                    end
+
                     % Now make File1Key and File2Key
                     tab1.File1Key = FileKeys(imagePairs(tab1.ImagePairIndex,1));
-
                     tab1.File2Key = FileKeys(imagePairs(tab1.ImagePairIndex,2));
 
                     % Now make Folder1Key and Folder2Key
