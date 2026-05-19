@@ -55,10 +55,12 @@ function [results] = ethologV2(varargin)
 
     p.addParameter('StatusBreaks', 40, @(x) isnumeric(x) && isscalar(x));
 
-    % djs by default no cues are used. 
-    p.addParameter('CueColors', [1, 0, 0; 0, 0, 1]', @(x) size(x,1)==4);
+    % These cue colors are used when 'GoalDirected' is 'color'. Default is
+    % red, green.
+    % Cue Colors should be in row vectors. This is a change, but I don't
+    % think this was ever  used. 
+    p.addParameter('CueColors', [1, 0, 0; 0, 1, 0], @(x) size(x,2)==3);
     p.addParameter('CueWidth', 2, @(x) isscalar(x));
-    p.addParameter('UseColorCues', false, @(x) islogical(x));
 
 
     % Overrides for trial parameters
@@ -380,7 +382,14 @@ function [results] = ethologV2(varargin)
         usingColorCues = false;
         switch blockStruct(iblock).goaldirected
             case 'none'
-                results.CueSide = zeros(height(results), 1);
+                % trials must have 'CueSide' column, but accommodate old
+                % files that might not have one.
+                if ~ismember('CueSide', fieldnames(results))
+                    warning('Input trials do not have CueSide column. Creating one, setting to zeros. It''s ok.');
+                    results.CueSide = zeros(height(results), 1);
+                elseif ~all(results.CueSide==0)
+                    error('The input trials appear to be for goal directed trials, but you are specifying none.');
+                end
                 usingGoalDirectedCues = false;
                 usingColorCues = false;
             case 'lr'
@@ -390,8 +399,12 @@ function [results] = ethologV2(varargin)
                 usingGoalDirectedCues = true;
                 usingColorCues = false;
             case 'color'
-                % trials must have 'CueSide' column
-                assert(ismember('CueSide', fieldnames(results)) && all(ismember(results.CueSide,[1,2])),...
+                % trials must have a 'CueColor'
+                % column. The CueSide is ignored for these trials, but it
+                % gets generated automatically when the trials are created.
+                % the CueColor will be used for coloring the fixpt. The cue
+                % colors for stim are in color1 and color2.
+                assert(ismember('CueColor', fieldnames(results)) && all(ismember(results.CueColor,[1,2])),...
                     'Input trial table must have column CueSide populated with 1s and 2s');
                 usingGoalDirectedCues = false;
                 usingColorCues = true;
@@ -536,6 +549,13 @@ function [results] = ethologV2(varargin)
                     stim1Rect = CenterRectOnPoint(images.rect(trial.StimA1Key), stim1XYScr(1), stim1XYScr(2));
                     stim2Rect = CenterRectOnPoint(images.rect(trial.StimA2Key), stim2XYScr(1), stim2XYScr(2));    
     
+                    % In the special case that we are running color cued
+                    % trials, then the fixation point has a cue color,
+                    % which we assign to 'fixpt' here. 
+                    if usingColorCues
+                        fixpt.Color = p.Results.CueColors(trial.CueColor, :);
+                    end
+
                     % Somehow, get the textures themselves.
                     % texturesA/texturesB are 2-element arrays, the
                     % positions correspond to the stim1 and stim2.
@@ -706,12 +726,12 @@ function [results] = ethologV2(varargin)
                             Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]');
                         case 'RotatedImage'
                             Screen('DrawTextures', windowIndex, texturesA, [], [stim1Rect;stim2Rect]', rotationAnglesA);
-                    end             
-                    if p.Results.UseColorCues
-                        Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                    end
+                    if usingColorCues
+                        colors = vertcat(p.Results.CueColors(trial.Color1,:), p.Results.CueColors(trial.Color2,:));
+                        Screen('FrameOval', windowIndex, colors', [stim1Rect;stim2Rect]', p.Results.CueWidth);
                     end
                     fixpt.draw(windowIndex);
-                    %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');
     
                     % draw boxes for images on tracker
                     tracker.draw_box(stim1Rect(1), stim1Rect(2), stim1Rect(3), stim1Rect(4), 15);
@@ -773,8 +793,17 @@ function [results] = ethologV2(varargin)
                     else
                         Screen('DrawTextures', windowIndex, texturesB, [], [stim1Rect;stim2Rect]');
                     end                    
-                    if p.Results.UseColorCues
-                        Screen('FrameRect', windowIndex, p.Results.CueColors, [stim1Rect;stim2Rect]', p.Results.CueWidth);
+                    if usingColorCues
+                        % make sure we get the color and rect for the
+                        % tested side - we're only drawing a single oval!
+                        if trial.StimTestType == 1
+                            rect = stim1Rect;
+                        elseif trial.StimTestType == 2
+                            rect = stim2Rect;
+                        else
+                            error('Expecting StimTestType to be set to 1 or 2 for color cued files.');
+                        end
+                        Screen('FrameOval', windowIndex, p.Results.CueColors(trial.TestColor, :), rect', p.Results.CueWidth);
                     end
                     fixpt.draw(windowIndex);
                     %Screen('DrawLines', windowIndex, fixLines, 4, fixColor');

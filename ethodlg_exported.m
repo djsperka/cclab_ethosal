@@ -106,7 +106,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
             else
                 app.GoalDirectedCheck.Value = false;
                 app.GoalDirectedCheck.Enable = true;
-                app.GoalDirectedDropDown.Enable = true;
+                app.GoalDirectedDropDown.Enable = false;
             end
             if app.isImagesetSelected
                 app.ImagesetNameLabel.Text = sprintf('%s [%s]', app.imagesetName, app.imagesetParamsFunc);
@@ -188,6 +188,7 @@ classdef ethodlg_exported < matlab.apps.AppBase
             app.pathDataRoot = ethDataRoot;
             app.pathImgRoot = ethImgRoot;
             app.isFileSelected = false;
+            app.isTrialsSelected = false;
             app.isBlocksetSelected = false;
             app.isImagesetSelected = false;
             app.imagesetName = '';
@@ -306,7 +307,9 @@ classdef ethodlg_exported < matlab.apps.AppBase
         % Button pushed function: RunButton
         function RunButtonPushed(app, event)
 
-
+            % move focus so enter key doesn't start expt over and over
+            focus(app.UIFigure);
+            
             % Now try to run the thing
             try
                 imagesetPath = fullfile(app.pathImgRoot,app.imagesetName);
@@ -491,6 +494,16 @@ classdef ethodlg_exported < matlab.apps.AppBase
             end
 
         end
+
+        % Value changed function: GoalDirectedCheck
+        function GoalDirectedCheckValueChanged(app, event)
+            value = app.GoalDirectedCheck.Value;
+            if value
+                app.GoalDirectedDropDown.Enable = "on";
+            else
+                app.GoalDirectedDropDown.Enable = "off";
+            end
+        end
     end
 
     % Component initialization
@@ -568,14 +581,15 @@ classdef ethodlg_exported < matlab.apps.AppBase
 
             % Create GoalDirectedCheck
             app.GoalDirectedCheck = uicheckbox(app.GridLayout);
+            app.GoalDirectedCheck.ValueChangedFcn = createCallbackFcn(app, @GoalDirectedCheckValueChanged, true);
             app.GoalDirectedCheck.Text = 'Goal-directed cues';
             app.GoalDirectedCheck.Layout.Row = 8;
             app.GoalDirectedCheck.Layout.Column = 2;
 
             % Create GoalDirectedDropDown
             app.GoalDirectedDropDown = uidropdown(app.GridLayout);
-            app.GoalDirectedDropDown.Items = {'None', 'Use existing', 'Stim1 (Left)', 'Stim2 (Right)'};
-            app.GoalDirectedDropDown.ItemsData = {'none', 'existing', 'stim1', 'stim2'};
+            app.GoalDirectedDropDown.Items = {'None', 'Left/Right', 'Color'};
+            app.GoalDirectedDropDown.ItemsData = {'none', 'lr', 'color'};
             app.GoalDirectedDropDown.Layout.Row = 8;
             app.GoalDirectedDropDown.Layout.Column = 3;
             app.GoalDirectedDropDown.Value = 'none';

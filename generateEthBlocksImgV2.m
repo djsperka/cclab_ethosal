@@ -224,7 +224,7 @@ function [allTrialSets, inputArgs, parsedResults, myname]  = generateEthBlocksIm
                     tab1 = randomizeParams('VariableNames', columnNames, 'Replacements', replacements);
                     nTrials = height(tab1);
 
-                    % When using color cues fix some stuff up
+                    % color cues fix some stuff up
                     if p.Results.UseColorCues
 
                         % expand 'ColorLayout' into 'Color1' and 'Color2'
