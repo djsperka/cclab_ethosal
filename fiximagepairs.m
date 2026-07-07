@@ -19,7 +19,7 @@ for i=1:N
     F = Y.blocks{i}.File1Key;
     FN = cellfun(@(x) str2num(x), F);
     V=vertcat(V,[IPI,FN]);
-    size(V)
+    size(V);
 end
 
 
