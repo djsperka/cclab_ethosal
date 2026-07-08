@@ -10,11 +10,12 @@ function [outfile] = makeBlockset(varargin)
         if nargin > 2
             whichType = varargin{3};
         end
-    elseif nargin == 0
+    elseif nargin == 1
+        root = varargin{1};
         %% must have L and R - loaded from etholog input file
-        lfn = getfn(ethDataRoot, 'Prompt', 'Select LEFT data file');
+        lfn = getfn(root, 'Prompt', 'Select LEFT data file');
         [lpath,lbase,~] = fileparts(lfn);
-        rfn = getfn(ethDataRoot, 'Prompt', 'Select RIGHT data file');
+        rfn = getfn(root, 'Prompt', 'Select RIGHT data file');
         [~,rbase,~] = fileparts(rfn);
         whichType = input("Enter L for left-right files, C for color-cued: ", "s");
     else
