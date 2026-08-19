@@ -60,7 +60,7 @@ function results = run_ethologV2(varargin)
             if ~isempty(p.Results.ScreenDistance)
                 screenDistance = p.Results.ScreenDistance;
             end
-            screenNumber = 1;
+            screenNumber = 2;
             screenRect=[];
             % This is the keyboard in use at the booth
             %kbind = getKeyboardIndex('Dell KB216 Wired Keyboard');
@@ -76,7 +76,7 @@ function results = run_ethologV2(varargin)
             eyelinkDummyMode=1;   % 0 for participant, 1 for dummy mode
             screenDimensions=[];
             screenDistance=[];
-            screenNumber = 1;
+            screenNumber = 2;
             screenRect=[];
             kbind = 0;  % windows
             % % This may need to be changed if workign inside booth
